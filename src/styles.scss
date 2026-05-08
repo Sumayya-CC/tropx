@@ -1,0 +1,149 @@
+:root {
+  /* Base Colors */
+  --navy: #16588e;
+  --navy-deep: #0a2d4a;
+  --navy-mid: #1a6aad;
+  --red: #e7222e;
+  --red-dark: #b51a25;
+  --gold: #c9952a;
+  --gold-light: #f0c040;
+  --cream: #faf9f6;
+  --white: #ffffff;
+  --charcoal: #1c1c1c;
+  --gray: #8a94a6;
+  --green: #1a7c4a;
+
+  /* Derived Variables */
+  --color-primary: var(--navy);
+  --color-primary-dark: var(--navy-deep);
+  --color-primary-mid: var(--navy-mid);
+  --color-danger: var(--red);
+  --color-danger-dark: var(--red-dark);
+  --color-success: var(--green);
+  --color-warning: var(--gold);
+  --color-background: var(--cream);
+  --color-surface: var(--white);
+  --color-text: var(--charcoal);
+  --color-text-muted: var(--gray);
+  --color-border: #dde3ee;
+  --color-shadow: rgba(22, 88, 142, 0.1);
+}
+
+/* Global Reset & Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Typography Scale */
+h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+h2 { font-size: 2rem; margin-bottom: 0.875rem; }
+h3 { font-size: 1.75rem; margin-bottom: 0.75rem; }
+h4 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+h5 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+p { margin-top: 0; margin-bottom: 1rem; }
+
+/* Focus States */
+button, input {
+  outline: none;
+}
+
+button:focus-visible, 
+input:focus-visible {
+  outline: 2px solid rgba(22, 88, 142, 0.3);
+  outline-offset: 2px;
+}
+
+/* Reusable Classes */
+.card {
+  background-color: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--color-shadow);
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--navy-deep), var(--navy-mid));
+  color: var(--white);
+  border: none;
+
+  &:hover {
+    filter: brightness(0.9);
+  }
+}
+
+.btn-danger {
+  background-color: var(--red);
+  color: var(--white);
+
+  &:hover {
+    background-color: var(--red-dark);
+  }
+}
+
+.btn-ghost {
+  background-color: transparent;
+  border-color: var(--navy);
+  color: var(--navy);
+
+  &:hover {
+    background-color: rgba(22, 88, 142, 0.05);
+  }
+}
+
+.badge {
+  display: inline-flex;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.badge-success {
+  background-color: rgba(26, 124, 74, 0.1);
+  color: var(--green);
+}
+
+.badge-warning {
+  background-color: rgba(201, 149, 42, 0.1);
+  color: var(--gold);
+}
+
+.badge-danger {
+  background-color: rgba(231, 34, 46, 0.1);
+  color: var(--red);
+}
+
+.badge-gray {
+  background-color: rgba(138, 148, 166, 0.1);
+  color: var(--gray);
+}
