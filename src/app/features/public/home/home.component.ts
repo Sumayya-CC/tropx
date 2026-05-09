@@ -1,4 +1,4 @@
-import { Component, inject, signal, HostListener, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
@@ -6,49 +6,15 @@ import { serverTimestamp } from '@angular/fire/firestore';
 import { ContentService } from '../../../core/services/content.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
+import { PublicNavbarComponent } from '../../../shared/components/public-navbar/public-navbar.component';
+import { PublicFooterComponent } from '../../../shared/components/public-footer/public-footer.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent],
+  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent, PublicNavbarComponent, PublicFooterComponent],
   template: `
-    <!-- Navbar -->
-    <nav class="navbar" [class.scrolled]="isScrolled()">
-      <div class="nav-container">
-        <div class="nav-left">
-          <a (click)="scrollToTop()" class="brand">Tropx</a>
-        </div>
-
-        <div class="nav-center desktop-only">
-          <a (click)="scrollToSection('why-us')">Why Us</a>
-          <a (click)="scrollToSection('how-it-works')">How It Works</a>
-          <a (click)="scrollToSection('about')">About</a>
-          <a (click)="scrollToSection('contact')">Contact</a>
-        </div>
-
-        <div class="nav-right desktop-only">
-          <a routerLink="/login" class="btn btn-ghost-white">Sign In</a>
-          <a routerLink="/request-access" class="btn btn-crimson">Request Access</a>
-        </div>
-
-        <div class="nav-mobile-toggle mobile-only" (click)="isMenuOpen.set(!isMenuOpen())">
-          <div class="hamburger" [class.open]="isMenuOpen()"></div>
-        </div>
-      </div>
-
-      <!-- Mobile Menu -->
-      @if (isMenuOpen()) {
-        <div class="mobile-menu">
-          <a (click)="scrollToSection('why-us'); isMenuOpen.set(false)">Why Us</a>
-          <a (click)="scrollToSection('how-it-works'); isMenuOpen.set(false)">How It Works</a>
-          <a (click)="scrollToSection('about'); isMenuOpen.set(false)">About</a>
-          <a (click)="scrollToSection('contact'); isMenuOpen.set(false)">Contact</a>
-          <hr />
-          <a routerLink="/login" class="btn btn-ghost-white">Sign In</a>
-          <a routerLink="/request-access" class="btn btn-crimson">Request Access</a>
-        </div>
-      }
-    </nav>
+    <app-public-navbar />
 
     <main>
       <!-- Section 1: Hero -->
@@ -288,46 +254,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
       </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer section-padding-sm dark-bg">
-      <div class="container">
-        <div class="footer-grid">
-          <div class="footer-brand">
-            <h3>Tropx Wholesale</h3>
-            <p class="gold-text">{{ content().footerTagline }}</p>
-          </div>
-
-          <div class="footer-links">
-            <h4>Quick Links</h4>
-            <ul>
-              <li><a (click)="scrollToSection('why-us')">Why Us</a></li>
-              <li><a (click)="scrollToSection('how-it-works')">How It Works</a></li>
-              <li><a (click)="scrollToSection('about')">About</a></li>
-              <li><a (click)="scrollToSection('contact')">Contact</a></li>
-              <li><a routerLink="/request-access">Request Access</a></li>
-              <li><a routerLink="/login">Sign In</a></li>
-            </ul>
-          </div>
-
-          @if (content().publicContactInfo.email || content().publicContactInfo.phone) {
-            <div class="footer-contact">
-              <h4>Contact</h4>
-              @if (content().publicContactInfo.email) {
-                <p>{{ content().publicContactInfo.email }}</p>
-              }
-              @if (content().publicContactInfo.phone) {
-                <p>{{ content().publicContactInfo.phone }}</p>
-              }
-            </div>
-          }
-        </div>
-
-        <div class="footer-bottom">
-          <p>{{ content().footerText }}</p>
-          <p>tropxwholesale.ca</p>
-        </div>
-      </div>
-    </footer>
+    <app-public-footer />
   `,
   styleUrl: './home.component.scss',
 })
@@ -337,8 +264,6 @@ export class HomeComponent implements OnInit {
   private title = inject(Title);
   protected content = inject(ContentService).content;
 
-  isScrolled = signal(false);
-  isMenuOpen = signal(false);
   isSubmitting = signal(false);
   isSubmitted = signal(false);
 
@@ -363,15 +288,6 @@ export class HomeComponent implements OnInit {
 
   ngOnInit() {
     this.title.setTitle('Tropx Wholesale — B2B Wholesale Distribution');
-  }
-
-  @HostListener('window:scroll', [])
-  onWindowScroll() {
-    this.isScrolled.set(window.scrollY > 30);
-  }
-
-  scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   scrollToSection(id: string) {
