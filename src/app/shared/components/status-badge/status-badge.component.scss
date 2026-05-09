@@ -1,0 +1,51 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  &.status-success {
+    background-color: rgba(var(--color-green-rgb), 0.1);
+    color: var(--color-green);
+  }
+
+  &.status-warning {
+    background-color: rgba(var(--color-gold-rgb), 0.1);
+    color: var(--color-gold);
+  }
+
+  &.status-danger {
+    background-color: rgba(var(--color-red-rgb), 0.1);
+    color: var(--color-red);
+  }
+
+  &.status-gray {
+    background-color: var(--color-gray-light);
+    color: var(--color-gray);
+  }
+
+  &.status-info {
+    background-color: rgba(var(--color-navy-rgb), 0.1);
+    color: var(--color-navy);
+  }
+}
+
+/* Fallback values for CSS variables just in case */
+:root {
+  --color-green: #10b981;
+  --color-green-rgb: 16, 185, 129;
+  --color-gold: #f59e0b;
+  --color-gold-rgb: 245, 158, 11;
+  --color-red: #ef4444;
+  --color-red-rgb: 239, 68, 68;
+  --color-gray: #6b7280;
+  --color-gray-light: #f3f4f6;
+  --color-navy: #1e3a8a;
+  --color-navy-rgb: 30, 58, 138;
+  --color-navy-deep: #0f172a;
+}

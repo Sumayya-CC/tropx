@@ -1,0 +1,96 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1>Service Areas</h1>
+      <p>Manage geographic service areas for organizing customers</p>
+    </div>
+    <button class="btn-add" (click)="openAddModal()">Add Area</button>
+  </div>
+
+  <div class="table-card">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    } @else if (serviceAreas().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon"></div>
+        <h3>No service areas yet</h3>
+        <p>Add your first service area to organize your customers.</p>
+        <button class="btn-add" (click)="openAddModal()">Add Area</button>
+      </div>
+    } @else {
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Customers</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (area of serviceAreas(); track area.id) {
+            <tr>
+              <td class="fw-bold">{{ area.name }}</td>
+              <td>
+                <span class="count-badge">{{ getCustomerCount(area.id) }}</span>
+              </td>
+              <td>
+                <app-status-badge 
+                  [status]="area.active ? 'Active' : 'Inactive'" 
+                  [type]="area.active ? 'success' : 'gray'">
+                </app-status-badge>
+              </td>
+              <td class="actions-cell">
+                @if (deletingId() === area.id) {
+                  <div class="inline-confirm">
+                    <span>Are you sure?</span>
+                    <button class="btn-confirm" (click)="deleteServiceArea(area.id)">Yes, delete</button>
+                    <button class="btn-cancel" (click)="cancelDelete()">Cancel</button>
+                  </div>
+                } @else {
+                  <button class="icon-btn edit-btn" title="Edit" (click)="openEditModal(area)">✏️</button>
+                  <button class="icon-btn delete-btn" title="Delete" (click)="confirmDelete(area.id)">🗑️</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+
+  @if (showModal()) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ isEditing() ? 'Edit' : 'Add' }} Service Area</h2>
+          <button class="btn-close" (click)="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" [ngModel]="formName()" (ngModelChange)="formName.set($event)" placeholder="e.g. North Region" />
+          </div>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <textarea rows="2" [ngModel]="formNotes()" (ngModelChange)="formNotes.set($event)" placeholder="Internal notes about this area"></textarea>
+          </div>
+          <div class="form-group-checkbox">
+            <input type="checkbox" id="areaActive" [ngModel]="formActive()" (ngModelChange)="formActive.set($event)" />
+            <label for="areaActive">Active</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button class="btn-save" (click)="saveServiceArea()" [disabled]="isSaving()">
+            {{ isSaving() ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
