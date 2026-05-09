@@ -2,11 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom, filter, take, timeout } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
-import { FirestoreService } from '../../../core/services/firestore.service';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
-import { AppUser } from '../../../core/models/user.model';
 import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
@@ -372,7 +369,6 @@ import { ToastService } from '../../../shared/services/toast.service';
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
-  private readonly firestore = inject(FirestoreService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -401,18 +397,25 @@ export class LoginComponent {
     const { email, password } = this.loginForm.value;
 
     try {
-      const userCredential = await this.auth.login(email, password);
-      const uid = userCredential.user.uid;
+      await this.auth.login(email, password);
 
-      // Read profile from Firestore to check role and status
-      // We use filter/take/timeout to ensure we wait for a valid profile emission
-      const profile = await firstValueFrom(
-        this.firestore.getDocument<AppUser>(`users/${uid}`).pipe(
-          filter(p => p !== null && p.role !== undefined && p.role !== null),
-          take(1),
-          timeout(5000)
-        )
-      ).catch(() => null);
+      // Wait for AuthService to load the Firestore profile via polling.
+      // We check the signal every 100ms for up to 8 seconds.
+      // This avoids calling toObservable() outside an injection context.
+      const profile = await new Promise<any>((resolve) => {
+        const startTime = Date.now();
+        const timeoutMs = 8000;
+        const interval = setInterval(() => {
+          const p = this.auth.currentProfile();
+          if (p && p.role) {
+            clearInterval(interval);
+            resolve(p);
+          } else if (Date.now() - startTime > timeoutMs) {
+            clearInterval(interval);
+            resolve(null);
+          }
+        }, 100);
+      });
 
       if (!profile) {
         await this.auth.logout();
@@ -426,7 +429,6 @@ export class LoginComponent {
         return;
       }
 
-      // Role-based navigation
       if (['admin', 'manager', 'sales_rep', 'warehouse'].includes(profile.role)) {
         this.toast.success(`Welcome back, ${profile.firstName} ${profile.lastName}!`);
         await this.router.navigate(['/admin/dashboard']);
