@@ -28,16 +28,6 @@ export const routes: Routes = [
         m => m.RequestAccessComponent
       ),
   },
-  {
-    path: 'about',
-    loadComponent: () =>
-      import('./features/public/about/about.component').then(m => m.AboutComponent),
-  },
-  {
-    path: 'contact',
-    loadComponent: () =>
-      import('./features/public/contact/contact.component').then(m => m.ContactComponent),
-  },
 
   // ── Customer (auth required, role: customer) ─────────────────────────
   {
