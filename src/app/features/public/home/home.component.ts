@@ -106,7 +106,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
               </div>
               <div class="step-content">
                 <h3>Request Access</h3>
-                <p>Fill out our short form with your store details.</p>
+                <p>Fill out our short form with your business details.</p>
               </div>
             </div>
 
@@ -294,7 +294,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
         <div class="footer-grid">
           <div class="footer-brand">
             <h3>Tropx Wholesale</h3>
-            <p class="gold-text">B2B Wholesale Distribution</p>
+            <p class="gold-text">{{ content().footerTagline }}</p>
           </div>
 
           <div class="footer-links">
@@ -309,11 +309,17 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
             </ul>
           </div>
 
-          <div class="footer-contact">
-            <h4>Contact</h4>
-            <p>{{ content().publicContactInfo.email }}</p>
-            <p>{{ content().publicContactInfo.phone }}</p>
-          </div>
+          @if (content().publicContactInfo.email || content().publicContactInfo.phone) {
+            <div class="footer-contact">
+              <h4>Contact</h4>
+              @if (content().publicContactInfo.email) {
+                <p>{{ content().publicContactInfo.email }}</p>
+              }
+              @if (content().publicContactInfo.phone) {
+                <p>{{ content().publicContactInfo.phone }}</p>
+              }
+            </div>
+          }
         </div>
 
         <div class="footer-bottom">

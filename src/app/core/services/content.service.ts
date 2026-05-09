@@ -15,6 +15,7 @@ export interface ContentData {
     hours: string;
   };
   footerText: string;
+  footerTagline: string;
   whyPartnerPoints: {
     heading: string;
     body: string;
@@ -33,6 +34,7 @@ const DEFAULT_CONTENT: ContentData = {
     hours: 'Monday–Friday, 9am–5pm EST'
   },
   footerText: '© 2026 Tropx Enterprises Inc. All rights reserved.',
+  footerTagline: 'Your Wholesale Partner',
   whyPartnerPoints: [
     {
       heading: 'Wide Product Range',
@@ -62,7 +64,7 @@ export class ContentService {
 
   content = toSignal(
     this.firestore.getDocument<ContentData>('settings/content').pipe(
-      map(data => data ?? DEFAULT_CONTENT)
+      map(data => ({ ...DEFAULT_CONTENT, ...data }))
     ),
     { initialValue: DEFAULT_CONTENT }
   );

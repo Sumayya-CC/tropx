@@ -699,3 +699,9 @@
 }
 
 .ml-2 { margin-left: 0.5rem; }
+
+@media (max-width: 599px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
