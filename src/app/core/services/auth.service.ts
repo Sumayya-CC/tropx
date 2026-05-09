@@ -57,24 +57,27 @@ export class AuthService {
     // When user logs out: clears the profile signal immediately.
     effect(() => {
       const user = this._currentUser();
-      
-      // Clean up previous subscription before creating new one
+
+      // Always clean up previous subscription
       profileSub?.unsubscribe();
       profileSub = null;
 
-      if (user) {
-        // Wait for the ID token to be ready before reading Firestore.
-        // The token must be attached to requests or security rules
-        // will reject the read even for authenticated users.
-        getIdToken(user).then(() => {
-          profileSub = this._firestore
-            .getDocument<AppUser>(`users/${user.uid}`)
-            .subscribe(profile => this._currentProfile.set(profile));
-        });
+      // Clear profile immediately on ANY user change —
+      // whether logging out OR switching users.
+      // This prevents stale data from showing while
+      // the new profile loads from Firestore.
+      this._currentProfile.set(null);
 
-      } else {
-        this._currentProfile.set(null);
-      }
+      if (!user) return;
+
+      getIdToken(user).then(() => {
+        profileSub = this._firestore
+          .getDocument<AppUser>(`users/${user.uid}`)
+          .subscribe({
+            next: profile => this._currentProfile.set(profile),
+            error: () => this._currentProfile.set(null)
+          });
+      });
     });
   }
 
@@ -91,7 +94,8 @@ export class AuthService {
     return signInWithEmailAndPassword(this._auth, email, password);
   }
 
-  logout() {
+  async logout() {
+    this._currentProfile.set(null);
     return signOut(this._auth);
   }
 
@@ -106,7 +110,7 @@ export class AuthService {
     return {
       uid: profile.uid,
       firstName: profile.firstName,
-      lastName: profile.lastName,
-    };
+      ...(profile.lastName && { lastName: profile.lastName }),
+    } as ActionBy;
   }
 }

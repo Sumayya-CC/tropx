@@ -1,15 +1,26 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { map, take } from 'rxjs/operators';
-import { AuthService } from '../services/auth.service';
+import { Auth } from '@angular/fire/auth';
+import { Observable } from 'rxjs';
 
 export const authGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
+  const auth = inject(Auth);
   const router = inject(Router);
 
-  return auth.user$.pipe(
-    // take(1) ensures guard completes so router navigation can proceed
-    take(1),
-    map(user => user ? true : router.createUrlTree(['/login']))
-  );
+  // Use a Promise that waits for Firebase Auth to 
+  // finish initializing before making any decision.
+  // auth.authStateReady() resolves when Firebase has
+  // completed restoring the session from local cache.
+  return new Observable(observer => {
+    auth.authStateReady().then(() => {
+      console.log('Auth ready, currentUser:', auth.currentUser?.email);
+      if (auth.currentUser) {
+        observer.next(true);
+      } else {
+        console.log('No user found, redirecting to login');
+        observer.next(router.createUrlTree(['/login']));
+      }
+      observer.complete();
+    });
+  });
 };

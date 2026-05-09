@@ -430,10 +430,10 @@ export class LoginComponent {
       }
 
       if (['admin', 'manager', 'sales_rep', 'warehouse'].includes(profile.role)) {
-        this.toast.success(`Welcome back, ${profile.firstName} ${profile.lastName}!`);
+        this.toast.success(`Welcome back, ${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}!`);
         await this.router.navigate(['/admin/dashboard']);
       } else if (profile.role === 'customer') {
-        this.toast.success(`Welcome back, ${profile.firstName} ${profile.lastName}!`);
+        this.toast.success(`Welcome back, ${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}!`);
         await this.router.navigate(['/customer/dashboard']);
       } else {
         await this.auth.logout();

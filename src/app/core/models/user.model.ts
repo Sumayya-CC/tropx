@@ -29,5 +29,7 @@ export interface AppUser {
  * throughout the app without storing redundant data in Firestore.
  */
 export function getFullName(user: AppUser): string {
-  return `${user.firstName} ${user.lastName}`.trim();
+  return user.lastName 
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : user.firstName;
 }
