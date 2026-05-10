@@ -96,6 +96,30 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'products/add',
+        data: { title: 'Add Product' },
+        loadComponent: () =>
+          import('./features/admin/products/product-form/product-form.component').then(
+            m => m.ProductFormComponent
+          ),
+      },
+      {
+        path: 'products/:id/edit',
+        data: { title: 'Edit Product' },
+        loadComponent: () =>
+          import('./features/admin/products/product-form/product-form.component').then(
+            m => m.ProductFormComponent
+          ),
+      },
+      {
+        path: 'products/:id',
+        data: { title: 'Product Details' },
+        loadComponent: () =>
+          import('./features/admin/products/product-detail/product-detail.component').then(
+            m => m.ProductDetailComponent
+          ),
+      },
+      {
         path: 'categories',
         data: { title: 'Categories' },
         loadComponent: () =>

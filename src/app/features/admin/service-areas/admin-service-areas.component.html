@@ -39,10 +39,11 @@
                 <span class="count-badge">{{ getCustomerCount(area.id) }}</span>
               </td>
               <td>
-                <app-status-badge 
-                  [status]="area.active ? 'Active' : 'Inactive'" 
-                  [type]="area.active ? 'success' : 'gray'">
-                </app-status-badge>
+                @if (area.active) {
+                  <app-status-badge status="active"></app-status-badge>
+                } @else {
+                  <app-status-badge status="inactive"></app-status-badge>
+                }
               </td>
               <td class="actions-cell">
                 @if (deletingId() === area.id) {

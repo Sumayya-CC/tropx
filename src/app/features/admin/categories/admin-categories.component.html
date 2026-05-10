@@ -41,10 +41,11 @@
                 <span class="count-badge">{{ getProductCount(cat.id) }}</span>
               </td>
               <td>
-                <app-status-badge 
-                  [status]="cat.active ? 'Active' : 'Inactive'" 
-                  [type]="cat.active ? 'success' : 'gray'">
-                </app-status-badge>
+                @if (cat.active) {
+                  <app-status-badge status="active"></app-status-badge>
+                } @else {
+                  <app-status-badge status="inactive"></app-status-badge>
+                }
               </td>
               <td class="actions-cell">
                 @if (deletingId() === cat.id) {

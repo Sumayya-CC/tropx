@@ -1,51 +1,44 @@
+:host {
+  display: inline-block;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-  border-radius: 9999px;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 
-  &.status-success {
-    background-color: rgba(var(--color-green-rgb), 0.1);
-    color: var(--color-green);
+  &.badge-success {
+    background: rgba(26, 124, 74, 0.1);
+    color: var(--green);
+    border: 1px solid rgba(26, 124, 74, 0.2);
   }
 
-  &.status-warning {
-    background-color: rgba(var(--color-gold-rgb), 0.1);
-    color: var(--color-gold);
+  &.badge-warning {
+    background: rgba(201, 149, 42, 0.1);
+    color: var(--gold);
+    border: 1px solid rgba(201, 149, 42, 0.2);
   }
 
-  &.status-danger {
-    background-color: rgba(var(--color-red-rgb), 0.1);
-    color: var(--color-red);
+  &.badge-danger {
+    background: rgba(231, 34, 46, 0.1);
+    color: var(--red);
+    border: 1px solid rgba(231, 34, 46, 0.2);
   }
 
-  &.status-gray {
-    background-color: var(--color-gray-light);
-    color: var(--color-gray);
+  &.badge-gray {
+    background: rgba(138, 148, 166, 0.1);
+    color: var(--gray);
+    border: 1px solid rgba(138, 148, 166, 0.2);
   }
 
-  &.status-info {
-    background-color: rgba(var(--color-navy-rgb), 0.1);
-    color: var(--color-navy);
+  &.badge-info {
+    background: rgba(22, 88, 142, 0.1);
+    color: var(--navy);
+    border: 1px solid rgba(22, 88, 142, 0.2);
   }
-}
-
-/* Fallback values for CSS variables just in case */
-:root {
-  --color-green: #10b981;
-  --color-green-rgb: 16, 185, 129;
-  --color-gold: #f59e0b;
-  --color-gold-rgb: 245, 158, 11;
-  --color-red: #ef4444;
-  --color-red-rgb: 239, 68, 68;
-  --color-gray: #6b7280;
-  --color-gray-light: #f3f4f6;
-  --color-navy: #1e3a8a;
-  --color-navy-rgb: 30, 58, 138;
-  --color-navy-deep: #0f172a;
 }
