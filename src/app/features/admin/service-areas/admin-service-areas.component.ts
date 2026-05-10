@@ -59,7 +59,7 @@ export class AdminServiceAreasComponent {
 
   private loadData() {
     this.firestore.getCollection<ServiceArea>(
-      'service_areas',
+      'serviceAreas',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false),
       orderBy('name', 'asc')
@@ -134,7 +134,7 @@ export class AdminServiceAreasComponent {
       };
 
       if (this.isEditing() && this.editingId()) {
-        await this.firestore.updateDocument(`service_areas/${this.editingId()}`, data);
+        await this.firestore.updateDocument(`serviceAreas/${this.editingId()}`, data);
         this.toast.success('Service area updated successfully');
       } else {
         const newData = {
@@ -144,7 +144,7 @@ export class AdminServiceAreasComponent {
           createdAt: serverTimestamp(),
           createdBy: this.auth.getActionBy()
         };
-        await this.firestore.addDocument('service_areas', newData);
+        await this.firestore.addDocument('serviceAreas', newData);
         this.toast.success('Service area created successfully');
       }
       this.closeModal();
@@ -173,7 +173,7 @@ export class AdminServiceAreasComponent {
     }
 
     try {
-      await this.firestore.softDelete(`service_areas/${id}`, this.auth.getActionBy()?.uid || 'unknown');
+      await this.firestore.softDelete(`serviceAreas/${id}`, this.auth.getActionBy()?.uid || 'unknown');
       this.toast.success('Service area deleted successfully');
     } catch (err) {
       console.error('Error deleting service area:', err);

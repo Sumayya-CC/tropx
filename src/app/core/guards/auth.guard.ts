@@ -13,11 +13,9 @@ export const authGuard: CanActivateFn = () => {
   // completed restoring the session from local cache.
   return new Observable(observer => {
     auth.authStateReady().then(() => {
-      console.log('Auth ready, currentUser:', auth.currentUser?.email);
       if (auth.currentUser) {
         observer.next(true);
       } else {
-        console.log('No user found, redirecting to login');
         observer.next(router.createUrlTree(['/login']));
       }
       observer.complete();

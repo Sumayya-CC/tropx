@@ -22,6 +22,10 @@ export interface Customer {
   ownerName: string;
   email: string;
   phone: string;
+  logoUrl?: string;
+  businessType?: string;
+  businessTypeCustom?: string;
+  notes?: string;
   address: Address;
   // Manual coordinates avoid expensive auto-geocoding for future route planning
   coordinates?: Coordinates;

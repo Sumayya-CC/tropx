@@ -160,6 +160,30 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'customers/add',
+        data: { title: 'Add Customer' },
+        loadComponent: () =>
+          import('./features/admin/customers/customer-form/customer-form.component').then(
+            m => m.CustomerFormComponent
+          ),
+      },
+      {
+        path: 'customers/:id/edit',
+        data: { title: 'Edit Customer' },
+        loadComponent: () =>
+          import('./features/admin/customers/customer-form/customer-form.component').then(
+            m => m.CustomerFormComponent
+          ),
+      },
+      {
+        path: 'customers/:id',
+        data: { title: 'Customer Details' },
+        loadComponent: () =>
+          import('./features/admin/customers/customer-detail/customer-detail.component').then(
+            m => m.CustomerDetailComponent
+          ),
+      },
+      {
         path: 'access-requests',
         data: { title: 'Access Requests' },
         loadComponent: () =>

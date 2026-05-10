@@ -1,0 +1,221 @@
+@if (isLoading()) {
+  <div class="loading-state">
+    <app-loading-spinner></app-loading-spinner>
+    <p>Loading customer details...</p>
+  </div>
+}
+
+@if (customer(); as cust) {
+  <div class="page-header">
+    <div class="left-section">
+      <a routerLink="/admin/customers" class="back-link">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Customers
+      </a>
+      <div class="title-group">
+        <h1>{{ cust.businessName }}</h1>
+        <p class="subtitle">{{ cust.ownerName }} • {{ $any(cust).businessType || 'Wholesale Buyer' }}</p>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <app-status-badge [status]="cust.status"></app-status-badge>
+      
+      <button class="btn-outline" [routerLink]="['/admin/customers', cust.id, 'edit']">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        Edit
+      </button>
+
+      <button class="btn-ghost-red" (click)="deleteCustomer()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <div class="content-layout">
+    <div class="left-col">
+      <!-- Contact Card -->
+      <div class="detail-card">
+        @if (cust.logoUrl) {
+          <img [src]="cust.logoUrl" [alt]="cust.businessName" class="avatar-circle logo-img">
+        } @else {
+          <div class="avatar-circle">
+            {{ getInitials(cust.businessName) }}
+          </div>
+        }
+        
+        <div class="info-rows">
+          <div class="info-row">
+            <span class="icon">✉️</span>
+            <div class="info-content">
+              <span class="label">Email</span>
+              <span class="value">{{ cust.email }}</span>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="icon">📞</span>
+            <div class="info-content">
+              <span class="label">Phone</span>
+              <span class="value">{{ cust.phone }}</span>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="icon">📍</span>
+            <div class="info-content">
+              <span class="label">Address</span>
+              <span class="value">
+                {{ cust.address.street }}<br>
+                {{ cust.address.city }}, {{ cust.address.province }} {{ cust.address.postalCode }}
+              </span>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="icon">🗺️</span>
+            <div class="info-content">
+              <span class="label">Service Area</span>
+              <span class="value">{{ serviceAreaName() }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financial Card -->
+      <div class="detail-card">
+        <h3 class="card-title">Financial Summary</h3>
+        
+        <div class="stat-boxes">
+          <div class="stat-box">
+            <div class="stat-label">ORDERED</div>
+            <div class="stat-value text-navy">{{ formatCurrency(cust.totalOrderedCents) }}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">PAID</div>
+            <div class="stat-value text-green">{{ formatCurrency(cust.totalPaidCents) }}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">OWING</div>
+            <div class="stat-value" [class.text-red]="cust.totalOwingCents > 0" [class.text-green]="cust.totalOwingCents <= 0">
+              {{ formatCurrency(cust.totalOwingCents) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="financial-dates">
+          @if (cust.lastOrderAt) {
+            <div class="date-row">
+              <span class="label">Last Order:</span>
+              <span class="value">{{ cust.lastOrderAt | date:'mediumDate' }}</span>
+            </div>
+          }
+          @if (cust.lastPaymentAt) {
+            <div class="date-row">
+              <span class="label">Last Payment:</span>
+              <span class="value">{{ cust.lastPaymentAt | date:'mediumDate' }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <!-- Details Card -->
+      <div class="detail-card">
+        <h3 class="card-title">Account Details</h3>
+        
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="label">Business Type</span>
+            <span class="value">{{ cust.businessType === 'Other' && cust.businessTypeCustom ? cust.businessTypeCustom : cust.businessType || 'Not specified' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Source</span>
+            <span class="value">{{ getSourceLabel(cust.source) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Service Area</span>
+            <span class="value">{{ serviceAreaName() }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Status</span>
+            <span class="value"><app-status-badge [status]="cust.status"></app-status-badge></span>
+          </div>
+          
+          @if ($any(cust).notes) {
+            <div class="detail-item full-width mt-3">
+              <span class="label">Internal Notes</span>
+              <span class="value notes-text">{{ $any(cust).notes }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Orders Card -->
+      <div class="detail-card">
+        <h3 class="card-title">Recent Orders</h3>
+        
+        @if (recentOrders().length === 0) {
+          <div class="empty-orders">
+            <p>No orders yet</p>
+          </div>
+        } @else {
+          <div class="order-list">
+            @for (order of recentOrders(); track order.id) {
+              <div class="order-row">
+                <div class="order-info">
+                  <span class="order-num">{{ order.orderNumber || order.id.substring(0,8).toUpperCase() }}</span>
+                  <span class="order-date">{{ order.createdAt | date:'mediumDate' }}</span>
+                </div>
+                <div class="order-amount">
+                  {{ formatCurrency(order.totalCents) }}
+                </div>
+                <div class="order-badges">
+                  <app-status-badge [status]="order.status"></app-status-badge>
+                  @if (order.paymentStatus) {
+                    <app-status-badge [status]="order.paymentStatus"></app-status-badge>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          
+          <div class="card-footer-link">
+            <!-- future route, just placeholder for now -->
+            <a [routerLink]="['/admin/orders']" [queryParams]="{customer: cust.id}">View all orders &rarr;</a>
+          </div>
+        }
+      </div>
+
+      <!-- Record Card -->
+      <div class="detail-card">
+        <h3 class="card-title">Record</h3>
+        
+        <div class="details-grid record-grid">
+          <div class="detail-item">
+            <span class="label">Created</span>
+            <span class="value">{{ formatDate(cust.createdAt) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Created by</span>
+            <span class="value">
+              {{ cust.createdBy ? cust.createdBy.firstName + ' ' + cust.createdBy.lastName : '—' }}
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Last updated</span>
+            <span class="value">{{ formatDate($any(cust).updatedAt || cust.createdAt) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Customer ID</span>
+            <div class="value id-value">
+              {{ cust.id.substring(0, 14) }}...
+              <button class="icon-btn" (click)="copyId()" title="Copy full ID">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
