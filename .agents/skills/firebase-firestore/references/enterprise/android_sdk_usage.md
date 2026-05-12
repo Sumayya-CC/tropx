@@ -137,6 +137,6 @@ userRef
 ```kotlin
 db.collection("users").document("your-document-id")
     .delete()
-    .addOnSuccessListener { Log.d(TAG, "DocumentSnapshot successfully isDeleted!") }
+    .addOnSuccessListener { Log.d(TAG, "DocumentSnapshot successfully deleted!") }
     .addOnFailureListener { e -> Log.w(TAG, "Error deleting document", e) }
 ```

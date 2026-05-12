@@ -67,7 +67,7 @@ Use these root fields in `query` or `mutation` operations:
 *   `_executeReturning`: Executes DML with a `RETURNING` clause. Returns `[Any]`. Data-Modifying CTEs are **not** supported.
     ```graphql
     mutation DeleteUserReviews($uid: String!) @auth(level: USER) {
-      DletedReviews: _executeReturning(
+      deletedReviews: _executeReturning(
         sql: "DELETE FROM review WHERE user_id = $1 RETURNING id, rating",
         params: [{_expr: "auth.uid"}]
       )

@@ -166,8 +166,8 @@ type Post @table {
 | `constraintName` | PostgreSQL constraint name |
 
 **Cascade behavior:**
-- Required reference (`User!`): CASCADE DELETE (post isDeleted when user isDeleted)
-- Optional reference (`User`): SET NULL (authorId set to null when user isDeleted)
+- Required reference (`User!`): CASCADE DELETE (post deleted when user deleted)
+- Optional reference (`User`): SET NULL (authorId set to null when user deleted)
 
 ### One-to-One
 

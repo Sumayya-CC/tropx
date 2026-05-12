@@ -2,7 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
+import { FirestoreService } from '../../../core/services/firestore.service';
+import { serverTimestamp } from '@angular/fire/firestore';
 import { PublicNavbarComponent } from '../../../shared/components/public-navbar/public-navbar.component';
 import { PublicFooterComponent } from '../../../shared/components/public-footer/public-footer.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
@@ -99,7 +100,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 })
 export class ForgotPasswordComponent {
   private fb = inject(FormBuilder);
-  private auth = inject(AuthService);
+  private firestore = inject(FirestoreService);
   private title = inject(Title);
 
   isSubmitting = signal(false);
@@ -133,26 +134,20 @@ export class ForgotPasswordComponent {
     this.errorMessage.set(null);
 
     try {
-      await this.auth.resetPassword(email);
+      await this.firestore.addDocument('passwordResetRequests', {
+        email,
+        processed: false,
+        createdAt: serverTimestamp(),
+        tenantId: 1
+      });
       this.submittedEmail.set(email);
       this.isSubmitted.set(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error: any) {
-      console.error('Password reset error:', error);
-      
-      // auth/user-not-found is handled by still showing success state for security
-      if (error.code === 'auth/user-not-found') {
-        this.submittedEmail.set(email);
-        this.isSubmitted.set(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
-
-      if (error.code === 'auth/too-many-requests') {
-        this.errorMessage.set('Too many attempts. Please try again later.');
-      } else {
-        this.errorMessage.set('Something went wrong. Please try again.');
-      }
+      console.error('Password reset request error:', error);
+      this.errorMessage.set(
+        'Something went wrong. Please try again.'
+      );
     } finally {
       this.isSubmitting.set(false);
     }

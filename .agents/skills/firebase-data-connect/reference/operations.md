@@ -81,11 +81,11 @@ query ListMovies($genre: String, $minRating: Int) @auth(level: PUBLIC) {
 | Operator | Description | Example |
 |----------|-------------|---------|
 | `eq` | Equals | `{ title: { eq: "Matrix" }}` |
-| `ne` | Not equals | `{ status: { ne: "isDeleted" }}` |
+| `ne` | Not equals | `{ status: { ne: "deleted" }}` |
 | `gt`, `ge` | Greater than (or equal) | `{ rating: { ge: 4 }}` |
 | `lt`, `le` | Less than (or equal) | `{ releaseYear: { lt: 2000 }}` |
 | `in` | In list | `{ genre: { in: ["Action", "Drama"] }}` |
-| `nin` | Not in list | `{ status: { nin: ["isDeleted", "hidden"] }}` |
+| `nin` | Not in list | `{ status: { nin: ["deleted", "hidden"] }}` |
 | `isNull` | Is null check | `{ description: { isNull: true }}` |
 | `contains` | String contains | `{ title: { contains: "war" }}` |
 | `startsWith` | String starts with | `{ title: { startsWith: "The" }}` |

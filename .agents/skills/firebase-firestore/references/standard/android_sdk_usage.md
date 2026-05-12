@@ -184,6 +184,6 @@ Delete a document using `delete()`:
 ```kotlin
 db.collection("cities").document("DC")
     .delete()
-    .addOnSuccessListener { Log.d(TAG, "DocumentSnapshot successfully isDeleted!") }
+    .addOnSuccessListener { Log.d(TAG, "DocumentSnapshot successfully deleted!") }
     .addOnFailureListener { e -> Log.w(TAG, "Error deleting document", e) }
 ```
