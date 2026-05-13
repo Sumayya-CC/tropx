@@ -5,7 +5,6 @@ import { FirestoreService } from '../../../../core/services/firestore.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { StatusBadgeComponent } from '../../../../shared/components/status-badge/status-badge.component';
 import { Customer } from '../../../../core/models/customer.model';
 import { where, serverTimestamp } from '@angular/fire/firestore';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
@@ -20,7 +19,7 @@ interface ServiceArea {
 @Component({
   selector: 'app-customer-form',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingSpinnerComponent, StatusBadgeComponent],
+  imports: [ReactiveFormsModule, RouterLink, LoadingSpinnerComponent],
   templateUrl: './customer-form.component.html',
   styleUrl: './customer-form.component.scss'
 })

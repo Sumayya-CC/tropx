@@ -22,7 +22,7 @@ export class FirestoreService {
 
   getCollection<T>(
     path: string,
-    ...constraints: QueryConstraint[]
+    ...constraints: any[]
   ): Observable<T[]> {
     // collectionData streams a collection with optional constraints
     const ref = collection(this._db, path);
@@ -49,6 +49,13 @@ export class FirestoreService {
       deletedAt: serverTimestamp(),
       deletedBy,
     });
+  }
+
+  async runBatch(fn: (batch: any, db: Firestore) => Promise<void> | void): Promise<void> {
+    const { writeBatch } = await import('@angular/fire/firestore');
+    const batch = writeBatch(this._db);
+    await fn(batch, this._db);
+    return batch.commit();
   }
 
   // hardDelete permanently commented out — never call in production

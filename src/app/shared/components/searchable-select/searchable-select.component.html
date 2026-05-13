@@ -1,0 +1,74 @@
+<div class="select-container" [class.open]="isOpen()" [class.disabled]="disabled()">
+  <!-- Trigger -->
+  <div class="select-trigger" (click)="toggle()">
+    <div class="selected-content">
+      @if (selectedOption(); as opt) {
+        <div class="option-preview">
+          @if (opt.imageUrl) {
+            <img [src]="opt.imageUrl" [alt]="opt.label">
+          } @else {
+            <div class="initial-circle">{{ opt.label[0] }}</div>
+          }
+          <div class="labels">
+            <span class="label">{{ opt.label }}</span>
+            @if (opt.sublabel) {
+              <span class="sublabel">{{ opt.sublabel }}</span>
+            }
+          </div>
+        </div>
+      } @else {
+        <span class="placeholder">{{ placeholder() }}</span>
+      }
+    </div>
+    <div class="chevron">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+  </div>
+
+  <!-- Dropdown Panel -->
+  @if (isOpen()) {
+    <div class="dropdown-panel">
+      <div class="search-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input 
+          #searchInput
+          type="text" 
+          [(ngModel)]="searchQuery" 
+          placeholder="Search..."
+          (click)="$event.stopPropagation()"
+          autocomplete="off">
+      </div>
+
+      <div class="options-list">
+        @for (opt of filteredOptions(); track opt.value; let i = $index) {
+          <div 
+            class="option-item" 
+            [class.active]="i === activeIndex()"
+            [class.selected]="opt.value === value()"
+            (click)="selectOption(opt)">
+            
+            <div class="opt-main">
+              @if (opt.imageUrl) {
+                <img [src]="opt.imageUrl" [alt]="opt.label" class="opt-img">
+              } @else {
+                <div class="opt-initial">{{ opt.label[0] }}</div>
+              }
+              <div class="opt-details">
+                <span class="opt-label">{{ opt.label }}</span>
+                @if (opt.sublabel) {
+                  <span class="opt-sku">{{ opt.sublabel }}</span>
+                }
+              </div>
+            </div>
+
+            @if (opt.meta) {
+              <span class="opt-meta">{{ opt.meta }}</span>
+            }
+          </div>
+        } @empty {
+          <div class="no-results">No matches found</div>
+        }
+      </div>
+    </div>
+  }
+</div>

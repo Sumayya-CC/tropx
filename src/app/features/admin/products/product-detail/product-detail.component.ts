@@ -8,23 +8,16 @@ import { ToastService } from '../../../../shared/services/toast.service';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { Product } from '../../../../core/models/product.model';
 import { where, orderBy, limit } from '@angular/fire/firestore';
+import { StockAdjustment } from '../../../../core/models/stock-adjustment.model';
+import { StockAdjustmentModalComponent } from '../../stock-adjustments/stock-adjustment-modal/stock-adjustment-modal.component';
 
 interface Category { id: string; name: string; }
 interface Brand { id: string; name: string; }
-interface StockAdjustment {
-  id: string;
-  productId: string;
-  type: string;
-  reason?: string;
-  quantityChange: number;
-  adjustedAt: any;
-  adjustedBy?: { firstName: string; lastName: string };
-}
 
 @Component({
   selector: 'app-product-detail',
   standalone: true,
-  imports: [RouterLink, StatusBadgeComponent, HasPermissionDirective, DatePipe],
+  imports: [RouterLink, StatusBadgeComponent, HasPermissionDirective, DatePipe, StockAdjustmentModalComponent],
   templateUrl: './product-detail.component.html',
   styleUrl: './product-detail.component.scss'
 })
@@ -43,6 +36,7 @@ export class ProductDetailComponent implements OnInit {
   stockAdjustments = signal<StockAdjustment[]>([]);
   
   showDeleteConfirm = signal(false);
+  isModalOpen = signal(false);
 
   marginPercent = computed(() => {
     const p = this.product();
@@ -67,7 +61,7 @@ export class ProductDetailComponent implements OnInit {
     this.loading.set(true);
     
     // Load Product
-    this.firestore.getDocument<Product>(`products/${id}`).subscribe(p => {
+    this.firestore.getDocument<Product>(`products/${id}`).subscribe((p: Product | null) => {
       this.product.set(p);
       if (p) {
         this.loadCategoryAndBrand(p.categoryId, p.brandId);
@@ -80,12 +74,12 @@ export class ProductDetailComponent implements OnInit {
 
   loadCategoryAndBrand(categoryId: string, brandId: string) {
     if (categoryId) {
-      this.firestore.getDocument<Category>(`categories/${categoryId}`).subscribe(cat => {
+      this.firestore.getDocument<Category>(`categories/${categoryId}`).subscribe((cat: Category | null) => {
         if (cat) this.categoryName.set(cat.name);
       });
     }
     if (brandId) {
-      this.firestore.getDocument<Brand>(`brands/${brandId}`).subscribe(brand => {
+      this.firestore.getDocument<Brand>(`brands/${brandId}`).subscribe((brand: Brand | null) => {
         if (brand) this.brandName.set(brand.name);
       });
     }
@@ -95,12 +89,31 @@ export class ProductDetailComponent implements OnInit {
     this.firestore.getCollection<StockAdjustment>(
       'stockAdjustments',
       where('productId', '==', productId),
-      orderBy('adjustedAt', 'desc'),
-      limit(5)
-    ).subscribe(data => {
-      this.stockAdjustments.set(data);
+      where('isDeleted', '==', false)
+    ).subscribe((data: StockAdjustment[]) => {
+      // Sort and take 5 in memory per rules
+      const sorted = [...data].sort((a, b) => this.toDate(b.createdAt).getTime() - this.toDate(a.createdAt).getTime());
+      this.stockAdjustments.set(sorted.slice(0, 5));
       this.loading.set(false);
     });
+  }
+
+  private toDate(ts: any): Date {
+    if (!ts) return new Date(0);
+    if (ts.toDate) return ts.toDate();
+    return new Date(ts);
+  }
+
+  openAdjustmentModal() {
+    this.isModalOpen.set(true);
+  }
+
+  closeModal(refresh: boolean) {
+    this.isModalOpen.set(false);
+    if (refresh) {
+      // Reload product and adjustments
+      this.loadData(this.productId());
+    }
   }
 
   formatCurrency(cents: number): string {

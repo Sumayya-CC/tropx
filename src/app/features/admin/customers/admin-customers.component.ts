@@ -6,6 +6,7 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { where, orderBy } from '@angular/fire/firestore';
 import { Customer } from '../../../core/models/customer.model';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 interface ServiceArea {
   id: string;
@@ -17,13 +18,13 @@ interface ServiceArea {
 @Component({
   selector: 'app-admin-customers',
   standalone: true,
-  imports: [FormsModule, RouterLink, StatusBadgeComponent],
+  imports: [FormsModule, RouterLink, StatusBadgeComponent, PageHeaderComponent],
   templateUrl: './admin-customers.component.html',
   styleUrl: './admin-customers.component.scss'
 })
 export class AdminCustomersComponent {
   private readonly firestore = inject(FirestoreService);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
 
   customers = signal<Customer[]>([]);
   serviceAreas = signal<ServiceArea[]>([]);

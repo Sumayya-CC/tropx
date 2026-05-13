@@ -1,11 +1,9 @@
-<div class="page-container">
-  <div class="page-header">
-    <div class="header-titles">
-      <h1>Service Areas</h1>
-      <p>Manage geographic service areas for organizing customers</p>
-    </div>
-    <button class="btn-add" (click)="openAddModal()">Add Area</button>
-  </div>
+<app-page-header 
+  title="Service Areas" 
+  subtitle="Manage delivery regions"
+  buttonLabel="Add Service Area"
+  (buttonClick)="openAddModal()">
+</app-page-header>
 
   <div class="table-card">
     @if (isLoading()) {
@@ -94,4 +92,3 @@
       </div>
     </div>
   }
-</div>

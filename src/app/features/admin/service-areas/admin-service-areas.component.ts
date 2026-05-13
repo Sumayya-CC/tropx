@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { where, orderBy, serverTimestamp } from '@angular/fire/firestore';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 interface ServiceArea {
   id: string;
@@ -26,7 +27,7 @@ interface Customer {
 @Component({
   selector: 'app-admin-service-areas',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, StatusBadgeComponent, PageHeaderComponent],
   templateUrl: './admin-service-areas.component.html',
   styleUrl: './admin-service-areas.component.scss'
 })

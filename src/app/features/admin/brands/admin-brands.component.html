@@ -1,11 +1,9 @@
-<div class="page-container">
-  <div class="page-header">
-    <div class="header-titles">
-      <h1>Brands</h1>
-      <p>Manage brands used in the product catalog</p>
-    </div>
-    <button class="btn-add" (click)="openAddModal()">Add Brand</button>
-  </div>
+<app-page-header 
+  title="Brands" 
+  subtitle="Manage product brands"
+  buttonLabel="Add Brand"
+  (buttonClick)="openAddModal()">
+</app-page-header>
 
   <div class="table-card">
     @if (isLoading()) {
@@ -90,4 +88,3 @@
       </div>
     </div>
   }
-</div>

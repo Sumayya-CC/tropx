@@ -1,0 +1,140 @@
+<div class="modal-overlay" (click)="cancel()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>New Stock Adjustment</h2>
+      <button class="close-btn" (click)="cancel()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Product Picker / Locked Card -->
+      <div class="form-section">
+        <label>Product <span class="required">*</span></label>
+        
+        @if (isLoadingProduct()) {
+          <div class="loading-state">
+            <app-loading-spinner size="sm"></app-loading-spinner>
+            <span>Loading product...</span>
+          </div>
+        } @else if (product()) {
+          <div class="product-card" [class.locked]="!!productId()">
+            <div class="product-info">
+              @if (product()?.imageUrl) {
+                <div class="product-img">
+                  <img [src]="product()?.imageUrl" [alt]="product()?.name">
+                </div>
+              }
+              <div class="product-details">
+                <span class="product-name">{{ product()?.name }}</span>
+                <span class="product-sku">{{ product()?.sku }}</span>
+              </div>
+            </div>
+            <div class="current-stock">
+              <span class="label">Current Stock</span>
+              <span class="value">{{ product()?.stock }}</span>
+            </div>
+            @if (!productId()) {
+              <button class="change-btn" (click)="clearProduct()">Change</button>
+            }
+          </div>
+        } @else {
+          <app-searchable-select
+            [options]="productOptions()"
+            [placeholder]="'Search by product name or SKU...'"
+            (selected)="onProductSelected($event)">
+          </app-searchable-select>
+        }
+      </div>
+
+      <div class="row">
+        <!-- Adjustment Type -->
+        <div class="col form-group">
+          <label>Adjustment Type <span class="required">*</span></label>
+          <select [(ngModel)]="type">
+            @for (t of adjustmentTypes; track t.value) {
+              <option [value]="t.value">{{ t.label }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Quantity -->
+        <div class="col form-group">
+          <label>Quantity <span class="required">*</span></label>
+          <div class="quantity-input">
+            <button (click)="adjustQuantity(-1)">-</button>
+            <input type="number" [(ngModel)]="quantity" placeholder="0" min="1">
+            <button (click)="adjustQuantity(1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Direction Toggle (only for correction) -->
+      @if (showDirectionToggle()) {
+        <div class="form-group">
+          <label>Direction <span class="required">*</span></label>
+          <div class="direction-toggle">
+            <button 
+              [class.active]="direction() === 'in'" 
+              (click)="direction.set('in')">
+              Add to Stock
+            </button>
+            <button 
+              [class.active]="direction() === 'out'" 
+              (click)="direction.set('out')">
+              Remove from Stock
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Live Preview -->
+      @if (product() && (quantity() || 0) > 0) {
+        <div class="preview-card" [class.negative]="effectiveDirection() === 'out'">
+          <div class="preview-row">
+            <span>Current Stock</span>
+            <span>{{ product()?.stock }}</span>
+          </div>
+          <div class="preview-row adjustment">
+            <span>Adjustment</span>
+            <span class="adj-val">
+              {{ effectiveDirection() === 'in' ? '+' : '-' }}{{ quantity() }}
+            </span>
+          </div>
+          <div class="preview-divider"></div>
+          <div class="preview-row total">
+            <span>New Stock</span>
+            <span [class.error]="newStock() < 0">{{ newStock() }}</span>
+          </div>
+          @if (newStock() < 0) {
+            <div class="preview-error">Cannot reduce stock below 0</div>
+          }
+        </div>
+      }
+
+      <!-- Reason -->
+      <div class="form-group">
+        <label>Reason <span class="required">*</span></label>
+        <input type="text" [(ngModel)]="reason" placeholder="e.g. Weekly delivery, Damaged during shipping">
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group">
+        <label>Notes (Optional)</label>
+        <textarea [(ngModel)]="notes" placeholder="Additional details..." rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="cancel()">Cancel</button>
+      <button class="btn-primary" (click)="save()" [disabled]="!isValid() || isSaving()">
+        @if (isSaving()) {
+          <app-loading-spinner size="sm" color="#fff"></app-loading-spinner>
+          Saving...
+        } @else {
+          Save Adjustment
+        }
+      </button>
+    </div>
+  </div>
+</div>

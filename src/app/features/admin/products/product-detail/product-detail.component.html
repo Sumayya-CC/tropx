@@ -91,7 +91,7 @@
             
             <hr class="divider">
             
-            <button class="btn-adjust-stock" [routerLink]="['/admin/stock-adjustments']" [queryParams]="{ productId: product()?.id }">
+            <button class="btn-adjust-stock" (click)="openAdjustmentModal()">
               Adjust Stock
             </button>
           </div>
@@ -209,10 +209,10 @@
                     </div>
                     <div class="adj-middle">
                       <div class="adj-reason">{{ adj.reason || 'No reason provided' }}</div>
-                      <div class="adj-meta">by {{ adj.adjustedBy?.firstName || 'System' }} &bull; {{ formatDate(adj.adjustedAt) | date:'MMM d, y' }}</div>
+                      <div class="adj-meta">by {{ adj.adjustedBy.firstName || 'System' }} &bull; {{ formatDate(adj.createdAt) | date:'MMM d, y' }}</div>
                     </div>
-                    <div class="adj-right" [class.text-green]="adj.quantityChange > 0" [class.text-red]="adj.quantityChange < 0">
-                      {{ adj.quantityChange > 0 ? '＋' : '−' }}{{ adj.quantityChange > 0 ? adj.quantityChange : (adj.quantityChange * -1) }}
+                    <div class="adj-right" [class.text-green]="adj.quantity > 0" [class.text-red]="adj.quantity < 0">
+                      {{ adj.quantity > 0 ? '＋' : '−' }}{{ adj.quantity > 0 ? adj.quantity : (adj.quantity * -1) }}
                     </div>
                   </div>
                 }
@@ -226,4 +226,11 @@
       </div>
     </div>
   }
+}
+
+@if (isModalOpen()) {
+  <app-stock-adjustment-modal 
+    [productId]="productId()" 
+    (closed)="closeModal($event)">
+  </app-stock-adjustment-modal>
 }

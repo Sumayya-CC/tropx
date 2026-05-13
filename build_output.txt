@@ -1,0 +1,140 @@
+Application bundle generation failed. [11.842 seconds] - 2026-05-12T05:04:09.316Z
+
+▲ [WARNING] Unable to initialize JavaScript cache storage. [plugin angular-compiler]
+
+  /lib/x86_64-linux-gnu/libstdc++.so.6: version `GLIBCXX_3.4.29' not found (required by /home/user/Projects/tropx-wholesale/tropx/node_modules/@lmdb/lmdb-linux-x64/node.abi127.glibc.node)
+  This will not affect the build output content but may result in slower builds.
+
+
+▲ [WARNING] NG8113: StatusBadgeComponent is not used within the template of CustomerFormComponent [plugin angular-compiler]
+
+    src/app/features/admin/customers/customer-form/customer-form.component.ts:23:70:
+      23 │ ...odule, RouterLink, LoadingSpinnerComponent, StatusBadgeComponent],
+         ╵                                                ~~~~~~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/admin/products/product-detail/product-detail.component.html:212:66:
+      212 │ ...eta">by {{ adj.adjustedBy?.firstName || 'System' }} &bull; {{ ...
+          ╵                               ~~~~~~~~~
+
+  Warning occurs in the template of component ProductDetailComponent.
+
+    src/app/features/admin/products/product-detail/product-detail.component.ts:21:15:
+      21 │   templateUrl: './product-detail.component.html',
+         ╵                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8113: StatusBadgeComponent is not used within the template of StockAdjustmentModalComponent [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/stock-adjustment-modal/stock-adjustment-modal.component.ts:17:64:
+      17 │ ...dule, FormsModule, LoadingSpinnerComponent, StatusBadgeComponent],
+         ╵                                                ~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Could not resolve "../../../../core/services/firestore.service"
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:4:33:
+      4 │ ...estoreService } from '../../../../core/services/firestore.service';
+        ╵                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] TS2307: Cannot find module '../../../../core/services/firestore.service' or its corresponding type declarations. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:4:33:
+      4 │ ...estoreService } from '../../../../core/services/firestore.service';
+        ╵                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Could not resolve "../../../../core/models/stock-adjustment.model"
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:5:56:
+      5 │ ...YPE_LABELS } from '../../../../core/models/stock-adjustment.model';
+        ╵                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] TS2307: Cannot find module '../../../../core/models/stock-adjustment.model' or its corresponding type declarations. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:5:56:
+      5 │ ...YPE_LABELS } from '../../../../core/models/stock-adjustment.model';
+        ╵                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Could not resolve "../../../../core/config/tenant.config"
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:7:26:
+      7 │ import { TENANT_ID } from '../../../../core/config/tenant.config';
+        ╵                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] TS2307: Cannot find module '../../../../core/config/tenant.config' or its corresponding type declarations. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:7:26:
+      7 │ import { TENANT_ID } from '../../../../core/config/tenant.config';
+        ╵                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Could not resolve "../../../../shared/components/loading-spinner/loading-spinner.component"
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:8:40:
+      8 │ ...ent } from '../../../../shared/components/loading-spinner/loadin...
+        ╵               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] TS2307: Cannot find module '../../../../shared/components/loading-spinner/loading-spinner.component' or its corresponding type declarations. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:8:40:
+      8 │ ...ent } from '../../../../shared/components/loading-spinner/loadin...
+        ╵               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] Could not resolve "../../../../shared/components/status-badge/status-badge.component"
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:9:37:
+      9 │ ...ent } from '../../../../shared/components/status-badge/status-ba...
+        ╵               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] TS2307: Cannot find module '../../../../shared/components/status-badge/status-badge.component' or its corresponding type declarations. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:9:37:
+      9 │ ...ent } from '../../../../shared/components/status-badge/status-ba...
+        ╵               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] NG1010: 'imports' must be an array of components, directives, pipes, or NgModules.
+  Value could not be determined statically. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:15:39:
+      15 │ ...odule, FormsModule, LoadingSpinnerComponent, StatusBadgeCompone...
+         ╵                        ~~~~~~~~~~~~~~~~~~~~~~~
+
+  Unknown reference.
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:15:39:
+      15 │ ...odule, FormsModule, LoadingSpinnerComponent, StatusBadgeCompone...
+         ╵                        ~~~~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] NG1010: 'imports' must be an array of components, directives, pipes, or NgModules.
+  Value could not be determined statically. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:15:64:
+      15 │ ...dingSpinnerComponent, StatusBadgeComponent, StockAdjustmentModa...
+         ╵                          ~~~~~~~~~~~~~~~~~~~~
+
+  Unknown reference.
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:15:64:
+      15 │ ...dingSpinnerComponent, StatusBadgeComponent, StockAdjustmentModa...
+         ╵                          ~~~~~~~~~~~~~~~~~~~~
+
+
+✘ [ERROR] TS2571: Object is of type 'unknown'. [plugin angular-compiler]
+
+    src/app/features/admin/stock-adjustments/admin-stock-adjustments.component.ts:106:4:
+      106 │     this.firestore.getCollection<StockAdjustment>('stockAdjustmen...
+          ╵     ~~~~~~~~~~~~~~
+
+

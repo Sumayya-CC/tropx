@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { where, orderBy, serverTimestamp } from '@angular/fire/firestore';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 interface Brand {
   id: string;
@@ -25,7 +26,7 @@ interface Product {
 @Component({
   selector: 'app-admin-brands',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, StatusBadgeComponent, PageHeaderComponent],
   templateUrl: './admin-brands.component.html',
   styleUrl: './admin-brands.component.scss'
 })

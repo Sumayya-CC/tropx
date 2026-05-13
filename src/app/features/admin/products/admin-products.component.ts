@@ -8,6 +8,7 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { where } from '@angular/fire/firestore';
 import { Product } from '../../../core/models/product.model';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 interface Category {
   id: string;
@@ -29,32 +30,25 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-admin-products',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, StatusBadgeComponent, HasPermissionDirective],
+  imports: [CommonModule, FormsModule, RouterLink, StatusBadgeComponent, HasPermissionDirective, PageHeaderComponent],
   template: `
-    <div class="page-header">
-      <div class="title-group">
-        <h1>Products</h1>
-        <p class="subtitle">Manage your product catalog</p>
-      </div>
-      
-      <div class="actions">
-        <div class="view-toggles">
-          <button [class.active]="viewMode() === 'grid'" (click)="setViewMode('grid')" title="Grid View">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          </button>
-          <button [class.active]="viewMode() === 'table'" (click)="setViewMode('table')" title="Table View">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-          </button>
-        </div>
-        
-        <button class="btn-primary" routerLink="/admin/products/add">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Add Product
-        </button>
-      </div>
-    </div>
+    <app-page-header 
+      title="Products" 
+      subtitle="Manage your product catalog"
+      buttonLabel="Add Product"
+      (buttonClick)="router.navigate(['/admin/products/add'])">
+    </app-page-header>
 
     <div class="filter-bar">
+      <div class="view-toggles">
+        <button [class.active]="viewMode() === 'grid'" (click)="setViewMode('grid')" title="Grid View">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </button>
+        <button [class.active]="viewMode() === 'table'" (click)="setViewMode('table')" title="Table View">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        </button>
+      </div>
+
       <div class="search-wrapper">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search by name, SKU or barcode...">
@@ -273,7 +267,7 @@ type SortDirection = 'asc' | 'desc';
 })
 export class AdminProductsComponent {
   private readonly firestore = inject(FirestoreService);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
   
   viewMode = signal<'grid' | 'table'>('grid');
   
