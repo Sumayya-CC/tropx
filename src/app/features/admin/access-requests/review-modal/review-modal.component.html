@@ -1,0 +1,199 @@
+<div class="modal-backdrop" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeModal()">&times;</button>
+    
+    <div class="modal-body" [class.is-pending]="request.status === 'pending'">
+      
+      <!-- LEFT SECTION: Details -->
+      <div class="details-section">
+        <div class="header-row">
+          <h2 class="business-name">{{ request.businessName }}</h2>
+          <app-status-badge [status]="request.status"></app-status-badge>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="label">Business Type</span>
+            <span class="value">{{ request.businessTypeCustom || request.businessType }}</span>
+          </div>
+          
+          <div class="info-item">
+            <span class="label">Owner Name</span>
+            <span class="value">{{ request.ownerName }}</span>
+          </div>
+
+          <div class="info-item">
+            <span class="label">Email</span>
+            <span class="value">
+              <a [href]="'mailto:' + request.email">{{ request.email }}</a>
+            </span>
+          </div>
+
+          <div class="info-item">
+            <span class="label">Phone</span>
+            <span class="value">{{ request.phone }}</span>
+          </div>
+
+          <div class="info-item full-width">
+            <span class="label">Address</span>
+            <span class="value">{{ formatAddress() }}</span>
+          </div>
+
+          <div class="info-item full-width">
+            <span class="label">Requested Service Area</span>
+            <span class="value">{{ request.serviceAreaCustom || request.serviceAreaId || 'Not specified' }}</span>
+          </div>
+          
+          <div class="info-item full-width">
+            <span class="label">Submitted Date</span>
+            <span class="value">{{ formatDate(request.createdAt) | date:'medium' }}</span>
+          </div>
+        </div>
+
+        @if (request.message) {
+          <div class="message-box">
+            <div class="label">Application Message</div>
+            <p>{{ request.message }}</p>
+          </div>
+        }
+
+        @if (request.internalNotes && request.status !== 'pending') {
+          <div class="notes-box">
+            <div class="label">Internal Notes</div>
+            <p>{{ request.internalNotes }}</p>
+          </div>
+        }
+      </div>
+
+      <!-- RIGHT SECTION: Actions -->
+      <div class="actions-section">
+        
+        @if (request.status === 'pending') {
+          <!-- APPROVE PANEL -->
+          <div class="action-panel panel-approve">
+            <h3>Approve Application</h3>
+            <p class="help-text">This will create a customer account and send a welcome email with login setup instructions.</p>
+            
+            @if (existingCustomerId()) {
+              <div class="existing-warning">
+                <span>⚠️ A customer with this email already exists:</span>
+                <a [routerLink]="['/admin/customers', existingCustomerId()]" target="_blank">
+                  {{ existingCustomerName() }} &rarr;
+                </a>
+                <p>You cannot approve this request with a duplicate email. Consider linking to the existing customer instead.</p>
+              </div>
+            }
+            
+            <div class="form-group">
+              <label>Service Area</label>
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" [ngModel]="useCustomArea()" (ngModelChange)="useCustomArea.set($event)">
+                  Use Custom Text
+                </label>
+              </div>
+
+              @if (useCustomArea()) {
+                <input type="text" class="form-control" [ngModel]="customAreaText()" (ngModelChange)="customAreaText.set($event)" placeholder="Enter custom service area">
+              } @else {
+                <app-searchable-select
+                  [options]="serviceAreas()"
+                  [value]="selectedAreaId()"
+                  (selected)="onAreaSelect($event)"
+                  placeholder="Select a service area"
+                ></app-searchable-select>
+              }
+            </div>
+
+            <div class="form-group">
+              <label>Customer Status</label>
+              <select class="form-control" [ngModel]="customerStatus()" (ngModelChange)="customerStatus.set($event)">
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Internal Notes (Optional)</label>
+              <textarea class="form-control" rows="3" [ngModel]="approveNotes()" (ngModelChange)="approveNotes.set($event)" placeholder="Notes will be saved to the customer profile"></textarea>
+            </div>
+
+            <button class="btn btn-primary full-width" (click)="approve()" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <app-loading-spinner size="sm" color="white"></app-loading-spinner>
+              } @else {
+                Approve & Send Welcome Email
+              }
+            </button>
+          </div>
+
+          <!-- REJECT PANEL -->
+          <div class="action-panel panel-reject">
+            <h3>Reject Application</h3>
+            <div class="form-group">
+              <label>Rejection Reason / Notes (Optional)</label>
+              <textarea class="form-control" rows="2" [ngModel]="rejectNotes()" (ngModelChange)="rejectNotes.set($event)" placeholder="Internal note only, not sent to applicant"></textarea>
+            </div>
+            
+            <button class="btn btn-danger-outline full-width" (click)="reject()" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <app-loading-spinner size="sm" color="current"></app-loading-spinner>
+              } @else {
+                Reject Application
+              }
+            </button>
+          </div>
+        }
+
+        @if (request.status === 'approved') {
+          <div class="status-banner banner-approved">
+            <div class="banner-icon">✓</div>
+            <div class="banner-content">
+              <strong>Approved on {{ formatDate(request.reviewedAt) | date:'mediumDate' }}</strong>
+              <span>By {{ reviewerName() }}</span>
+            </div>
+          </div>
+          
+          @if (isLinkedCustomerDeleted()) {
+            <div class="deleted-customer-banner">
+              <span class="deleted-icon">🗑️</span>
+              <div>
+                <p class="deleted-title">Customer Account Deleted</p>
+                <p class="deleted-date">
+                  Deleted on: {{ formatDate(linkedCustomer()?.isDeletedAt) }}
+                </p>
+                @if (linkedCustomer()?.deletedBy?.firstName) {
+                  <p class="deleted-by">
+                    By: {{ linkedCustomer()?.deletedBy?.firstName }}
+                    {{ linkedCustomer()?.deletedBy?.lastName || '' }}
+                  </p>
+                }
+              </div>
+            </div>
+          } @else {
+            @if (request.linkedCustomerId) {
+              <button class="btn btn-primary full-width mt-4" (click)="viewCustomer()">
+                View Customer &rarr;
+              </button>
+            }
+          }
+        }
+
+        @if (request.status === 'rejected') {
+          <div class="status-banner banner-rejected">
+            <div class="banner-icon">✕</div>
+            <div class="banner-content">
+              <strong>Rejected on {{ formatDate(request.reviewedAt) | date:'mediumDate' }}</strong>
+              <span>By {{ reviewerName() }}</span>
+            </div>
+          </div>
+
+          <button class="btn btn-outline full-width mt-4" (click)="resetToPending()" [disabled]="isSaving()">
+            Reconsider (Reset to Pending)
+          </button>
+        }
+
+      </div>
+    </div>
+  </div>
+</div>

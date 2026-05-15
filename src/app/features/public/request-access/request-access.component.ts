@@ -2,11 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
+import { where } from '@angular/fire/firestore';
 import { serverTimestamp } from '@angular/fire/firestore';
+import { firstValueFrom } from 'rxjs';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { PublicNavbarComponent } from '../../../shared/components/public-navbar/public-navbar.component';
 import { PublicFooterComponent } from '../../../shared/components/public-footer/public-footer.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
+import { AccessRequest } from '../../../core/models/access-request.model';
 
 const BUSINESS_TYPES = [
   'Convenience Store', 'Gas Station', 'Grocery Store',
@@ -140,7 +143,11 @@ const PROVINCES = [
                   formControlName="email" 
                   placeholder="business@example.com"
                   [class.error]="isInvalid('email')"
+                  (blur)="checkEmail()"
                 />
+                @if (emailWarning()) {
+                  <span class="warning-text">⚠️ {{ emailWarning() }}</span>
+                }
                 @if (isInvalid('email')) {
                   @if (accessForm.get('email')?.errors?.['required']) {
                     <span class="error-text">Email address is required</span>
@@ -258,6 +265,7 @@ export class RequestAccessComponent {
 
   isSubmitting = signal(false);
   isSubmitted = signal(false);
+  emailWarning = signal<string | null>(null);
   submittedBusinessName = '';
   submittedEmail = '';
 
@@ -281,6 +289,40 @@ export class RequestAccessComponent {
   isInvalid(controlName: string): boolean {
     const control = this.accessForm.get(controlName);
     return !!(control && control.invalid && (control.touched || control.dirty));
+  }
+
+  async checkEmail() {
+    const email = this.accessForm.get('email')?.value;
+    if (!email || this.accessForm.get('email')?.invalid) {
+      this.emailWarning.set(null);
+      return;
+    }
+
+    try {
+      const existing = await firstValueFrom(
+        this.firestore.getCollection<AccessRequest>(
+          'accessRequests',
+          where('email', '==', email),
+          where('isDeleted', '==', false)
+        )
+      );
+
+      // Only warn for pending requests
+      // For approved requests, we don't warn because the customer may have been deleted and re-application is valid
+      const pendingRequests = existing.filter(
+        r => r['status'] === 'pending'
+      );
+
+      if (pendingRequests.length > 0) {
+        this.emailWarning.set(
+          'An application with this email is already under review. Please contact us if you need help.'
+        );
+      } else {
+        this.emailWarning.set(null);
+      }
+    } catch (error) {
+      console.error('Error checking email:', error);
+    }
   }
 
   async onSubmit() {

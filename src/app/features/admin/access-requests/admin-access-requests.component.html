@@ -1,0 +1,133 @@
+<app-page-header
+  title="Access Requests"
+  subtitle="Review wholesale partner applications"
+  buttonIcon="none"
+></app-page-header>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Requests</div>
+    <div class="stat-value">{{ stats().total }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Pending Review</div>
+    <div class="stat-value">{{ stats().pending }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Approved This Month</div>
+    <div class="stat-value">{{ stats().approvedMonth }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Rejected This Month</div>
+    <div class="stat-value">{{ stats().rejectedMonth }}</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="search-box">
+    <input 
+      type="text" 
+      [ngModel]="searchQuery()" 
+      (ngModelChange)="searchQuery.set($event)"
+      placeholder="Search by business, owner, or email..."
+    />
+  </div>
+
+  <div class="filters">
+    <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+      <option value="pending">Pending</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
+      <option value="all">All Statuses</option>
+    </select>
+
+    <select [ngModel]="dateFilter()" (ngModelChange)="dateFilter.set($event)">
+      <option value="all">All Time</option>
+      <option value="today">Today</option>
+      <option value="7days">Last 7 Days</option>
+      <option value="30days">Last 30 Days</option>
+    </select>
+  </div>
+</div>
+
+<div class="table-container">
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="skeleton-row" *ngFor="let i of [1,2,3,4,5]"></div>
+    </div>
+  } @else if (filteredRequests().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">📂</div>
+      <h3>No access requests found</h3>
+      <p>Try adjusting your filters or search query.</p>
+    </div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date Submitted</th>
+          <th>Business</th>
+          <th>Owner / Email</th>
+          <th>Location</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th class="actions-col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (req of filteredRequests(); track req.id) {
+          <tr>
+            <td class="date-col">
+              <div class="date-cell">
+                <span class="date">{{ formatDate(req.submittedAt || req.createdAt) }}</span>
+                <span class="time">{{ formatTime(req.submittedAt || req.createdAt) }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="main-text">{{ req.businessName }}</div>
+              <div class="sub-text">{{ req.businessTypeCustom || req.businessType }}</div>
+            </td>
+            <td>
+              <div class="main-text">{{ req.ownerName }}</div>
+              <div class="sub-text">{{ req.email }}</div>
+            </td>
+            <td>
+              <div class="main-text">{{ req.address.city }}, {{ req.address.province }}</div>
+            </td>
+            <td class="message-col">
+              <div class="message-trunc" [title]="req.message || ''">
+                @if (req.message && req.message.length > 60) {
+                  {{ (req.message | slice:0:60) + '...' }}
+                } @else {
+                  {{ req.message || '-' }}
+                }
+              </div>
+            </td>
+            <td>
+              <div class="status-container">
+                <app-status-badge [status]="req.status"></app-status-badge>
+                @if (req.status === 'approved' && isLinkedCustomerDeleted(req)) {
+                  <span 
+                    class="badge-warning"
+                    [title]="'Deleted: ' + formatDate(getDeletedCustomer(req)?.isDeletedAt)">
+                    🗑️ Customer Deleted
+                  </span>
+                }
+              </div>
+            </td>
+            <td class="actions-col">
+              <button class="btn btn-sm btn-outline" (click)="openReview(req)">Review</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+@if (selectedRequest()) {
+  <app-review-modal 
+    [request]="selectedRequest()!" 
+    (closed)="closeReview($event)"
+  ></app-review-modal>
+}

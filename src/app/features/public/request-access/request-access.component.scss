@@ -119,6 +119,13 @@
   font-weight: 500;
 }
 
+.warning-text {
+  color: var(--gold, #d4af37);
+  font-size: 0.75rem;
+  margin-top: 0.4rem;
+  font-weight: 500;
+}
+
 .btn-submit {
   width: 100%;
   background-color: var(--navy-deep);

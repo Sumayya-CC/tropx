@@ -35,6 +35,7 @@ export interface Customer {
   status: CustomerStatus;
   source: CustomerSource;
   linkedUserId?: string;
+  linkedRequestId?: string;
   tenantId: number;
   createdAt: Date;
   createdBy?: ActionBy;

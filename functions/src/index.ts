@@ -11,32 +11,26 @@ const resendApiKey = defineSecret("RESEND_API_KEY");
 const fromEmail = defineSecret("FROM_EMAIL");
 
 // ─── Welcome Email ─────────────────────────────────────────────────────────
-export const onAccessRequestApproved = onDocumentUpdated(
+export const onAccessRequestApproved = onDocumentCreated(
   {
-    document: "accessRequests/{requestId}",
+    document: "accessRequestApprovals/{approvalId}",
     database: "tropx-dev",
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
   async (event) => {
-    const before = event.data?.before.data();
-    const after = event.data?.after.data();
+    const data = event.data?.data();
+    if (!data) return;
 
-    if (!before || !after) return;
-    if (before.status === after.status) return;
-    if (after.status !== "approved") return;
+    const {email, ownerName, businessName} = data;
+
+    if (!email) {
+      console.error("No email found on approval");
+      return;
+    }
 
     const resend = new Resend(resendApiKey.value());
     const from = fromEmail.value();
-
-    const businessName = after.businessName ?? "Valued Partner";
-    const ownerName = after.ownerName ?? "there";
-    const email = after.email;
-
-    if (!email) {
-      console.error("No email found on access request");
-      return;
-    }
 
     let resetLink = "";
     try {
@@ -46,25 +40,49 @@ export const onAccessRequestApproved = onDocumentUpdated(
       } catch {
         userRecord = await admin.auth().createUser({
           email,
-          displayName: ownerName,
+          displayName: ownerName ?? "",
           emailVerified: false,
         });
       }
+
+      const ownerNameStr = ownerName ?? "";
+      const nameParts = ownerNameStr.trim().split(" ");
+      const firstName = nameParts[0] || ownerNameStr;
+      const lastName = nameParts.slice(1).join(" ") || null;
+
+      await db.collection("users").doc(userRecord.uid).set({
+        uid: userRecord.uid,
+        firstName,
+        lastName,
+        email,
+        role: "customer",
+        tenantId: data.tenantId ?? 1,
+        linkedCustomerId: data.customerId ?? null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isDeleted: false,
+      }, {merge: true});
 
       resetLink = await admin.auth().generatePasswordResetLink(
         email,
         {url: "https://tropxwholesale.ca/login"}
       );
 
-      await event.data?.after.ref.update({
+      await event.data?.ref.update({
         linkedUserId: userRecord.uid,
+        processed: true,
+        processedAt: new Date(),
       });
     } catch (err) {
       console.error("Error creating user or reset link:", err);
+      await event.data?.ref.update({error: true});
       return;
     }
 
-    const html = welcomeEmailHtml(ownerName, businessName, resetLink);
+    const html = welcomeEmailHtml(
+      ownerName ?? "there",
+      businessName ?? "Valued Partner",
+      resetLink
+    );
 
     try {
       await resend.emails.send({
@@ -76,6 +94,42 @@ export const onAccessRequestApproved = onDocumentUpdated(
       console.log(`Welcome email sent to ${email}`);
     } catch (err) {
       console.error("Error sending welcome email:", err);
+    }
+  }
+);
+
+export const onCustomerDeleted = onDocumentUpdated(
+  {
+    document: "customers/{customerId}",
+    database: "tropx-dev",
+    region: "northamerica-northeast2",
+    secrets: [],
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+
+    if (!before || !after) return;
+
+    // Only trigger when isDeleted changes to true
+    if (before.isDeleted === after.isDeleted) return;
+    if (!after.isDeleted) return;
+
+    const email = after.email;
+    if (!email) return;
+
+    try {
+      const userRecord = await admin.auth().getUserByEmail(email);
+      await admin.auth().updateUser(userRecord.uid, {disabled: true});
+      console.log(`Disabled Auth user for deleted customer: ${email}`);
+
+      // Also mark user doc as deleted
+      await db.collection("users").doc(userRecord.uid).update({
+        isDeleted: true,
+        deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error disabling auth user:", err);
     }
   }
 );
