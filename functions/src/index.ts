@@ -220,6 +220,116 @@ export const onContactInquiry = onDocumentCreated(
   }
 );
 
+// ─── Employee Management ────────────────────────────────────────────────────
+
+export const onEmployeeInvitation = onDocumentCreated(
+  {
+    document: "employeeInvitations/{id}",
+    database: "tropx-dev",
+    region: "northamerica-northeast2",
+    secrets: [resendApiKey, fromEmail],
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data || data.status !== "pending") return;
+
+    const {email, firstName, lastName, phone, role,
+      temporaryPassword, tenantId} = data;
+
+    // Create Firebase Auth user
+    let userRecord;
+    try {
+      userRecord = await admin.auth().createUser({
+        email,
+        password: temporaryPassword,
+        displayName: `${firstName} ${lastName}`.trim(),
+        emailVerified: false,
+      });
+    } catch (err: any) {
+      console.error("Error creating auth user:", err);
+      await event.data?.ref.update({
+        status: "error",
+        error: err.message,
+      });
+      return;
+    }
+
+    // Create Firestore user doc
+    await db.collection("users").doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      email,
+      firstName,
+      lastName: lastName || null,
+      phone: phone || null,
+      role,
+      status: "active",
+      tenantId: tenantId ?? 1,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: data.createdBy || null,
+      isDeleted: false,
+    });
+
+    // Update invitation doc
+    await event.data?.ref.update({
+      status: "processed",
+      linkedUid: userRecord.uid,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      temporaryPassword: admin.firestore.FieldValue.delete(),
+    });
+
+    // Send invitation email
+    const resend = new Resend(resendApiKey.value());
+    const from = fromEmail.value();
+    const roleLabels: Record<string, string> = {
+      admin: "Administrator",
+      manager: "Manager",
+      sales_rep: "Sales Representative",
+      warehouse: "Warehouse Staff",
+      customer: "Customer",
+    };
+    const roleLabel = roleLabels[role] || role;
+
+    await resend.emails.send({
+      from: `Tropx Wholesale <${from}>`,
+      to: email,
+      subject: "Your Tropx Wholesale Staff Account",
+      html: employeeInvitationEmailHtml(
+        firstName, roleLabel, email, temporaryPassword
+      ),
+    });
+
+    console.log(`Employee invitation processed for ${email}`);
+  }
+);
+
+export const onAuthAction = onDocumentCreated(
+  {
+    document: "authActions/{id}",
+    database: "tropx-dev",
+    region: "northamerica-northeast2",
+    secrets: [],
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    const {action, uid} = data;
+
+    try {
+      if (action === "disable") {
+        await admin.auth().updateUser(uid, {disabled: true});
+        console.log(`Disabled auth user: ${uid}`);
+      } else if (action === "enable") {
+        await admin.auth().updateUser(uid, {disabled: false});
+        console.log(`Enabled auth user: ${uid}`);
+      }
+      await event.data?.ref.update({processed: true});
+    } catch (err) {
+      console.error("Error processing auth action:", err);
+    }
+  }
+);
+
 // ─── Email Templates ────────────────────────────────────────────────────────
 
 function welcomeEmailHtml(
@@ -590,6 +700,90 @@ function contactInquiryEmailHtml(
     </div>
     <div class="footer">
       <p>Sent from tropxwholesale.ca contact form</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function employeeInvitationEmailHtml(
+  firstName: string,
+  roleLabel: string,
+  email: string,
+  tempPassword: string
+): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Your Staff Account</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont,
+      'Segoe UI', sans-serif; background:#f5f5f5; 
+      margin:0; padding:0; }
+    .wrapper { max-width:580px; margin:40px auto;
+      background:#fff; border-radius:12px; overflow:hidden;
+      box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+    .header { background:#0a2d4a; padding:2rem 2.5rem;
+      text-align:center; }
+    .header h1 { color:#fff; font-size:1.5rem; margin:0; }
+    .header p { color:#f0c040; margin:0.25rem 0 0;
+      font-size:0.875rem; }
+    .body { padding:2.5rem; }
+    .message { color:#444; line-height:1.7;
+      margin-bottom:1.5rem; font-size:0.95rem; }
+    .credentials-box { background:#f0f7ff;
+      border-left:4px solid #16588e;
+      border-radius:0 8px 8px 0;
+      padding:1.25rem 1.5rem; margin-bottom:2rem; }
+    .credentials-box p { margin:0.25rem 0; 
+      font-size:0.9rem; color:#0a2d4a; }
+    .credentials-box strong { font-family:monospace;
+      font-size:1rem; }
+    .btn { display:block; width:fit-content;
+      margin:0 auto 2rem; background:#0a2d4a;
+      color:#fff !important; text-decoration:none;
+      padding:0.875rem 2.5rem; border-radius:8px;
+      font-weight:600; font-size:1rem; text-align:center; }
+    .footer { background:#f8f9fa; padding:1.5rem 2.5rem;
+      text-align:center; }
+    .footer p { color:#8a94a6; font-size:0.8rem;
+      margin:0.25rem 0; }
+    .footer a { color:#16588e; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Tropx Wholesale</h1>
+      <p>Staff Portal Access</p>
+    </div>
+    <div class="body">
+      <p class="message">
+        Hi ${firstName}, a staff account has been created 
+        for you on the Tropx Wholesale platform. 
+        Your role is <strong>${roleLabel}</strong>.
+      </p>
+      <div class="credentials-box">
+        <p>Email: <strong>${email}</strong></p>
+        <p>Temporary Password: 
+          <strong>${tempPassword}</strong></p>
+      </div>
+      <a href="https://tropxwholesale.ca/login" class="btn">
+        Sign In →
+      </a>
+      <p class="message" style="font-size:0.875rem;
+        color:#666;">
+        Please change your password after signing in.
+        If you have questions, contact your administrator.
+      </p>
+    </div>
+    <div class="footer">
+      <p><strong>Tropx Enterprises Inc.</strong><br>
+        Kitchener, Ontario, Canada</p>
+      <p><a href="https://tropxwholesale.ca">
+        tropxwholesale.ca</a></p>
     </div>
   </div>
 </body>

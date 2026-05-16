@@ -1,0 +1,90 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ employee ? 'Edit Employee' : 'Add New Employee' }}</h2>
+      <button class="btn-close" (click)="close()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">First Name</label>
+            <input type="text" id="firstName" formControlName="firstName" placeholder="Enter first name">
+            @if (form.get('firstName')?.touched && form.get('firstName')?.invalid) {
+              <span class="error-text">First name is required</span>
+            }
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <input type="text" id="lastName" formControlName="lastName" placeholder="Enter last name">
+            @if (form.get('lastName')?.touched && form.get('lastName')?.invalid) {
+              <span class="error-text">Last name is required</span>
+            }
+          </div>
+        </div>
+
+        @if (!employee) {
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" formControlName="email" placeholder="e.g. employee@tropx.ca" autocomplete="off">
+            @if (form.get('email')?.touched && form.get('email')?.invalid) {
+              <span class="error-text">Valid email is required</span>
+            }
+          </div>
+
+        }
+
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="phone">Phone Number (Optional)</label>
+            <input type="tel" id="phone" formControlName="phone" placeholder="e.g. 519-555-0123">
+          </div>
+          <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" formControlName="role">
+              <option value="" disabled>Select a role</option>
+              @for (role of roles; track role.value) {
+                <option [value]="role.value">{{ role.label }}</option>
+              }
+            </select>
+            @if (form.get('role')?.touched && form.get('role')?.invalid) {
+              <span class="error-text">Role is required</span>
+            }
+          </div>
+        </div>
+
+        @if (employee) {
+          <div class="form-group">
+            <label for="status">Account Status</label>
+            <select id="status" formControlName="status">
+              @for (status of statuses; track status.value) {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="close()" [disabled]="isSubmitting()">
+          Cancel
+        </button>
+        <button type="submit" class="btn-primary" [disabled]="form.invalid || isSubmitting()">
+          @if (isSubmitting()) {
+            <app-loading-spinner size="sm" color="white"></app-loading-spinner>
+            <span>{{ employee ? 'Saving...' : 'Creating...' }}</span>
+          } @else {
+            <span>{{ employee ? 'Save Changes' : 'Create Account' }}</span>
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

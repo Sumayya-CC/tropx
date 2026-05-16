@@ -1,0 +1,203 @@
+<app-page-header
+  title="Employees"
+  subtitle="Manage staff accounts and permissions"
+  buttonLabel="Add Employee"
+  (buttonClick)="openAddModal()">
+</app-page-header>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon total">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <div class="stat-info">
+      <span class="stat-label">Total Staff</span>
+      <span class="stat-value">{{ stats().total }}</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon active">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    <div class="stat-info">
+      <span class="stat-label">Active</span>
+      <span class="stat-value">{{ stats().active }}</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon suspended">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="10" y1="15" x2="10" y2="9"/>
+        <line x1="14" y1="15" x2="14" y2="9"/>
+      </svg>
+    </div>
+    <div class="stat-info">
+      <span class="stat-label">Suspended</span>
+      <span class="stat-value">{{ stats().suspended }}</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon admin">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div class="stat-info">
+      <span class="stat-label">Admins</span>
+      <span class="stat-value">{{ stats().admins }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="search-box">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" [value]="search()" (input)="search.set($any($event.target).value)" placeholder="Search by name or email...">
+  </div>
+  <div class="filters">
+    <div class="filter-group">
+      <label>Role</label>
+      <select [value]="roleFilter()" (change)="roleFilter.set($any($event.target).value)">
+        <option value="all">All Roles</option>
+        <option value="admin">Admin</option>
+        <option value="manager">Manager</option>
+        <option value="sales_rep">Sales Rep</option>
+        <option value="warehouse">Warehouse</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value)">
+        <option value="all">All Status</option>
+        <option value="active">Active</option>
+        <option value="suspended">Suspended</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="table-container card">
+  <table>
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Role</th>
+        <th>Phone</th>
+        <th>Status</th>
+        <th>Created Date</th>
+        <th class="actions-col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @if (isLoading()) {
+        @for (i of [1,2,3,4,5]; track i) {
+          <tr class="skeleton-row">
+            <td>
+              <div class="employee-cell">
+                <div class="skeleton avatar"></div>
+                <div class="skeleton-text-group">
+                  <div class="skeleton text title"></div>
+                  <div class="skeleton text subtitle"></div>
+                </div>
+              </div>
+            </td>
+            <td><div class="skeleton badge"></div></td>
+            <td><div class="skeleton text small"></div></td>
+            <td><div class="skeleton badge"></div></td>
+            <td><div class="skeleton text small"></div></td>
+            <td><div class="skeleton actions"></div></td>
+          </tr>
+        }
+      } @else if (filteredEmployees().length === 0) {
+        <tr>
+          <td colspan="6" class="empty-state">
+            <div class="empty-content">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <p>No employees found matching your criteria.</p>
+              @if (employees().length === 0) {
+                <button class="btn-text" (click)="openAddModal()">Add your first employee</button>
+              }
+            </div>
+          </td>
+        </tr>
+      } @else {
+        @for (employee of filteredEmployees(); track employee.uid) {
+          <tr>
+            <td>
+              <div class="employee-cell">
+                <div class="avatar-circle">
+                  {{ getInitials(employee) }}
+                </div>
+                <div class="employee-info">
+                  <span class="name">{{ getFullName(employee) }}</span>
+                  <span class="email">{{ employee.email }}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="role-badge" [class]="employee.role">
+                {{ getRoleLabel(employee.role) }}
+              </span>
+            </td>
+            <td>{{ employee.phone || '—' }}</td>
+            <td>
+              <app-status-badge [status]="employee.status"></app-status-badge>
+            </td>
+            <td>{{ formatDate(employee.createdAt) }}</td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button class="btn-icon" (click)="editEmployee(employee)" title="Edit Employee">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button class="btn-icon status-toggle" 
+                  [class.active]="employee.status === 'active'"
+                  (click)="toggleStatus(employee)" 
+                  [title]="employee.status === 'active' ? 'Suspend Account' : 'Activate Account'">
+                  @if (employee.status === 'active') {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="10" y1="15" x2="10" y2="9"/>
+                      <line x1="14" y1="15" x2="14" y2="9"/>
+                    </svg>
+                  } @else {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polygon points="10 8 16 12 10 16 10 8"/>
+                    </svg>
+                  }
+                </button>
+              </div>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (isModalOpen()) {
+  <app-employee-modal
+    [employee]="selectedEmployee()"
+    (closed)="onModalClosed($event)">
+  </app-employee-modal>
+}
