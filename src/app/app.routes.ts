@@ -194,10 +194,31 @@ export const routes: Routes = [
       {
         path: 'orders',
         data: { title: 'Orders' },
-        loadComponent: () =>
-          import('./features/admin/orders/admin-orders.component').then(
-            m => m.AdminOrdersComponent
-          ),
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/admin/orders/admin-orders.component').then(
+                m => m.AdminOrdersComponent
+              ),
+          },
+          {
+            path: 'new',
+            data: { title: 'New Order' },
+            loadComponent: () =>
+              import('./features/admin/orders/order-form/order-form.component').then(
+                m => m.OrderFormComponent
+              ),
+          },
+          {
+            path: ':id',
+            data: { title: 'Order Details' },
+            loadComponent: () =>
+              import('./features/admin/orders/order-detail/order-detail.component').then(
+                m => m.OrderDetailComponent
+              ),
+          },
+        ]
       },
       {
         path: 'payments',

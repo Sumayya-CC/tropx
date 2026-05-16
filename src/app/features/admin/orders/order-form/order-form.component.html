@@ -1,0 +1,225 @@
+<div class="order-form">
+  <app-page-header
+    title="New Order"
+    subtitle="Create a new wholesale order"
+    backLink="/admin/orders"
+    backLinkLabel="Orders"
+  ></app-page-header>
+
+  <div class="form-layout">
+    <!-- Left Column -->
+    <div class="left-col">
+      
+      <!-- Customer Selection -->
+      <div class="form-section">
+        <h3>Customer</h3>
+        
+        @if (!selectedCustomer()) {
+          <app-searchable-select
+            placeholder="Search for a customer..."
+            [options]="customerOptions()"
+            (selected)="onCustomerSelected($event)"
+          ></app-searchable-select>
+        } @else {
+          <div class="customer-card">
+            <div class="customer-detail">
+              <label>Business Name</label>
+              <span class="business-name">{{ selectedCustomer()?.businessName }}</span>
+            </div>
+            <div class="customer-detail">
+              <label>Owner / Contact</label>
+              <span>{{ selectedCustomer()?.ownerName }} ({{ selectedCustomer()?.phone }})</span>
+            </div>
+            <div class="customer-detail">
+              <label>Location / Area</label>
+              <span>{{ selectedCustomer()?.address?.city }}, {{ selectedCustomer()?.address?.province }} · {{ selectedCustomer()?.serviceAreaCustom || 'No Area' }}</span>
+            </div>
+            <div class="customer-detail">
+              <label>Outstanding Balance</label>
+              <span [class.outstanding]="(selectedCustomer()?.totalOwingCents || 0) > 0"
+                    [class.balance-zero]="(selectedCustomer()?.totalOwingCents || 0) === 0">
+                {{ formatCurrency(selectedCustomer()?.totalOwingCents || 0) }}
+              </span>
+            </div>
+            <div class="change-customer-wrap">
+              <button class="btn-change-customer" (click)="selectedCustomer.set(null)">Change Customer</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Items Section -->
+      <div class="form-section">
+        <h3>
+          Order Items
+          <button class="btn-add-product" (click)="showProductPicker.set(true)">+ Add Product</button>
+        </h3>
+
+        @if (showProductPicker()) {
+          <div class="product-picker-wrap">
+            <app-searchable-select
+              placeholder="Search products by name or SKU..."
+              [options]="productOptions()"
+              (selected)="onProductSelected($event)"
+            ></app-searchable-select>
+            <button class="btn-cancel-picker" (click)="showProductPicker.set(false)">Cancel</button>
+          </div>
+        }
+
+        <div class="items-list">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style="width: 100px;">Qty</th>
+                <th style="width: 150px;">Unit Price</th>
+                <th style="width: 150px;">Line Total</th>
+                <th style="width: 40px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (items().length === 0) {
+                <tr>
+                  <td colspan="5" class="empty-items-cell">No products added yet.</td>
+                </tr>
+              } @else {
+                @for (item of items(); track item.productId) {
+                  <tr>
+                    <td>
+                      <div class="item-info">
+                        <span class="name">{{ item.productName }}</span>
+                        <span class="sku">{{ item.productSku }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <input 
+                        type="number" 
+                        class="qty-input" 
+                        [value]="item.quantity" 
+                        (input)="updateItemQuantity(item, $event)"
+                        min="1"
+                      >
+                      @if (item.quantity > (productStockMap()[item.productId] || 0)) {
+                        <span class="stock-warning">Exceeds stock: {{ productStockMap()[item.productId] }}</span>
+                      }
+                    </td>
+                    <td>
+                      <div class="price-input-wrap">
+                        <span>$</span>
+                        <input 
+                          type="number" 
+                          class="price-input" 
+                          [value]="item.unitPriceCents / 100" 
+                          (input)="updateItemPrice(item, $event)"
+                          step="0.01"
+                        >
+                      </div>
+                    </td>
+                    <td>
+                      <span class="line-total">{{ formatCurrency(item.lineTotalCents) }}</span>
+                    </td>
+                    <td>
+                      <button class="btn-remove" (click)="removeItem(item.productId)">×</button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="right-col">
+      
+      <!-- Summary Section -->
+      <div class="form-section">
+        <h3>Order Summary</h3>
+        <div class="summary-rows">
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span>{{ formatCurrency(subtotalCents()) }}</span>
+          </div>
+          <div class="summary-row">
+            <span>Discount</span>
+            <div class="input-wrapper">
+              <span>$</span>
+              <input 
+                type="number" 
+                [value]="discountCents() / 100" 
+                (input)="onDiscountChange($event)"
+                step="0.01"
+              >
+            </div>
+          </div>
+          <div class="summary-row">
+            <span>Tax Rate</span>
+            <div class="input-wrapper">
+              <input 
+                type="number" 
+                [value]="taxRatePercent()" 
+                (input)="onTaxRateChange($event)"
+                step="0.5"
+              >
+              <span>%</span>
+            </div>
+          </div>
+          <div class="summary-row">
+            <span>Tax Amount</span>
+            <span>{{ formatCurrency(taxCents()) }}</span>
+          </div>
+          <div class="summary-row total-row">
+            <span>Total</span>
+            <span>{{ formatCurrency(totalCents()) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Section -->
+      <div class="form-section">
+        <h3>Order Settings</h3>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label>Delivery Type</label>
+            <div class="radio-group">
+              <label>
+                <input type="radio" name="deliveryType" value="delivery" [checked]="deliveryType() === 'delivery'" (change)="deliveryType.set('delivery')">
+                Delivery
+              </label>
+              <label>
+                <input type="radio" name="deliveryType" value="pickup" [checked]="deliveryType() === 'pickup'" (change)="deliveryType.set('pickup')">
+                Pickup
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Expected Delivery Date</label>
+            <input type="date" [value]="expectedDeliveryDate()" (change)="onDateChange($event)">
+          </div>
+          <div class="form-group">
+            <label>Customer Notes</label>
+            <textarea placeholder="Visible to customer..." [value]="customerNotes()" (input)="customerNotes.set($any($event.target).value)"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Internal Notes</label>
+            <textarea placeholder="Staff only..." [value]="internalNotes()" (input)="internalNotes.set($any($event.target).value)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <button 
+        class="btn-submit" 
+        [disabled]="isSaving() || !selectedCustomer() || items().length === 0"
+        (click)="saveOrder()"
+      >
+        @if (isSaving()) {
+          <app-loading-spinner size="sm" color="white"></app-loading-spinner>
+          Creating...
+        } @else {
+          Create Order
+        }
+      </button>
+    </div>
+  </div>
+</div>

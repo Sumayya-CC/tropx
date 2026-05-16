@@ -1,0 +1,139 @@
+<div class="admin-orders">
+  <app-page-header
+    title="Orders"
+    subtitle="Manage customer orders"
+    buttonLabel="New Order"
+    (buttonClick)="navigateToNewOrder()"
+  ></app-page-header>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Orders (Month)</span>
+      <span class="stat-value">{{ stats().totalOrdersMonth }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Confirmed</span>
+      <span class="stat-value">{{ stats().confirmedCount }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Out for Delivery</span>
+      <span class="stat-value">{{ stats().outForDeliveryCount }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Revenue (Month)</span>
+      <span class="stat-value">{{ formatCurrency(stats().revenueMonthCents) }}</span>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>Search</label>
+      <input 
+        type="text" 
+        placeholder="Order #, Customer..." 
+        [value]="searchQuery()"
+        (input)="onSearchChange($event)"
+      >
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select [value]="statusFilter()" (change)="onStatusFilterChange($event)">
+        <option value="all">All Statuses</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="out_for_delivery">Out for Delivery</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Date Range</label>
+      <select [value]="dateFilter()" (change)="onDateFilterChange($event)">
+        <option value="today">Today</option>
+        <option value="last_7">Last 7 Days</option>
+        <option value="last_30">Last 30 Days</option>
+        <option value="all">All Time</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Payment</label>
+      <select [value]="paymentFilter()" (change)="onPaymentFilterChange($event)">
+        <option value="all">All Payments</option>
+        <option value="unpaid">Unpaid</option>
+        <option value="partial">Partial</option>
+        <option value="paid">Paid</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Order #</th>
+          <th>Customer</th>
+          <th>Date</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Payment</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (isLoading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr class="skeleton-row">
+              <td><div class="skeleton-box w-medium"></div></td>
+              <td><div class="skeleton-box w-large"></div></td>
+              <td><div class="skeleton-box w-medium"></div></td>
+              <td><div class="skeleton-box w-small"></div></td>
+              <td><div class="skeleton-box w-medium"></div></td>
+              <td><div class="skeleton-box w-medium"></div></td>
+              <td><div class="skeleton-box w-medium"></div></td>
+              <td></td>
+            </tr>
+          }
+        } @else if (filteredOrders().length === 0) {
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <p>No orders found matching your filters.</p>
+              </div>
+            </td>
+          </tr>
+        } @else {
+          @for (order of filteredOrders(); track order.id) {
+            <tr (click)="viewOrder(order.id)">
+              <td class="order-number">{{ order.orderNumber }}</td>
+              <td>
+                <div class="customer-info">
+                  <span class="name">{{ order.customerName }}</span>
+                  <span class="phone">{{ order.customerPhone }}</span>
+                </div>
+              </td>
+              <td>{{ order.createdAt?.toDate() | date:'MMM d, yyyy' }}</td>
+              <td>{{ order.items.length }} items</td>
+              <td class="fw-bold">{{ formatCurrency(order.totalCents) }}</td>
+              <td>
+                <app-status-badge 
+                  [status]="order.paymentStatus" 
+                  [color]="getPaymentStatusColor(order.paymentStatus)"
+                ></app-status-badge>
+              </td>
+              <td>
+                <app-status-badge 
+                  [status]="order.status" 
+                  [color]="getOrderStatusColor(order.status)"
+                  [label]="getStatusLabel(order.status)"
+                ></app-status-badge>
+              </td>
+              <td>
+                <button class="btn-view" (click)="viewOrder(order.id); $event.stopPropagation()">View</button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

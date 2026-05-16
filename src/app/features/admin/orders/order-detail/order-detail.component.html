@@ -1,0 +1,263 @@
+<div class="order-detail">
+  <app-page-header
+    [title]="'Order ' + (order()?.orderNumber || '')"
+    subtitle="View and manage order details"
+    backLink="/admin/orders"
+    backLinkLabel="Orders"
+  ></app-page-header>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <app-loading-spinner size="lg"></app-loading-spinner>
+    </div>
+  } @else if (!order()) {
+    <div class="not-found-state">
+      <p>Order not found.</p>
+      <button class="btn-go-back" (click)="router.navigate(['/admin/orders'])">Go Back</button>
+    </div>
+  } @else {
+    <div class="detail-layout">
+      <!-- Left Column -->
+      <div class="left-col">
+        
+        <!-- Order Header Card -->
+        <div class="detail-section">
+          <div class="order-header-card">
+            <div class="header-info">
+              <span class="order-number">{{ order()?.orderNumber }}</span>
+              <span class="created-at">
+                Placed on {{ order()?.createdAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}
+                by {{ order()?.createdBy?.firstName }} {{ order()?.createdBy?.lastName }}
+              </span>
+            </div>
+            <div class="header-badges">
+              <app-status-badge 
+                [status]="order()?.status!" 
+                [color]="getOrderStatusColor(order()?.status!)"
+                [label]="getStatusLabel(order()?.status!)"
+              ></app-status-badge>
+              <app-status-badge 
+                [status]="order()?.paymentStatus!" 
+                [color]="getPaymentStatusColor(order()?.paymentStatus!)"
+              ></app-status-badge>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Card -->
+        <div class="detail-section">
+          <h3>Customer</h3>
+          <a [routerLink]="['/admin/customers', order()?.customerId]" class="customer-card-link">
+            <div class="customer-initials">{{ order()?.customerName?.charAt(0) }}</div>
+            <div class="customer-info">
+              <span class="business-name">{{ order()?.customerName }}</span>
+              <span class="owner-contact">{{ order()?.customerPhone }}</span>
+            </div>
+            <div class="arrow-icon">View →</div>
+          </a>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Service Area</label>
+              <span>{{ order()?.serviceAreaName || 'No Area Assigned' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Delivery Method</label>
+              <span class="capitalize">{{ order()?.deliveryType }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="detail-section">
+          <h3>Items</h3>
+          <div class="items-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of order()?.items; track item.productId) {
+                  <tr>
+                    <td>
+                      <div class="item-info">
+                        <span class="name">{{ item.productName }}</span>
+                        <span class="sku">{{ item.productSku }}</span>
+                      </div>
+                    </td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ formatCurrency(item.unitPriceCents) }}</td>
+                    <td class="line-total">{{ formatCurrency(item.lineTotalCents) }}</td>
+                  </tr>
+                }
+                <!-- Totals -->
+                <tr class="summary-row">
+                  <td colspan="3">Subtotal</td>
+                  <td>{{ formatCurrency(order()?.subtotalCents!) }}</td>
+                </tr>
+                @if (order()?.discountCents! > 0) {
+                  <tr class="summary-row">
+                    <td colspan="3">Discount</td>
+                    <td style="color:var(--red)">-{{ formatCurrency(order()?.discountCents!) }}</td>
+                  </tr>
+                }
+                <tr class="summary-row">
+                  <td colspan="3">Tax ({{ order()?.taxRatePercent }}%)</td>
+                  <td>{{ formatCurrency(order()?.taxCents!) }}</td>
+                </tr>
+                <tr class="summary-row total-row">
+                  <td colspan="3">Total</td>
+                  <td>{{ formatCurrency(order()?.totalCents!) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="detail-section">
+          <h3>Notes</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Customer Notes</label>
+              <span>{{ order()?.customerNotes || 'No notes provided by customer.' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Internal Notes</label>
+              <span>{{ order()?.internalNotes || 'No internal staff notes.' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="right-col">
+        
+        <!-- Status Timeline -->
+        <div class="detail-section">
+          <h3>Timeline</h3>
+          <div class="timeline">
+            <!-- Confirmed -->
+            <div class="timeline-item">
+              <div class="dot reached"></div>
+              <div class="item-content">
+                <span class="label">Confirmed</span>
+                <span class="meta">{{ order()?.confirmedAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}</span>
+                <span class="meta">By {{ order()?.confirmedBy?.firstName }}</span>
+              </div>
+            </div>
+
+            <!-- Out for Delivery -->
+            <div class="timeline-item">
+              <div class="dot" [class.reached]="order()?.outForDeliveryAt"></div>
+              <div class="item-content">
+                <span class="label">Out for Delivery</span>
+                @if (order()?.outForDeliveryAt) {
+                  <span class="meta">{{ order()?.outForDeliveryAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}</span>
+                  <span class="meta">By {{ order()?.outForDeliveryBy?.firstName }}</span>
+                } @else {
+                  <span class="meta text-muted">Pending...</span>
+                }
+              </div>
+            </div>
+
+            <!-- Delivered / Cancelled -->
+            @if (order()?.status === 'cancelled') {
+              <div class="timeline-item">
+                <div class="dot danger"></div>
+                <div class="item-content">
+                  <span class="label danger">Cancelled</span>
+                  <span class="meta">{{ order()?.cancelledAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}</span>
+                  <span class="meta">By {{ order()?.cancelledBy?.firstName }}</span>
+                  <span class="reason">Reason: {{ order()?.cancellationReason }}</span>
+                </div>
+              </div>
+            } @else {
+              <div class="timeline-item">
+                <div class="dot" [class.success]="order()?.deliveredAt"></div>
+                <div class="item-content">
+                  <span class="label">Delivered</span>
+                  @if (order()?.deliveredAt) {
+                    <span class="meta">{{ order()?.deliveredAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}</span>
+                    <span class="meta">By {{ order()?.deliveredBy?.firstName }}</span>
+                  } @else {
+                    <span style="color:var(--gray)">Pending...</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Actions -->
+          <div class="action-buttons">
+            @if (showCancelForm()) {
+              <div class="cancel-form">
+                <label>Cancellation Reason</label>
+                <textarea #reasonInput placeholder="Enter reason for cancellation..."></textarea>
+                <div class="actions">
+                  <button class="btn-cancel" (click)="confirmCancel(reasonInput.value)">Confirm Cancel</button>
+                  <button class="btn-close" (click)="showCancelForm.set(false)">Close</button>
+                </div>
+              </div>
+            } @else {
+              @if (order()?.status === 'confirmed') {
+                <button class="btn-action" (click)="updateStatus('out_for_delivery')">Mark Out for Delivery</button>
+                <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
+              } @else if (order()?.status === 'out_for_delivery') {
+                <button class="btn-action success" (click)="updateStatus('delivered')">Mark as Delivered</button>
+                <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Payment Summary -->
+        <div class="detail-section">
+          <h3>Payment</h3>
+          <div class="payment-summary">
+            <div class="summary-row">
+              <span class="label">Total Order</span>
+              <span class="value">{{ formatCurrency(order()?.totalCents!) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Amount Paid</span>
+              <span class="value paid">{{ formatCurrency(order()?.amountPaidCents!) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Balance Due</span>
+              <span class="value balance">{{ formatCurrency(order()?.balanceCents!) }}</span>
+            </div>
+          </div>
+          <button class="btn-record-payment" disabled title="Coming soon — use Payments module">
+            Record Payment (Coming Soon)
+          </button>
+        </div>
+
+        <!-- Delivery Info -->
+        <div class="detail-section">
+          <h3>Delivery Info</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Method</label>
+              <span class="capitalize">{{ order()?.deliveryType }}</span>
+            </div>
+            <div class="info-item">
+              <label>Expected Date</label>
+              <span>{{ (order()?.expectedDeliveryDate?.toDate() | date:'MMM d, yyyy') || 'Not set' }}</span>
+            </div>
+            @if (order()?.deliveredAt) {
+              <div class="info-item" style="grid-column: span 2">
+                <label>Actual Delivery</label>
+                <span>{{ order()?.deliveredAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
