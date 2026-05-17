@@ -9,14 +9,16 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { StatusBadgeComponent } from '../../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { serverTimestamp, doc, getDoc } from '@angular/fire/firestore';
+import { serverTimestamp, doc, getDoc, where } from '@angular/fire/firestore';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { take } from 'rxjs/operators';
+import { RecordPaymentModalComponent } from '../../payments/record-payment-modal/record-payment-modal.component';
+import { Payment, PaymentMethod, PAYMENT_METHOD_LABELS } from '../../../../core/models/payment.model';
 
 @Component({
   selector: 'app-order-detail',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent, LoadingSpinnerComponent, RouterModule, DatePipe],
+  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent, LoadingSpinnerComponent, RouterModule, DatePipe, RecordPaymentModalComponent],
   templateUrl: './order-detail.component.html',
   styleUrls: ['./order-detail.component.scss']
 })
@@ -38,6 +40,23 @@ export class OrderDetailComponent {
   private orderId = this.route.snapshot.paramMap.get('id') || '';
   private order$ = this.firestore.getDocument<Order>(`orders/${this.orderId}`);
   order = toSignal(this.order$);
+
+  // Payments
+  showPaymentModal = signal(false);
+  private payments$ = this.firestore.getCollection<Payment>(
+    'payments',
+    where('orderId', '==', this.orderId),
+    where('tenantId', '==', 1)
+  );
+  orderPayments = toSignal(this.payments$, { initialValue: [] as Payment[] });
+
+  activePayments = computed(() =>
+    this.orderPayments()
+      .filter(p => !p.isDeleted)
+      .sort((a, b) => {
+        return (b.receivedDate || '').localeCompare(a.receivedDate || '');
+      })
+  );
 
   constructor() {
     this.order$.subscribe(order => {
@@ -111,6 +130,42 @@ export class OrderDetailComponent {
             totalOrderedCents: Math.max(0, totalOrdered),
             totalOwingCents: Math.max(0, totalOwing)
           });
+        }
+
+        // 3. Restore stock for each item
+        const { collection } = await import('@angular/fire/firestore');
+        for (const item of order.items) {
+          const productRef = doc(db, `products/${item.productId}`);
+          const productSnap = await getDoc(productRef);
+          if (productSnap.exists()) {
+            const productData = productSnap.data();
+            const currentStock = productData['stock'] || 0;
+            const newStock = currentStock + item.quantity;
+            
+            batch.update(productRef, { stock: newStock });
+            
+            // Create stock adjustment record for the reversal
+            const adjustRef = doc(
+              collection(db, 'stockAdjustments')
+            );
+            batch.set(adjustRef, {
+              productId: item.productId,
+              productName: item.productName,
+              productSku: item.productSku,
+              type: 'returned',
+              quantity: item.quantity,
+              previousStock: currentStock,
+              newStock,
+              reason: `Order ${order.orderNumber} cancelled`,
+              notes: `Cancellation reason: ${reason}`,
+              adjustedBy: actionBy,
+              createdAt: serverTimestamp(),
+              tenantId: 1,
+              isDeleted: false,
+              linkedOrderId: order.id,
+              linkedOrderNumber: order.orderNumber,
+            });
+          }
         }
       });
 
@@ -668,6 +723,14 @@ export class OrderDetailComponent {
   // Utils
   formatCurrency(cents: number) {
     return centsToDisplay(cents);
+  }
+
+  getMethodLabel(method: string): string {
+    return PAYMENT_METHOD_LABELS[method as PaymentMethod] || method;
+  }
+
+  onPaymentModalClosed(saved: boolean) {
+    this.showPaymentModal.set(false);
   }
 
   getStatusLabel(status: OrderStatus): string {

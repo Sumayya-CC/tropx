@@ -283,11 +283,17 @@
     }
 
     .stock-warning {
-      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: #92400e;
+      background: rgba(201,149,42,0.1);
+      border-radius: 4px;
+      padding: 0.2rem 0.4rem;
       font-size: 0.75rem;
       font-weight: 600;
       margin-top: 0.25rem;
-      display: block;
+      width: fit-content;
     }
   }
 
@@ -404,4 +410,5 @@
       cursor: not-allowed;
     }
   }
+
 }

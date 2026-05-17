@@ -282,9 +282,46 @@
               <span class="value balance">{{ formatCurrency(order()?.balanceCents!) }}</span>
             </div>
           </div>
-          <button class="btn-record-payment" disabled title="Coming soon — use Payments module">
-            Record Payment (Coming Soon)
-          </button>
+          
+          @if (order()?.status !== 'cancelled' && order()?.paymentStatus !== 'paid') {
+            <button class="btn-action" (click)="showPaymentModal.set(true)">
+              💰 Record Payment
+            </button>
+          }
+
+          @if (showPaymentModal() && order()) {
+            <app-record-payment-modal
+              [order]="order()!"
+              (closed)="onPaymentModalClosed($event)">
+            </app-record-payment-modal>
+          }
+
+          @if (activePayments().length > 0) {
+            <div class="payment-history">
+              <div class="ph-title">Payment History</div>
+              @for (p of activePayments(); track p.id) {
+                <div class="ph-row">
+                  <div class="ph-left">
+                    <span class="ph-number">{{ p.paymentNumber }}</span>
+                    <span class="ph-method">
+                      {{ getMethodLabel(p.method) }}
+                    </span>
+                    @if (p.referenceNumber) {
+                      <span class="ph-ref">
+                        Ref: {{ p.referenceNumber }}
+                      </span>
+                    }
+                  </div>
+                  <div class="ph-right">
+                    <span class="ph-date">{{ p.receivedDate }}</span>
+                    <span class="ph-amount">
+                      {{ formatCurrency(p.amountCents) }}
+                    </span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
         </div>
 
         <!-- Delivery Info -->

@@ -125,8 +125,10 @@
                         (input)="updateItemQuantity(item, $event)"
                         min="1"
                       >
-                      @if (item.quantity > (productStockMap()[item.productId] || 0)) {
-                        <span class="stock-warning">Exceeds stock: {{ productStockMap()[item.productId] }}</span>
+                      @if (item.quantity > getAvailableStock(item)) {
+                        <span class="stock-warning">
+                          ⚠️ Only {{ getAvailableStock(item) }} in stock
+                        </span>
                       }
                     </td>
                     <td>
@@ -233,6 +235,7 @@
           </div>
         </div>
       </div>
+
 
       <button 
         class="btn-submit" 

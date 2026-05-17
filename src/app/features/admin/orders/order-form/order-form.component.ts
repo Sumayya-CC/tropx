@@ -343,6 +343,20 @@ export class OrderFormComponent {
     this.expectedDeliveryDate.set((event.target as HTMLInputElement).value);
   }
 
+  getAvailableStock(item: OrderItem): number {
+    const currentStock = this.productStockMap()[item.productId] ?? 0;
+    
+    if (this.isEditMode() && this.originalOrder()) {
+      const originalItem = this.originalOrder()!.items
+        .find(i => i.productId === item.productId);
+      const originalQty = originalItem?.quantity || 0;
+      // Stock already has originalQty deducted,
+      // so effective available = currentStock + originalQty
+      return currentStock + originalQty;
+    }
+    return currentStock;
+  }
+
   async saveOrder() {
     const customer = this.selectedCustomer();
     const items = this.items();
@@ -441,6 +455,40 @@ export class OrderFormComponent {
           lastOrderAt: serverTimestamp()
         });
 
+        // 4. Deduct stock for each item
+        for (const item of items) {
+          const productRef = doc(db, `products/${item.productId}`);
+          const productSnap = await getDoc(productRef);
+          if (productSnap.exists()) {
+            const productData = productSnap.data();
+            const currentStock = productData['stock'] || 0;
+            const newStock = Math.max(0, currentStock - item.quantity);
+            
+            // Update product stock
+            batch.update(productRef, { stock: newStock });
+            
+            // Create stock adjustment record
+            const adjustRef = doc(collection(db, 'stockAdjustments'));
+            batch.set(adjustRef, {
+              productId: item.productId,
+              productName: item.productName,
+              productSku: item.productSku,
+              type: 'sold',
+              quantity: -item.quantity,
+              previousStock: currentStock,
+              newStock,
+              reason: `Order ${orderNumber}`,
+              notes: null,
+              adjustedBy: actionBy,
+              createdAt: serverTimestamp(),
+              tenantId: 1,
+              isDeleted: false,
+              linkedOrderId: newOrderRef.id,
+              linkedOrderNumber: orderNumber,
+            });
+          }
+        }
+
         // Store ID for navigation
         (this as any)._newOrderId = newOrderRef.id;
         (this as any)._newOrderNumber = orderNumber;
@@ -477,7 +525,7 @@ export class OrderFormComponent {
       const totalDiff = total - order.totalCents;
 
       await this.firestore.runBatch(async (batch, db) => {
-        const { doc, getDoc } = await import('@angular/fire/firestore');
+        const { doc, getDoc, collection } = await import('@angular/fire/firestore');
         
         const orderRef = doc(db, `orders/${order.id}`);
         batch.update(orderRef, {
@@ -508,6 +556,70 @@ export class OrderFormComponent {
               totalOwingCents: Math.max(0, (cd['totalOwingCents'] || 0) + totalDiff),
             });
           }
+        }
+
+        // 3. Adjust stock for item changes
+        const originalItems = order.items;
+        const newItems = items;
+
+        // Build maps for easy lookup
+        const originalMap: Record<string, number> = {};
+        for (const item of originalItems) {
+          originalMap[item.productId] = item.quantity;
+        }
+        const newMap: Record<string, number> = {};
+        for (const item of newItems) {
+          newMap[item.productId] = item.quantity;
+        }
+
+        // All product IDs involved
+        const allProductIds = new Set([
+          ...Object.keys(originalMap),
+          ...Object.keys(newMap)
+        ]);
+
+        for (const productId of allProductIds) {
+          const originalQty = originalMap[productId] || 0;
+          const newQty = newMap[productId] || 0;
+          const diff = newQty - originalQty;
+          
+          if (diff === 0) continue; // No change
+          
+          const productRef = doc(db, `products/${productId}`);
+          const productSnap = await getDoc(productRef);
+          if (!productSnap.exists()) continue;
+          
+          const productData = productSnap.data();
+          const currentStock = productData['stock'] || 0;
+          // diff > 0 means more ordered = deduct more
+          // diff < 0 means less ordered = restore some
+          const newStock = Math.max(0, currentStock - diff);
+          
+          batch.update(productRef, { stock: newStock });
+          
+          // Find item name for snapshot
+          const itemSnapshot = newItems.find(
+            i => i.productId === productId
+          ) || originalItems.find(i => i.productId === productId);
+          
+          const adjustRef = doc(collection(db, 'stockAdjustments'));
+          batch.set(adjustRef, {
+            productId,
+            productName: itemSnapshot?.productName || productId,
+            productSku: itemSnapshot?.productSku || '',
+            type: diff > 0 ? 'sold' : 'returned',
+            quantity: -diff,  // negative if sold, positive if returned
+            previousStock: currentStock,
+            newStock,
+            reason: `Order ${order.orderNumber} edited`,
+            notes: `Quantity changed from ${originalQty} to ${newQty}`,
+            adjustedBy: actionBy,
+            createdAt: serverTimestamp(),
+            tenantId: 1,
+            isDeleted: false,
+            linkedOrderId: order.id,
+            linkedOrderNumber: order.orderNumber,
+          });
         }
       });
 

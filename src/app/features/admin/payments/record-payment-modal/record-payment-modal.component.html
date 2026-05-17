@@ -1,0 +1,135 @@
+<div class="modal-backdrop" (click)="cancel()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Record Payment</h2>
+      <button class="btn-close" (click)="cancel()" [disabled]="isSaving()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Order Summary Card -->
+      <div class="summary-card">
+        <div class="summary-row">
+          <span class="label">Order #</span>
+          <span class="value order-num">{{ order.orderNumber }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Customer</span>
+          <span class="value">{{ order.customerName }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Order Total</span>
+          <span class="value">{{ formatCurrency(order.totalCents) }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Amount Paid</span>
+          <span class="value text-green">{{ formatCurrency(order.amountPaidCents) }}</span>
+        </div>
+        <div class="summary-row mt-2">
+          <span class="label">Balance Due</span>
+          <span class="value balance" [class.text-red]="order.balanceCents > 0" [class.text-green]="order.balanceCents <= 0">
+            {{ formatCurrency(order.balanceCents) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="form-group">
+        <label>Payment Amount</label>
+        <div class="input-with-prefix">
+          <span class="prefix">$</span>
+          <input 
+            type="number" 
+            [(ngModel)]="amount" 
+            min="0.01" 
+            [max]="order.balanceCents / 100" 
+            step="0.01" 
+            [disabled]="isSaving()"
+          >
+        </div>
+        @if (willBeOverpaid()) {
+          <div class="warning-text">
+            ⚠️ Amount exceeds balance — overpayment of {{ formatCurrency(overpaymentAmountCents()) }}
+          </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label>Payment Method</label>
+        <div class="method-pills">
+          <button 
+            class="pill" 
+            [class.active]="method() === 'cash'" 
+            (click)="method.set('cash')" 
+            [disabled]="isSaving()">Cash</button>
+          <button 
+            class="pill" 
+            [class.active]="method() === 'e_transfer'" 
+            (click)="method.set('e_transfer')" 
+            [disabled]="isSaving()">E-Transfer</button>
+          <button 
+            class="pill" 
+            [class.active]="method() === 'cheque'" 
+            (click)="method.set('cheque')" 
+            [disabled]="isSaving()">Cheque</button>
+          <button 
+            class="pill" 
+            [class.active]="method() === 'other'" 
+            (click)="method.set('other')" 
+            [disabled]="isSaving()">Other</button>
+        </div>
+      </div>
+
+      @if (showReference) {
+        <div class="form-group">
+          <label>{{ referenceLabel }}</label>
+          <input 
+            type="text" 
+            [(ngModel)]="referenceNumber" 
+            [placeholder]="'Enter ' + referenceLabel.toLowerCase()" 
+            [disabled]="isSaving()"
+          >
+        </div>
+      }
+
+      <div class="form-group">
+        <label>Date Received</label>
+        <input 
+          type="date" 
+          [(ngModel)]="receivedDate" 
+          [disabled]="isSaving()"
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Internal Notes (Optional)</label>
+        <textarea 
+          [(ngModel)]="notes" 
+          placeholder="Any additional details..." 
+          [disabled]="isSaving()"
+          rows="2"
+        ></textarea>
+      </div>
+
+      <!-- Live Preview -->
+      <div class="preview-box">
+        <div class="preview-line">
+          Recording <strong>{{ formatCurrency(amountCents()) }}</strong> payment via <strong class="capitalize">{{ method().replace('_', '-') }}</strong>
+        </div>
+        <div class="preview-line mt-1" [class.text-green]="newBalanceCents() <= 0" [class.text-gold]="newBalanceCents() > 0">
+          New balance after payment: <strong>{{ formatCurrency(newBalanceCents()) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="cancel()" [disabled]="isSaving()">Cancel</button>
+      <button class="btn-primary" (click)="save()" [disabled]="isSaving() || amount() <= 0 || willBeOverpaid() || (showReference && !referenceNumber())">
+        @if (isSaving()) {
+          Recording...
+        } @else {
+          Record Payment
+        }
+      </button>
+    </div>
+  </div>
+</div>

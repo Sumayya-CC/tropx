@@ -1,0 +1,352 @@
+<div class="admin-payments">
+  <app-page-header
+    title="Payments"
+    subtitle="Track all received payments"
+  ></app-page-header>
+
+  <!-- Stats Row -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 
+            3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Collected (Month)</span>
+        <span class="stat-value">
+          {{ formatCurrency(stats().totalCollectedThisMonth) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon cash">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="1" y="4" width="22" height="16" 
+            rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Cash (Month)</span>
+        <span class="stat-value">
+          {{ formatCurrency(stats().cashThisMonth) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon etransfer">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="17 1 21 5 17 9"/>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">E-Transfer (Month)</span>
+        <span class="stat-value">
+          {{ formatCurrency(stats().etransferThisMonth) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon outstanding">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Outstanding Balance</span>
+        <span class="stat-value outstanding">
+          {{ formatCurrency(stats().outstandingBalance) }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-group">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search orders, customers, reference..."
+      >
+    </div>
+    
+    <div class="filters">
+      <div class="filter-group">
+        <select [ngModel]="methodFilter()" (ngModelChange)="methodFilter.set($event)">
+          <option value="all">All Methods</option>
+          <option value="cash">Cash</option>
+          <option value="e_transfer">E-Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select [value]="customerFilter()" 
+          (change)="customerFilter.set($any($event.target).value)">
+          <option value="all">All Customers</option>
+          @for (c of customerOptions(); track c.id) {
+            <option [value]="c.id">{{ c.businessName }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <input 
+          type="text"
+          placeholder="e.g. TRX-2026-0001"
+          [value]="orderFilter()"
+          (input)="orderFilter.set($any($event.target).value)"
+        >
+      </div>
+
+      <div class="filter-group">
+        <select [ngModel]="dateFilter()" (ngModelChange)="dateFilter.set($event)">
+        <option value="today">Today</option>
+        <option value="last_7">Last 7 Days</option>
+        <option value="last_30">Last 30 Days</option>
+        <option value="all_time">All Time</option>
+      </select>
+
+      <label class="toggle-voided">
+        <input 
+          type="checkbox" 
+          [ngModel]="showVoided()" 
+          (ngModelChange)="showVoided.set($event)"
+        >
+        Show voided
+      </label>
+    </div>
+  </div>
+
+  <!-- Totals Bar -->
+  <div class="table-wrapper">
+    <div class="results-summary">
+    <div class="results-count">
+      <span class="count-number">
+        {{ filteredTotals().count }}
+      </span>
+      <span class="count-label">
+        payment{{ filteredTotals().count !== 1 ? 's' : '' }}
+      </span>
+    </div>
+
+    <div class="results-divider"></div>
+
+    <div class="results-breakdown">
+      <div class="breakdown-item">
+        <span class="breakdown-label">Total</span>
+        <span class="breakdown-value navy">
+          {{ formatCurrency(filteredTotals().totalCents) }}
+        </span>
+      </div>
+      <div class="breakdown-separator">·</div>
+      <div class="breakdown-item">
+        <span class="breakdown-label">Cash</span>
+        <span class="breakdown-value green">
+          {{ formatCurrency(filteredTotals().cashCents) }}
+        </span>
+      </div>
+      <div class="breakdown-separator">·</div>
+      <div class="breakdown-item">
+        <span class="breakdown-label">E-Transfer</span>
+        <span class="breakdown-value blue">
+          {{ formatCurrency(filteredTotals().etransferCents) }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-container">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <app-loading-spinner></app-loading-spinner>
+      </div>
+    } @else if (filteredPayments().length === 0) {
+      <div class="empty-state">
+        <p>No payments found matching your criteria.</p>
+      </div>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Payment #</th>
+            <th>Date Received</th>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Method</th>
+            <th>Reference #</th>
+            <th class="text-right">Amount</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (payment of filteredPayments(); track payment.id) {
+            <tr [class.is-voided]="payment.isDeleted" (click)="selectedPayment.set(payment)">
+              <td>
+                <div class="payment-num">{{ payment.paymentNumber }}</div>
+                <div class="recorded-date" title="Recorded On: {{ getRecordedDate(payment) }}">
+                  {{ getRecordedDate(payment) }}
+                </div>
+              </td>
+              <td>{{ payment.receivedDate | date:'mediumDate' }}</td>
+              <td>
+                <a [routerLink]="['/admin/orders', payment.orderId]" class="order-link">
+                  {{ payment.orderNumber }}
+                </a>
+              </td>
+              <td>{{ payment.customerName }}</td>
+              <td>
+                <span class="method-badge" [attr.data-method]="payment.method">
+                  {{ getMethodLabel(payment.method) }}
+                </span>
+              </td>
+              <td class="reference">{{ payment.referenceNumber || '—' }}</td>
+              <td class="text-right">
+                <div class="amount-group">
+                  <span class="amount">{{ formatCurrency(payment.amountCents) }}</span>
+                  @if (payment.isDeleted) {
+                    <span class="void-badge">Voided</span>
+                  }
+                </div>
+              </td>
+              <td class="text-right actions-cell">
+                @if (!payment.isDeleted) {
+                  <button class="btn-void" (click)="selectedPayment.set(payment); voidingPaymentId.set(payment.id); $event.stopPropagation()">Void</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+  </div>
+</div>
+
+@if (selectedPayment()) {
+  <div class="side-panel-backdrop" (click)="selectedPayment.set(null)"></div>
+  <div class="side-panel">
+    <div class="side-panel-header">
+      <div>
+        <div class="sp-number">{{ selectedPayment()?.paymentNumber }}</div>
+        @if (selectedPayment()?.isDeleted) {
+          <span class="voided-badge">VOIDED</span>
+        }
+      </div>
+      <button class="sp-close" (click)="selectedPayment.set(null)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="side-panel-body">
+      <div class="sp-section">
+        <div class="sp-label">Amount</div>
+        <div class="sp-amount">{{ formatCurrency(selectedPayment()!.amountCents) }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Customer</div>
+        <div class="sp-value">{{ selectedPayment()?.customerName }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Order</div>
+        <a [routerLink]="['/admin/orders', selectedPayment()?.orderId]" class="sp-link">
+          {{ selectedPayment()?.orderNumber }} →
+        </a>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Method</div>
+        <div class="sp-value">{{ getMethodLabel(selectedPayment()!.method) }}</div>
+      </div>
+
+      @if (selectedPayment()?.referenceNumber) {
+        <div class="sp-section">
+          <div class="sp-label">Reference #</div>
+          <div class="sp-value">{{ selectedPayment()?.referenceNumber }}</div>
+        </div>
+      }
+
+      <div class="sp-section">
+        <div class="sp-label">Date Received</div>
+        <div class="sp-value">{{ selectedPayment()?.receivedDate | date:'mediumDate' }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Recorded By</div>
+        <div class="sp-value">
+          {{ selectedPayment()?.recordedBy?.firstName }}
+          {{ selectedPayment()?.recordedBy?.lastName || '' }}
+        </div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Recorded At</div>
+        <div class="sp-value">{{ getRecordedDate(selectedPayment()!) }}</div>
+      </div>
+
+      @if (selectedPayment()?.notes) {
+        <div class="sp-section">
+          <div class="sp-label">Notes</div>
+          <div class="sp-value">{{ selectedPayment()?.notes }}</div>
+        </div>
+      }
+
+      @if (selectedPayment()?.isDeleted) {
+        <div class="sp-section voided-section">
+          <div class="sp-label">Void Reason</div>
+          <div class="sp-value" style="color:var(--red)">{{ selectedPayment()?.voidReason }}</div>
+          <div class="sp-label" style="margin-top:0.5rem">Voided By</div>
+          <div class="sp-value">
+            {{ selectedPayment()?.deletedBy?.firstName }}
+            {{ selectedPayment()?.deletedBy?.lastName || '' }}
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (!selectedPayment()?.isDeleted) {
+      <div class="side-panel-footer">
+        @if (voidingPaymentId() === selectedPayment()?.id) {
+          <div class="void-confirm-form">
+            <input #voidReason placeholder="Reason for void (required)..." class="void-reason-input">
+            <div class="void-confirm-buttons">
+              <button class="btn-confirm-void" (click)="confirmVoid(selectedPayment()!, voidReason.value)">Confirm Void</button>
+              <button class="btn-cancel-void" (click)="voidingPaymentId.set(null)">Cancel</button>
+            </div>
+          </div>
+        } @else {
+          <button class="btn-void-panel" (click)="voidingPaymentId.set(selectedPayment()!.id)">Void Payment</button>
+        }
+      </div>
+    }
+  </div>
+}

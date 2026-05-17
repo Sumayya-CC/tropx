@@ -365,17 +365,85 @@
   }
 
   .btn-record-payment {
-    width: 100%;
-    padding: 0.625rem;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    background: white;
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--cream);
+  color: var(--gray);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.payment-history {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+
+  .ph-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--gray);
-    font-size: 0.875rem;
-    cursor: not-allowed;
-    opacity: 0.7;
-    margin-top: 1rem;
+    margin-bottom: 0.75rem;
   }
+
+  .ph-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.8125rem;
+
+    &:last-child { border-bottom: none; }
+  }
+
+  .ph-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .ph-number {
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--navy-deep);
+    font-size: 0.8rem;
+  }
+
+  .ph-method {
+    color: var(--gray);
+    font-size: 0.75rem;
+  }
+
+  .ph-ref {
+    color: var(--gray);
+    font-size: 0.7rem;
+    font-style: italic;
+  }
+
+  .ph-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+  }
+
+  .ph-date {
+    color: var(--gray);
+    font-size: 0.75rem;
+  }
+
+  .ph-amount {
+    font-weight: 700;
+    color: var(--green);
+    font-size: 0.875rem;
+  }
+}
 
   .cancel-form {
     background: #fff1f2;

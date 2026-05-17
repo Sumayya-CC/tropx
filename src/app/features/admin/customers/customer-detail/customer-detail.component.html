@@ -105,13 +105,13 @@
           @if (cust.lastOrderAt) {
             <div class="date-row">
               <span class="label">Last Order:</span>
-              <span class="value">{{ cust.lastOrderAt | date:'mediumDate' }}</span>
+              <span class="value">{{ formatDate(cust.lastOrderAt) }}</span>
             </div>
           }
           @if (cust.lastPaymentAt) {
             <div class="date-row">
               <span class="label">Last Payment:</span>
-              <span class="value">{{ cust.lastPaymentAt | date:'mediumDate' }}</span>
+              <span class="value">{{ formatDate(cust.lastPaymentAt) }}</span>
             </div>
           }
         </div>
@@ -182,6 +182,41 @@
           <div class="card-footer-link">
             <!-- future route, just placeholder for now -->
             <a [routerLink]="['/admin/orders']" [queryParams]="{customer: cust.id}">View all orders &rarr;</a>
+          </div>
+        }
+      </div>
+
+      <!-- Payments Card -->
+      <div class="detail-card">
+        <h3 class="card-title">Recent Payments</h3>
+        
+        @if (recentPayments().length === 0) {
+          <div class="empty-orders">
+            <p>No payments yet</p>
+          </div>
+        } @else {
+          <div class="order-list">
+            @for (payment of recentPayments(); track payment.id) {
+              <div class="order-row">
+                <div class="order-info">
+                  <span class="order-num" style="font-family: monospace;">{{ payment.paymentNumber }}</span>
+                  <span class="order-date">{{ payment.receivedDate | date:'mediumDate' }}</span>
+                </div>
+                <div class="order-info">
+                  <a [routerLink]="['/admin/orders', payment.orderId]" class="order-num" style="color: var(--navy); text-decoration: none;">
+                    {{ payment.orderNumber }}
+                  </a>
+                  <span class="order-date">{{ getMethodLabel(payment.method) }}</span>
+                </div>
+                <div class="order-amount" style="color: var(--green);">
+                  {{ formatCurrency(payment.amountCents) }}
+                </div>
+              </div>
+            }
+          </div>
+          
+          <div class="card-footer-link">
+            <a [routerLink]="['/admin/payments']" [queryParams]="{search: cust.businessName}">View all payments &rarr;</a>
           </div>
         }
       </div>

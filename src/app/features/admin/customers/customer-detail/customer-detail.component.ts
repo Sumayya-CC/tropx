@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../../../core/services/firestore.service';
@@ -9,7 +9,9 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { Customer } from '../../../../core/models/customer.model';
 import { Order } from '../../../../core/models/order.model';
+import { Payment, PaymentMethod, PAYMENT_METHOD_LABELS } from '../../../../core/models/payment.model';
 import { where, orderBy, limit, serverTimestamp } from '@angular/fire/firestore';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 interface ServiceArea {
   id: string;
@@ -37,6 +39,22 @@ export class CustomerDetailComponent {
   recentOrders = signal<Order[]>([]);
   isLoading = signal(true);
 
+  private customerId = this.route.snapshot.paramMap.get('id') || '';
+
+  private payments$ = this.firestore.getCollection<Payment>(
+    'payments',
+    where('customerId', '==', this.customerId),
+    where('tenantId', '==', 1)
+  );
+  customerPayments = toSignal(this.payments$, { initialValue: [] as Payment[] });
+
+  recentPayments = computed(() =>
+    this.customerPayments()
+      .filter(p => !p.isDeleted)
+      .sort((a, b) => (b.receivedDate || '').localeCompare(a.receivedDate || ''))
+      .slice(0, 10)
+  );
+
   constructor() {
     effect(() => {
       const id = this.route.snapshot.paramMap.get('id');
@@ -49,7 +67,7 @@ export class CustomerDetailComponent {
 
   private loadCustomer(id: string) {
     this.firestore.getDocument<Customer>(`customers/${id}`).subscribe({
-      next: (data) => {
+      next: (data: Customer | null) => {
         if (!data || data.isDeleted) {
           this.toast.error('Customer not found');
           this.router.navigate(['/admin/customers']);
@@ -109,6 +127,10 @@ export class CustomerDetailComponent {
     if (source === 'admin_created') return 'Added by staff';
     if (source === 'access_request') return 'Self-registered';
     return source;
+  }
+
+  getMethodLabel(method: string): string {
+    return PAYMENT_METHOD_LABELS[method as PaymentMethod] || method;
   }
 
   formatDate(value: any): string {

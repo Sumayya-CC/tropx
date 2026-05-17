@@ -231,10 +231,12 @@ export const routes: Routes = [
       {
         path: 'payments',
         data: { title: 'Payments' },
-        loadComponent: () =>
-          import('./features/admin/payments/admin-payments.component').then(
-            m => m.AdminPaymentsComponent
-          ),
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/admin/payments/admin-payments.component').then(m => m.AdminPaymentsComponent),
+          }
+        ]
       },
       {
         path: 'employees',

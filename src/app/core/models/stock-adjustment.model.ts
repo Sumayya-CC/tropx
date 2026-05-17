@@ -25,6 +25,8 @@ export interface StockAdjustment {
   createdAt: any;             // Using any to handle Firestore Timestamp vs Date
   tenantId: number;
   isDeleted: boolean;
+  linkedOrderId?: string;
+  linkedOrderNumber?: string;
 }
 
 export const ADJUSTMENT_TYPE_LABELS: Record<AdjustmentType, string> = {
