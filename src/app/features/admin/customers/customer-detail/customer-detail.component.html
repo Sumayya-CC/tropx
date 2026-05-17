@@ -221,6 +221,30 @@
         }
       </div>
 
+      <!-- Recent Returns Card -->
+      @if (recentReturns().length > 0) {
+        <div class="detail-card">
+          <div class="card-header">
+            <h3 class="card-title">Recent Returns</h3>
+          </div>
+          <div class="order-list">
+            @for (r of recentReturns(); track r.id) {
+              <div class="recent-return-row">
+                <div>
+                  <span class="rr-number" style="font-family: monospace; font-weight: 700; color: var(--navy-deep);">{{ r.returnNumber }}</span>
+                  <span class="rr-order" style="font-family: monospace; color: var(--gray); font-size: 0.85rem;">
+                    — {{ r.orderNumber }}
+                  </span>
+                </div>
+                <span class="rr-amount" style="font-weight: 700; color: var(--red);">
+                  -{{ formatCurrency(r.amountCents) }}
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
       <!-- Record Card -->
       <div class="detail-card">
         <h3 class="card-title">Record</h3>

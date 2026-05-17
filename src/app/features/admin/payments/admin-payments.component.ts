@@ -40,6 +40,7 @@ export class AdminPaymentsComponent {
   selectedPayment = signal<Payment | null>(null);
 
   // Data
+  private hasLoaded = signal(false);
   private payments$ = this.firestore.getCollection<Payment>(
     'payments',
     where('tenantId', '==', 1)
@@ -61,7 +62,11 @@ export class AdminPaymentsComponent {
       )
   );
 
-  isLoading = computed(() => this.allPayments().length === 0 && this.allCustomers().length === 0);
+  isLoading = computed(() => !this.hasLoaded());
+
+  constructor() {
+    this.payments$.subscribe(() => this.hasLoaded.set(true));
+  }
 
   // Stats
   stats = computed(() => {

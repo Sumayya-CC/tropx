@@ -1,0 +1,461 @@
+<div class="admin-returns">
+  <app-page-header
+    title="Returns"
+    subtitle="Manage customer returns and refunds"
+  ></app-page-header>
+
+  <!-- Stats Row -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-3.6"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Returns (Month)</span>
+        <span class="stat-value">
+          {{ formatCurrency(stats().totalReturnsThisMonth) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon pending">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Pending Review</span>
+        <span class="stat-value outstanding">
+          {{ stats().pendingCount }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon credit">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M12 8v8"/>
+          <path d="M8 12h8"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Credit Notes (Month)</span>
+        <span class="stat-value">
+          {{ formatCurrency(stats().creditNotesThisMonth) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon refund">
+        <svg xmlns="http://www.w3.org/2000/svg" 
+          width="24" height="24" viewBox="0 0 24 24" 
+          fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 20a8 8 0 0 0-16 0"/>
+          <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Refunds (Month)</span>
+        <span class="stat-value">
+          {{ formatCurrency(stats().refundsThisMonth) }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-group">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search return #, order #, customer name..."
+      >
+    </div>
+    
+    <div class="filters">
+      <div class="filter-group">
+        <select [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+          <option value="all">All Types</option>
+          <option value="credit_note">Credit Note</option>
+          <option value="refund">Refund</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select [ngModel]="dateFilter()" (ngModelChange)="dateFilter.set($event)">
+          <option value="today">Today</option>
+          <option value="last_7">Last 7 Days</option>
+          <option value="last_30">Last 30 Days</option>
+          <option value="all_time">All Time</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Totals Bar -->
+  <div class="table-wrapper">
+    <div class="results-summary">
+      <div class="results-count">
+        <span class="count-number">
+          {{ filteredTotals().count }}
+        </span>
+        <span class="count-label">
+          return{{ filteredTotals().count !== 1 ? 's' : '' }}
+        </span>
+      </div>
+
+      <div class="results-divider"></div>
+
+      <div class="results-breakdown">
+        <div class="breakdown-item">
+          <span class="breakdown-label">Total Amount</span>
+          <span class="breakdown-value red-sum">
+            {{ formatCurrency(filteredTotals().totalCents) }}
+          </span>
+        </div>
+        <div class="breakdown-separator">·</div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">Credit Notes</span>
+          <span class="breakdown-value navy-sum">
+            {{ formatCurrency(filteredTotals().creditCents) }}
+          </span>
+        </div>
+        <div class="breakdown-separator">·</div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">Refunds</span>
+          <span class="breakdown-value gold-sum">
+            {{ formatCurrency(filteredTotals().refundCents) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      @if (isLoading()) {
+        <div class="loading-state">
+          <app-loading-spinner></app-loading-spinner>
+        </div>
+      } @else if (filteredReturns().length === 0) {
+        <div class="empty-state">
+          <p>No returns found matching your criteria.</p>
+        </div>
+      } @else {
+        <table>
+          <thead>
+            <tr>
+              <th>Return #</th>
+              <th>Order #</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Reason</th>
+              <th class="text-right">Amount</th>
+              <th>Created Date</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of filteredReturns(); track r.id) {
+              <tr (click)="selectReturn(r)">
+                <td>
+                  <span class="return-num">{{ r.returnNumber }}</span>
+                </td>
+                <td>
+                  <a [routerLink]="['/admin/orders', r.orderId]" class="order-link" (click)="$event.stopPropagation()">
+                    {{ r.orderNumber }}
+                  </a>
+                </td>
+                <td>{{ r.customerName }}</td>
+                <td>
+                  <span class="type-badge" [attr.data-type]="r.type">
+                    {{ getReturnTypeLabel(r.type) }}
+                  </span>
+                </td>
+                <td>
+                  <app-status-badge 
+                    [status]="r.status"
+                    [color]="getReturnStatusColor(r.status)">
+                  </app-status-badge>
+                </td>
+                <td>
+                  <span class="reason-text" [title]="r.reason">
+                    {{ getReturnReasonLabel(r.reasonCode) }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <span class="amount">-{{ formatCurrency(r.amountCents) }}</span>
+                </td>
+                <td>{{ getFormattedDate(r.createdAt) }}</td>
+                <td class="text-right actions-cell">
+                  <button class="btn-review" (click)="selectReturn(r); $event.stopPropagation()">Review</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Sliding Side Panel for Return Details -->
+@if (selectedReturn(); as ret) {
+  <div class="side-panel-backdrop" (click)="selectedReturn.set(null)"></div>
+  <div class="side-panel">
+    <div class="side-panel-header">
+      <div>
+        <div class="sp-number">{{ ret.returnNumber }}</div>
+        <app-status-badge 
+          [status]="ret.status"
+          [color]="getReturnStatusColor(ret.status)">
+        </app-status-badge>
+      </div>
+      <button class="sp-close" (click)="selectedReturn.set(null)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="side-panel-body">
+      <div class="sp-section">
+        <div class="sp-label">Amount</div>
+        <div class="sp-amount">-{{ formatCurrency(ret.amountCents) }}</div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Return Type</div>
+        <div class="sp-value">
+          <span class="type-badge" [attr.data-type]="ret.type">
+            {{ getReturnTypeLabel(ret.type) }}
+          </span>
+        </div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Customer</div>
+        <div class="sp-value">
+          <strong>{{ ret.customerName }}</strong>
+          <div class="sp-subtext">{{ ret.customerPhone }}</div>
+        </div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Order #</div>
+        <a [routerLink]="['/admin/orders', ret.orderId]" class="sp-link">
+          {{ ret.orderNumber }} →
+        </a>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Items Returned</div>
+        <div class="items-table-wrapper">
+          <table class="sp-items-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of ret.items; track item.productId) {
+                <tr>
+                  <td>
+                    <div class="sp-item-name">{{ item.productName }}</div>
+                    <div class="sp-item-sku">{{ item.productSku }}</div>
+                  </td>
+                  <td class="text-center font-mono">{{ item.quantity }}</td>
+                  <td class="text-right font-mono">{{ formatCurrency(item.unitPriceCents) }}</td>
+                  <td class="text-right font-mono">{{ formatCurrency(item.lineTotalCents) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sp-section">
+        <div class="sp-label">Reason</div>
+        <div class="sp-value">
+          <strong>{{ getReturnReasonLabel(ret.reasonCode) }}</strong>
+          <p class="sp-notes">{{ ret.reason }}</p>
+        </div>
+      </div>
+
+      @if (ret.internalNotes) {
+        <div class="sp-section">
+          <div class="sp-label">Internal Notes</div>
+          <p class="sp-notes">{{ ret.internalNotes }}</p>
+        </div>
+      }
+
+
+
+      <!-- Processing Information -->
+      @if (ret.status === 'approved') {
+        <div class="sp-section info-box success-box">
+          <div class="sp-label">Approval Details</div>
+          <div class="sp-value mt-1">
+            Approved by: {{ ret.processedBy?.firstName }} {{ ret.processedBy?.lastName }}<br>
+            Date: {{ getFormattedDate(ret.processedAt) }}
+          </div>
+
+          @if (ret.type === 'refund') {
+            <div class="sp-label mt-2">Refund Details</div>
+            <div class="sp-value mt-1">
+              Method: <strong>{{ getRefundMethodLabel(ret.refundMethod!) }}</strong><br>
+              @if (ret.refundReferenceNumber) {
+                Ref #: <code>{{ ret.refundReferenceNumber }}</code>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (ret.status === 'rejected') {
+        <div class="sp-section info-box error-box">
+          <div class="sp-label">Rejection Details</div>
+          <div class="sp-value mt-1">
+            Rejected by: {{ ret.processedBy?.firstName }} {{ ret.processedBy?.lastName }}<br>
+            Date: {{ getFormattedDate(ret.processedAt) }}<br>
+            <p class="rejection-reason-text mt-2">
+              <strong>Reason:</strong> {{ ret.rejectionReason }}
+            </p>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Actions for Pending Returns -->
+    @if (ret.status === 'pending') {
+      <div class="side-panel-footer">
+        @if (isProcessing()) {
+          <div class="panel-loading">
+            <app-loading-spinner></app-loading-spinner>
+            <span>Processing return...</span>
+          </div>
+        } @else if (showRejectForm()) {
+          <div class="action-form">
+            <div class="form-title">Reject Return</div>
+            <textarea 
+              [ngModel]="rejectionReason()"
+              (ngModelChange)="rejectionReason.set($event)"
+              placeholder="Provide a reason for rejection (required)..." 
+              rows="3" 
+              class="form-input text-area"
+            ></textarea>
+            <div class="form-buttons">
+              <button class="btn-danger-confirm" (click)="rejectReturn()">Confirm Reject</button>
+              <button class="btn-cancel" (click)="showRejectForm.set(false)">Cancel</button>
+            </div>
+          </div>
+        } @else if (ret.type === 'refund' && !showRejectForm()) {
+          <div class="action-form">
+            <div class="form-title">Refund Processing</div>
+            
+            <div class="form-field">
+              <label class="form-label">Refund Method</label>
+              <select 
+                [ngModel]="selectedRefundMethod()" 
+                (ngModelChange)="selectedRefundMethod.set($event)"
+                class="form-input"
+              >
+                <option value="cash">Cash</option>
+                <option value="e_transfer">E-Transfer</option>
+                <option value="store_credit">Store Credit</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Reference Number (Optional)</label>
+              <input 
+                type="text" 
+                [ngModel]="refundReferenceNumber()" 
+                (ngModelChange)="refundReferenceNumber.set($event)"
+                placeholder="e.g. E-transfer reference"
+                class="form-input"
+              >
+            </div>
+
+            <div class="stock-toggle-row">
+              <label class="stock-toggle-label">
+                <input 
+                  type="checkbox"
+                  [ngModel]="restoreStockOnApproval()"
+                  (ngModelChange)="restoreStockOnApproval.set($event)"
+                >
+                <span>Restore stock to inventory</span>
+              </label>
+              <span class="stock-toggle-hint">
+                @if (restoreStockOnApproval()) {
+                  Items will be added back to stock
+                } @else {
+                  Items will be written off (damaged/expired)
+                }
+              </span>
+            </div>
+
+            <div class="form-buttons dual-btn">
+              <button class="btn-approve" (click)="approveReturn()">Approve & Refund</button>
+              <button class="btn-reject" (click)="showRejectForm.set(true)">Reject</button>
+            </div>
+          </div>
+        } @else {
+          <!-- Credit Note Pending actions -->
+          <div class="stock-toggle-row">
+            <label class="stock-toggle-label">
+              <input 
+                type="checkbox"
+                [ngModel]="restoreStockOnApproval()"
+                (ngModelChange)="restoreStockOnApproval.set($event)"
+              >
+              <span>Restore stock to inventory</span>
+            </label>
+            <span class="stock-toggle-hint">
+              @if (restoreStockOnApproval()) {
+                Items will be added back to stock
+              } @else {
+                Items will be written off (damaged/expired)
+              }
+            </span>
+          </div>
+
+          <div class="standard-actions">
+            <button class="btn-approve-large" (click)="approveReturn()">Approve & Issue Credit</button>
+            <button class="btn-reject-large" (click)="showRejectForm.set(true)">Reject Return</button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}

@@ -14,11 +14,13 @@ import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { take } from 'rxjs/operators';
 import { RecordPaymentModalComponent } from '../../payments/record-payment-modal/record-payment-modal.component';
 import { Payment, PaymentMethod, PAYMENT_METHOD_LABELS } from '../../../../core/models/payment.model';
+import { Return, RETURN_TYPE_LABELS, RETURN_STATUS_LABELS, ReturnType } from '../../../../core/models/return.model';
+import { CreateReturnModalComponent } from '../../returns/create-return-modal/create-return-modal.component';
 
 @Component({
   selector: 'app-order-detail',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent, LoadingSpinnerComponent, RouterModule, DatePipe, RecordPaymentModalComponent],
+  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent, LoadingSpinnerComponent, RouterModule, DatePipe, RecordPaymentModalComponent, CreateReturnModalComponent],
   templateUrl: './order-detail.component.html',
   styleUrls: ['./order-detail.component.scss']
 })
@@ -55,6 +57,25 @@ export class OrderDetailComponent {
       .filter(p => !p.isDeleted)
       .sort((a, b) => {
         return (b.receivedDate || '').localeCompare(a.receivedDate || '');
+      })
+  );
+
+  // Returns
+  showReturnModal = signal(false);
+  private returns$ = this.firestore.getCollection<Return>(
+    'returns',
+    where('orderId', '==', this.orderId),
+    where('tenantId', '==', 1)
+  );
+  orderReturns = toSignal(this.returns$, { initialValue: [] as Return[] });
+
+  activeReturns = computed(() =>
+    this.orderReturns()
+      .filter(r => !r.isDeleted)
+      .sort((a, b) => {
+        const aTime = a.createdAt?.seconds ?? 0;
+        const bTime = b.createdAt?.seconds ?? 0;
+        return bTime - aTime;
       })
   );
 
@@ -731,6 +752,23 @@ export class OrderDetailComponent {
 
   onPaymentModalClosed(saved: boolean) {
     this.showPaymentModal.set(false);
+  }
+
+  onReturnModalClosed(saved: boolean) {
+    this.showReturnModal.set(false);
+  }
+
+  getReturnTypeLabel(type: string): string {
+    return RETURN_TYPE_LABELS[type as ReturnType] || type;
+  }
+
+  getReturnStatusColor(status: string): string {
+    switch (status) {
+      case 'pending': return 'warning';
+      case 'approved': return 'success';
+      case 'rejected': return 'danger';
+      default: return 'info';
+    }
   }
 
   getStatusLabel(status: OrderStatus): string {

@@ -239,6 +239,14 @@ export const routes: Routes = [
         ]
       },
       {
+        path: 'returns',
+        data: { title: 'Returns' },
+        loadComponent: () =>
+          import('./features/admin/returns/admin-returns.component').then(
+            m => m.AdminReturnsComponent
+          ),
+      },
+      {
         path: 'employees',
         data: { roles: ['admin'], title: 'Employees' },
         loadComponent: () =>

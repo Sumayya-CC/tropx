@@ -132,6 +132,36 @@
             </div>
           </div>
         </div>
+
+        @if (activeReturns().length > 0) {
+          <div class="detail-section">
+            <h3>Returns</h3>
+            @for (r of activeReturns(); track r.id) {
+              <div class="return-row">
+                <div class="return-left">
+                  <span class="return-number">
+                    {{ r.returnNumber }}
+                  </span>
+                  <span class="return-type">
+                    {{ getReturnTypeLabel(r.type) }}
+                  </span>
+                  <app-status-badge 
+                    [status]="r.status"
+                    [color]="getReturnStatusColor(r.status)">
+                  </app-status-badge>
+                </div>
+                <div class="return-right">
+                  <span class="return-amount">
+                    -{{ formatCurrency(r.amountCents) }}
+                  </span>
+                  <a [routerLink]="['/admin/returns']"
+                    [queryParams]="{ highlight: r.id }"
+                    class="return-link">View →</a>
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!-- Right Column -->
@@ -213,6 +243,10 @@
               } @else if (order()?.status === 'out_for_delivery') {
                 <button class="btn-action success" (click)="updateStatus('delivered')">Mark as Delivered</button>
                 <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
+              } @else if (order()?.status === 'delivered') {
+                <button class="btn-action secondary" (click)="showReturnModal.set(true)">
+                  ↩️ Create Return
+                </button>
               }
 
               @if (order()?.status !== 'cancelled') {
@@ -294,6 +328,13 @@
               [order]="order()!"
               (closed)="onPaymentModalClosed($event)">
             </app-record-payment-modal>
+          }
+
+          @if (showReturnModal() && order()) {
+            <app-create-return-modal
+              [order]="order()!"
+              (closed)="onReturnModalClosed($event)">
+            </app-create-return-modal>
           }
 
           @if (activePayments().length > 0) {

@@ -10,6 +10,7 @@ import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { Customer } from '../../../../core/models/customer.model';
 import { Order } from '../../../../core/models/order.model';
 import { Payment, PaymentMethod, PAYMENT_METHOD_LABELS } from '../../../../core/models/payment.model';
+import { Return } from '../../../../core/models/return.model';
 import { where, orderBy, limit, serverTimestamp } from '@angular/fire/firestore';
 import { toSignal } from '@angular/core/rxjs-interop';
 
@@ -53,6 +54,24 @@ export class CustomerDetailComponent {
       .filter(p => !p.isDeleted)
       .sort((a, b) => (b.receivedDate || '').localeCompare(a.receivedDate || ''))
       .slice(0, 10)
+  );
+
+  private returns$ = this.firestore.getCollection<Return>(
+    'returns',
+    where('customerId', '==', this.customerId),
+    where('tenantId', '==', 1)
+  );
+  customerReturns = toSignal(this.returns$, { initialValue: [] as Return[] });
+
+  recentReturns = computed(() =>
+    this.customerReturns()
+      .filter(r => !r.isDeleted && r.status === 'approved')
+      .sort((a, b) => {
+        const aTime = a.createdAt?.seconds ?? 0;
+        const bTime = b.createdAt?.seconds ?? 0;
+        return bTime - aTime;
+      })
+      .slice(0, 5)
   );
 
   constructor() {

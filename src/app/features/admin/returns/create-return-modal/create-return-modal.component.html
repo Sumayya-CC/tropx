@@ -1,0 +1,239 @@
+<div class="modal-backdrop" (click)="close()"></div>
+<div class="modal-container">
+  <div class="modal-header">
+    <h2>↩️ Create Return</h2>
+    <button class="btn-close" (click)="close()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="modal-body">
+    <!-- Read-Only Order Summary Card -->
+    <div class="order-summary-card">
+      <div class="card-title">Order #{{ order.orderNumber }} Details</div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="label">Customer</span>
+          <span class="value">{{ order.customerName }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Order Total</span>
+          <span class="value navy">{{ formatCurrency(order.totalCents) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Amount Paid</span>
+          <span class="value green">{{ formatCurrency(order.amountPaidCents || 0) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Balance Due</span>
+          <span class="value" [class.red]="order.balanceCents > 0" [class.green]="order.balanceCents === 0">
+            {{ formatCurrency(order.balanceCents) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <form class="return-form" (submit)="$event.preventDefault()">
+      <!-- Return Type Radio Buttons (Pills Style) -->
+      <div class="form-section">
+        <label class="section-label">Return Type</label>
+        <div class="type-radio-group">
+          <label class="radio-pill" [class.active]="returnType() === 'credit_note'">
+            <input 
+              type="radio" 
+              name="returnType" 
+              value="credit_note" 
+              [ngModel]="returnType()"
+              (ngModelChange)="returnType.set($event)"
+            >
+            <div class="pill-content">
+              <strong>Credit Note</strong>
+              <span>Deducted from what customer owes</span>
+            </div>
+          </label>
+
+          <label class="radio-pill" [class.active]="returnType() === 'refund'">
+            <input 
+              type="radio" 
+              name="returnType" 
+              value="refund" 
+              [ngModel]="returnType()"
+              (ngModelChange)="returnType.set($event)"
+            >
+            <div class="pill-content">
+              <strong>Refund</strong>
+              <span>Money goes back to customer</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Items to Return Table -->
+      <div class="form-section">
+        <label class="section-label">Select Items to Return</label>
+        <div class="items-table-wrapper">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">Select</th>
+                <th>Product</th>
+                <th class="text-center" style="width: 80px;">Ordered</th>
+                <th class="text-center" style="width: 100px;">Return Qty</th>
+                <th class="text-right" style="width: 90px;">Price</th>
+                <th class="text-right" style="width: 100px;">Line Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.productId) {
+                <tr [class.selected]="item.selected">
+                  <td class="text-center">
+                    <input 
+                      type="checkbox" 
+                      [checked]="item.selected"
+                      (change)="onCheckboxChange(item)"
+                      class="checkbox-input"
+                    >
+                  </td>
+                  <td>
+                    <div class="product-name">{{ item.productName }}</div>
+                    <div class="product-sku">{{ item.productSku }}</div>
+                  </td>
+                  <td class="text-center font-mono">{{ item.orderedQty }}</td>
+                  <td class="text-center">
+                    <input 
+                      type="number" 
+                      [disabled]="!item.selected"
+                      [value]="item.returnQty"
+                      (input)="onQtyChange(item, $event)"
+                      min="1"
+                      [max]="item.orderedQty"
+                      class="qty-input"
+                    >
+                  </td>
+                  <td class="text-right font-mono">{{ formatCurrency(item.unitPriceCents) }}</td>
+                  <td class="text-right font-mono font-bold">
+                    {{ formatCurrency(item.selected ? (item.returnQty * item.unitPriceCents) : 0) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Reason Code -->
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Reason Code</label>
+          <select 
+            [ngModel]="reasonCode()" 
+            (ngModelChange)="reasonCode.set($event)"
+            name="reasonCode"
+            class="form-input"
+          >
+            @for (opt of reasonOptions(); track opt.code) {
+              <option [value]="opt.code">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        </div>
+
+      <!-- Refund-specific fields -->
+      @if (returnType() === 'refund') {
+        <div class="form-grid refund-section-grid">
+          <div class="form-field">
+            <label class="form-label">Refund Method</label>
+            <select 
+              [ngModel]="refundMethod()" 
+              (ngModelChange)="refundMethod.set($event)"
+              name="refundMethod"
+              class="form-input"
+            >
+              @for (opt of refundMethodOptions(); track opt.method) {
+                <option [value]="opt.method">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Reference Number (Optional)</label>
+            <input 
+              type="text" 
+              [ngModel]="refundReferenceNumber()" 
+              (ngModelChange)="refundReferenceNumber.set($event)"
+              name="refundReferenceNumber"
+              placeholder="e.g. Cheque / E-Transfer ref"
+              class="form-input"
+            >
+          </div>
+        </div>
+      }
+
+      <!-- Detailed Reason Description -->
+      <div class="form-field">
+        <label class="form-label">Reason Description</label>
+        <input 
+          type="text" 
+          [ngModel]="reason()" 
+          (ngModelChange)="reason.set($event)"
+          name="reason"
+          placeholder="Brief description of why the items are being returned..."
+          class="form-input"
+        >
+      </div>
+
+      <!-- Internal Notes -->
+      <div class="form-field">
+        <label class="form-label">Internal Notes (Optional)</label>
+        <textarea 
+          [ngModel]="internalNotes()" 
+          (ngModelChange)="internalNotes.set($event)"
+          name="internalNotes"
+          placeholder="Any notes for admin review only..."
+          rows="3"
+          class="form-input text-area"
+        ></textarea>
+      </div>
+    </form>
+  </div>
+
+  <!-- Live Summary at Bottom and Form Submissions -->
+  <div class="modal-footer">
+    <div class="live-summary">
+      <div class="summary-left">
+        <span class="sum-count">{{ liveSummary().count }} item(s) to return</span>
+        <span class="sum-type">Type: {{ returnType() === 'credit_note' ? 'Credit Note' : 'Refund' }}</span>
+      </div>
+      <div class="summary-right">
+        <span class="sum-value">{{ liveSummary().formattedAmount }}</span>
+      </div>
+    </div>
+
+    <div class="footer-buttons">
+      <button 
+        type="button" 
+        class="btn-cancel" 
+        [disabled]="isSubmitting()"
+        (click)="close()"
+      >
+        Cancel
+      </button>
+      <button 
+        type="submit" 
+        class="btn-submit" 
+        [disabled]="isSubmitting() || liveSummary().count === 0 || !reason().trim()"
+        (click)="submitReturn()"
+      >
+        @if (isSubmitting()) {
+          Submitting...
+        } @else {
+          Submit Return
+        }
+      </button>
+    </div>
+  </div>
+</div>
