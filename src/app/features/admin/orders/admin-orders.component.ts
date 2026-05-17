@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -25,6 +25,8 @@ export class AdminOrdersComponent {
   statusFilter = signal<OrderStatus | 'all'>('all');
   dateFilter = signal<'today' | 'last_7' | 'last_30' | 'all'>('all');
   paymentFilter = signal<PaymentStatus | 'all'>('all');
+  selectedServiceAreas = signal<string[]>([]);
+  showAreaFilter = signal(false);
   isLoading = signal(true);
 
   // Data
@@ -33,6 +35,13 @@ export class AdminOrdersComponent {
     where('tenantId', '==', 1)
   );
   private allOrders = toSignal(this.orders$, { initialValue: [] });
+
+  private serviceAreas$ = this.firestore.getCollection<any>(
+    'serviceAreas',
+    where('tenantId', '==', 1),
+    where('isDeleted', '==', false)
+  );
+  serviceAreas = toSignal(this.serviceAreas$, { initialValue: [] });
 
   constructor() {
     // Basic loading state handling
@@ -45,6 +54,7 @@ export class AdminOrdersComponent {
     const status = this.statusFilter();
     const date = this.dateFilter();
     const payment = this.paymentFilter();
+    const areas = this.selectedServiceAreas();
     const orders = this.allOrders();
 
     return orders
@@ -56,6 +66,8 @@ export class AdminOrdersComponent {
         
         const matchesStatus = status === 'all' || o.status === status;
         const matchesPayment = payment === 'all' || o.paymentStatus === payment;
+        const matchesArea = areas.length === 0 ||
+          (o.serviceAreaName && areas.includes(o.serviceAreaName));
         
         let matchesDate = true;
         if (date !== 'all') {
@@ -68,7 +80,7 @@ export class AdminOrdersComponent {
           else if (date === 'last_30') matchesDate = diffDays <= 30;
         }
 
-        return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+        return matchesSearch && matchesStatus && matchesPayment && matchesDate && matchesArea;
       })
       .sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime();
@@ -111,6 +123,35 @@ export class AdminOrdersComponent {
 
   onPaymentFilterChange(event: Event) {
     this.paymentFilter.set((event.target as HTMLSelectElement).value as any);
+  }
+
+  toggleAreaFilter() {
+    this.showAreaFilter.update(v => !v);
+  }
+
+  toggleServiceArea(areaName: string) {
+    this.selectedServiceAreas.update(current => {
+      if (current.includes(areaName)) {
+        return current.filter(a => a !== areaName);
+      }
+      return [...current, areaName];
+    });
+  }
+
+  isAreaSelected(areaName: string): boolean {
+    return this.selectedServiceAreas().includes(areaName);
+  }
+
+  clearAreaFilter() {
+    this.selectedServiceAreas.set([]);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.area-filter')) {
+      this.showAreaFilter.set(false);
+    }
   }
 
   navigateToNewOrder() {

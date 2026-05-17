@@ -330,6 +330,20 @@
       &:hover { filter: brightness(0.9); }
     }
 
+    &.secondary {
+      background: white;
+      color: var(--navy);
+      border: 1px solid var(--navy);
+      &:hover { background: var(--cream); }
+    }
+
+    &.whatsapp {
+      background: #25d366;
+      color: white;
+      border: none;
+      &:hover { background: #128c7e; }
+    }
+
     &.danger {
       background: white;
       color: var(--red);
@@ -341,6 +355,13 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
   }
 
   .btn-record-payment {
@@ -431,5 +452,11 @@
         font-weight: 500;
       }
     }
+  }
+
+  .invoice-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 }

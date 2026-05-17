@@ -206,12 +206,62 @@
             } @else {
               @if (order()?.status === 'confirmed') {
                 <button class="btn-action" (click)="updateStatus('out_for_delivery')">Mark Out for Delivery</button>
+                <button class="btn-action secondary" (click)="router.navigate(['/admin/orders', order()!.id, 'edit'])">
+                  ✏️ Edit Order
+                </button>
                 <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
               } @else if (order()?.status === 'out_for_delivery') {
                 <button class="btn-action success" (click)="updateStatus('delivered')">Mark as Delivered</button>
                 <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
               }
+
+              @if (order()?.status !== 'cancelled') {
+                <button class="btn-action secondary" (click)="reorder()">
+                  🔄 Reorder
+                </button>
+              }
+
+              <button class="btn-action secondary" (click)="printDeliverySlip()">
+                🖨️ Print Delivery Slip
+              </button>
+
+              <button class="btn-action whatsapp" (click)="shareViaWhatsApp()">
+                💬 Share via WhatsApp
+              </button>
             }
+          </div>
+        </div>
+
+        <!-- Invoice Section -->
+        <div class="detail-section">
+          <h3>Invoice</h3>
+          <p style="font-size:0.8125rem;color:var(--gray);margin-bottom:1rem;">
+            Invoice #{{ order()?.orderNumber }} · 
+            Due 30 days from order date
+          </p>
+          <div class="invoice-actions">
+            <button 
+              class="btn-action secondary" 
+              (click)="downloadInvoice()"
+              [disabled]="isGeneratingPdf()">
+              @if (isGeneratingPdf()) {
+                <app-loading-spinner size="sm"></app-loading-spinner>
+                Generating...
+              } @else {
+                📄 Download PDF
+              }
+            </button>
+            <button 
+              class="btn-action secondary"
+              (click)="sendInvoiceByEmail()"
+              [disabled]="isSendingInvoice()">
+              @if (isSendingInvoice()) {
+                <app-loading-spinner size="sm"></app-loading-spinner>
+                Sending...
+              } @else {
+                📧 Email to Customer
+              }
+            </button>
           </div>
         </div>
 

@@ -218,6 +218,14 @@ export const routes: Routes = [
                 m => m.OrderDetailComponent
               ),
           },
+          {
+            path: ':id/edit',
+            data: { title: 'Edit Order' },
+            loadComponent: () =>
+              import('./features/admin/orders/order-form/order-form.component').then(
+                m => m.OrderFormComponent
+              ),
+          },
         ]
       },
       {

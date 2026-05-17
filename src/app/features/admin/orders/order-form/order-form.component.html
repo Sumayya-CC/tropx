@@ -1,10 +1,27 @@
 <div class="order-form">
   <app-page-header
-    title="New Order"
-    subtitle="Create a new wholesale order"
+    [title]="isEditMode() ? 'Edit Order ' + originalOrder()?.orderNumber : 'New Order'"
+    [subtitle]="isEditMode() ? 'Editing confirmed order' : 'Create a new wholesale order'"
     backLink="/admin/orders"
     backLinkLabel="Orders"
   ></app-page-header>
+
+  @if (hasSavedDraft() && !isEditMode()) {
+    <div class="draft-banner">
+      <span>
+        📝 You have an unsaved draft from 
+        {{ savedDraftData()?.savedAt | date:'MMM d @ h:mm a' }}
+      </span>
+      <div class="draft-actions">
+        <button class="btn-restore" (click)="restoreDraft()">
+          Restore Draft
+        </button>
+        <button class="btn-discard" (click)="discardDraft()">
+          Discard
+        </button>
+      </div>
+    </div>
+  }
 
   <div class="form-layout">
     <!-- Left Column -->
@@ -20,6 +37,13 @@
             [options]="customerOptions()"
             (selected)="onCustomerSelected($event)"
           ></app-searchable-select>
+          <p class="customer-not-found">
+            Customer not in the list?
+            <a routerLink="/admin/customers/add" target="_blank" class="link-add-customer">
+              Add New Customer →
+            </a>
+            <span style="color:var(--gray);font-size:0.8rem;">(opens in new tab)</span>
+          </p>
         } @else {
           <div class="customer-card">
             <div class="customer-detail">
@@ -41,9 +65,11 @@
                 {{ formatCurrency(selectedCustomer()?.totalOwingCents || 0) }}
               </span>
             </div>
-            <div class="change-customer-wrap">
-              <button class="btn-change-customer" (click)="selectedCustomer.set(null)">Change Customer</button>
-            </div>
+            @if (!isEditMode()) {
+              <div class="change-customer-wrap">
+                <button class="btn-change-customer" (click)="selectedCustomer.set(null)">Change Customer</button>
+              </div>
+            }
           </div>
         }
       </div>
@@ -215,9 +241,9 @@
       >
         @if (isSaving()) {
           <app-loading-spinner size="sm" color="white"></app-loading-spinner>
-          Creating...
+          {{ isEditMode() ? 'Saving...' : 'Creating...' }}
         } @else {
-          Create Order
+          {{ isEditMode() ? 'Save Changes' : 'Create Order' }}
         }
       </button>
     </div>

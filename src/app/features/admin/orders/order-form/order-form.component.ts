@@ -1,6 +1,6 @@
-import { Component, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Component, inject, signal, computed, effect } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
+import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FirestoreService } from '../../../../core/services/firestore.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
@@ -17,7 +17,7 @@ import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 @Component({
   selector: 'app-order-form',
   standalone: true,
-  imports: [CommonModule, SearchableSelectComponent, PageHeaderComponent, LoadingSpinnerComponent],
+  imports: [CommonModule, SearchableSelectComponent, PageHeaderComponent, LoadingSpinnerComponent, DatePipe, RouterModule],
   templateUrl: './order-form.component.html',
   styleUrls: ['./order-form.component.scss']
 })
@@ -26,6 +26,7 @@ export class OrderFormComponent {
   protected readonly auth = inject(AuthService);
   protected readonly toast = inject(ToastService);
   protected readonly router = inject(Router);
+  protected readonly route = inject(ActivatedRoute);
 
   // State
   isSaving = signal(false);
@@ -39,6 +40,14 @@ export class OrderFormComponent {
   customerNotes = signal('');
   internalNotes = signal('');
 
+  // Edit/Draft State
+  isEditMode = signal(false);
+  editOrderId = signal<string | null>(null);
+  isLoadingOrder = signal(false);
+  originalOrder = signal<Order | null>(null);
+  hasSavedDraft = signal(false);
+  savedDraftData = signal<any>(null);
+
   // Data
   private customers$ = this.firestore.getCollection<Customer>(
     'customers',
@@ -48,11 +57,172 @@ export class OrderFormComponent {
     'products',
     where('active', '==', true)
   );
+  private serviceAreas$ = this.firestore.getCollection<any>(
+    'serviceAreas',
+    where('tenantId', '==', 1),
+    where('isDeleted', '==', false)
+  );
 
   private allCustomers = toSignal(this.customers$, { initialValue: [] });
   private allProducts = toSignal(this.products$, { initialValue: [] });
+  private allServiceAreas = toSignal(this.serviceAreas$, { initialValue: [] });
 
-  // Computed
+  constructor() {
+    // 1. Check for Edit Mode
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.isEditMode.set(true);
+      this.editOrderId.set(id);
+      this.loadOrderForEdit(id);
+    }
+
+    // 2. Check for Reorder Draft (only if not edit mode)
+    const reorderDraft = localStorage.getItem('tropx_reorder_draft');
+    if (reorderDraft && !this.isEditMode()) {
+      try {
+        const draft = JSON.parse(reorderDraft);
+        localStorage.removeItem('tropx_reorder_draft');
+        
+        this.items.set(draft.items || []);
+        this.taxRatePercent.set(draft.taxRatePercent || 13);
+        this.deliveryType.set(draft.deliveryType || 'delivery');
+        
+        this.toast.success(`Items pre-filled from ${draft.sourceOrderNumber}`);
+        
+        const checkCustomer = () => {
+          const customers = this.allCustomers();
+          if (customers.length > 0) {
+            const c = customers.find(x => x.id === draft.customerId);
+            if (c) this.selectedCustomer.set(c);
+          } else {
+            setTimeout(checkCustomer, 200);
+          }
+        };
+        setTimeout(checkCustomer, 300);
+      } catch (e) {
+        localStorage.removeItem('tropx_reorder_draft');
+      }
+    }
+
+    // 3. Check for regular Draft (if no reorder draft and not edit mode)
+    const savedDraft = localStorage.getItem('tropx_order_draft');
+    if (savedDraft && !reorderDraft && !this.isEditMode()) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        const savedAt = new Date(draft.savedAt);
+        const hoursSince = (Date.now() - savedAt.getTime()) / (1000 * 3600);
+        
+        if (hoursSince < 24) {
+          this.hasSavedDraft.set(true);
+          this.savedDraftData.set(draft);
+        } else {
+          localStorage.removeItem('tropx_order_draft');
+        }
+      } catch (e) {
+        localStorage.removeItem('tropx_order_draft');
+      }
+    }
+
+    // 4. Auto-save Draft (only if not edit mode)
+    effect(() => {
+      if (this.isEditMode()) return;
+      
+      const customer = this.selectedCustomer();
+      const items = this.items();
+      
+      if (!customer && items.length === 0) return;
+      
+      const draft = {
+        customerId: customer?.id,
+        customerSnapshot: customer ? {
+          id: customer.id,
+          businessName: customer.businessName,
+          phone: customer.phone,
+          totalOwingCents: customer.totalOwingCents,
+          serviceAreaCustom: customer.serviceAreaCustom,
+          address: customer.address,
+        } : null,
+        items: items,
+        discountCents: this.discountCents(),
+        taxRatePercent: this.taxRatePercent(),
+        deliveryType: this.deliveryType(),
+        expectedDeliveryDate: this.expectedDeliveryDate(),
+        customerNotes: this.customerNotes(),
+        internalNotes: this.internalNotes(),
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('tropx_order_draft', JSON.stringify(draft));
+    });
+  }
+
+  private loadOrderForEdit(id: string) {
+    this.isLoadingOrder.set(true);
+    this.firestore.getDocument<Order>(`orders/${id}`).subscribe(order => {
+      if (!order || order.isDeleted) {
+        this.toast.error('Order not found');
+        this.router.navigate(['/admin/orders']);
+        return;
+      }
+      if (order.status !== 'confirmed') {
+        this.toast.error('Only confirmed orders can be edited');
+        this.router.navigate(['/admin/orders', id]);
+        return;
+      }
+      
+      this.originalOrder.set(order);
+      
+      const customerFromOrder: any = {
+        id: order.customerId,
+        businessName: order.customerName,
+        phone: order.customerPhone,
+        serviceAreaId: order.serviceAreaId,
+        serviceAreaCustom: order.serviceAreaName,
+        totalOwingCents: 0,
+        address: { city: '', province: '' }
+      };
+      this.selectedCustomer.set(customerFromOrder);
+      this.items.set(order.items);
+      this.discountCents.set(order.discountCents || 0);
+      this.taxRatePercent.set(order.taxRatePercent || 13);
+      this.deliveryType.set(order.deliveryType || 'delivery');
+      this.customerNotes.set(order.customerNotes || '');
+      this.internalNotes.set(order.internalNotes || '');
+      
+      if (order.expectedDeliveryDate) {
+        const d = (order.expectedDeliveryDate as any).toDate ? (order.expectedDeliveryDate as any).toDate() : new Date(order.expectedDeliveryDate as any);
+        this.expectedDeliveryDate.set(d.toISOString().split('T')[0]);
+      }
+      
+      this.isLoadingOrder.set(false);
+    });
+  }
+
+  restoreDraft() {
+    const draft = this.savedDraftData();
+    if (!draft) return;
+    
+    this.items.set(draft.items || []);
+    this.discountCents.set(draft.discountCents || 0);
+    this.taxRatePercent.set(draft.taxRatePercent || 13);
+    this.deliveryType.set(draft.deliveryType || 'delivery');
+    this.expectedDeliveryDate.set(draft.expectedDeliveryDate || '');
+    this.customerNotes.set(draft.customerNotes || '');
+    this.internalNotes.set(draft.internalNotes || '');
+    
+    if (draft.customerSnapshot) {
+      this.selectedCustomer.set(draft.customerSnapshot);
+    }
+    
+    this.hasSavedDraft.set(false);
+    this.savedDraftData.set(null);
+    this.toast.success('Draft restored');
+  }
+
+  discardDraft() {
+    localStorage.removeItem('tropx_order_draft');
+    this.hasSavedDraft.set(false);
+    this.savedDraftData.set(null);
+  }
   customerOptions = computed(() => {
     return this.allCustomers()
       .filter(c => !c.isDeleted)
@@ -188,6 +358,11 @@ export class OrderFormComponent {
       return;
     }
 
+    if (this.isEditMode()) {
+      await this.saveEditedOrder();
+      return;
+    }
+
     this.isSaving.set(true);
 
     try {
@@ -227,9 +402,9 @@ export class OrderFormComponent {
           orderNumber,
           customerId: customer.id,
           customerName: customer.businessName,
-          customerPhone: customer.phone,
-          serviceAreaId: customer.serviceAreaId,
-          serviceAreaName: customer.serviceAreaCustom,
+          customerPhone: customer.phone ?? null,
+          serviceAreaId: customer.serviceAreaId ?? null,
+          serviceAreaName: this.getServiceAreaName(customer) || null,
           items,
           subtotalCents: this.subtotalCents(),
           taxRatePercent: this.taxRatePercent(),
@@ -245,8 +420,8 @@ export class OrderFormComponent {
           balanceCents: this.totalCents(),
           source: 'admin_created',
           deliveryType: this.deliveryType(),
-          customerNotes: this.customerNotes(),
-          internalNotes: this.internalNotes(),
+          customerNotes: this.customerNotes() || null,
+          internalNotes: this.internalNotes() || null,
           expectedDeliveryDate: this.expectedDeliveryDate() ? new Date(this.expectedDeliveryDate()) : null,
           confirmedAt: serverTimestamp(),
           confirmedBy: actionBy,
@@ -271,6 +446,7 @@ export class OrderFormComponent {
         (this as any)._newOrderNumber = orderNumber;
       });
 
+      localStorage.removeItem('tropx_order_draft');
       this.toast.success(`Order ${(this as any)._newOrderNumber} created successfully`);
       this.router.navigate(['/admin/orders', (this as any)._newOrderId]);
 
@@ -282,8 +458,84 @@ export class OrderFormComponent {
     }
   }
 
+  private async saveEditedOrder() {
+    const order = this.originalOrder();
+    const items = this.items();
+    const actionBy = this.auth.getActionBy();
+    
+    if (!order || !actionBy) return;
+
+    this.isSaving.set(true);
+
+    try {
+      const totalCostCents = items.reduce((sum, i) => sum + i.lineCostCents, 0);
+      const subtotal = this.subtotalCents();
+      const tax = this.taxCents();
+      const discount = this.discountCents();
+      const total = this.totalCents();
+      
+      const totalDiff = total - order.totalCents;
+
+      await this.firestore.runBatch(async (batch, db) => {
+        const { doc, getDoc } = await import('@angular/fire/firestore');
+        
+        const orderRef = doc(db, `orders/${order.id}`);
+        batch.update(orderRef, {
+          items,
+          subtotalCents: subtotal,
+          taxRatePercent: this.taxRatePercent(),
+          taxCents: tax,
+          discountCents: discount,
+          totalCents: total,
+          totalCostCents,
+          marginCents: total - totalCostCents,
+          balanceCents: total - (order.amountPaidCents || 0),
+          deliveryType: this.deliveryType(),
+          customerNotes: this.customerNotes() || null,
+          internalNotes: this.internalNotes() || null,
+          expectedDeliveryDate: this.expectedDeliveryDate() ? new Date(this.expectedDeliveryDate()) : null,
+          updatedAt: serverTimestamp(),
+          updatedBy: actionBy,
+        });
+
+        if (totalDiff !== 0) {
+          const customerRef = doc(db, `customers/${order.customerId}`);
+          const customerSnap = await getDoc(customerRef);
+          if (customerSnap.exists()) {
+            const cd = customerSnap.data();
+            batch.update(customerRef, {
+              totalOrderedCents: Math.max(0, (cd['totalOrderedCents'] || 0) + totalDiff),
+              totalOwingCents: Math.max(0, (cd['totalOwingCents'] || 0) + totalDiff),
+            });
+          }
+        }
+      });
+
+      this.toast.success('Order updated successfully');
+      this.router.navigate(['/admin/orders', order.id]);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      this.toast.error('Failed to update order.');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
   // Utils
   formatCurrency(cents: number) {
     return centsToDisplay(cents);
+  }
+
+  getServiceAreaName(customer: Customer): string {
+    if (customer.serviceAreaCustom) {
+      return customer.serviceAreaCustom;
+    }
+    if (customer.serviceAreaId) {
+      const sa = this.allServiceAreas().find(
+        s => s.id === customer.serviceAreaId
+      );
+      return sa?.name || '';
+    }
+    return '';
   }
 }

@@ -330,6 +330,62 @@ export const onAuthAction = onDocumentCreated(
   }
 );
 
+// ─── Invoice Requests ─────────────────────────────────────────────────────────
+
+export const onInvoiceRequest = onDocumentCreated(
+  {
+    document: "invoiceRequests/{id}",
+    database: "tropx-dev",
+    region: "northamerica-northeast2",
+    secrets: [resendApiKey, fromEmail],
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data || data.status !== "pending") return;
+
+    const {
+      customerEmail,
+      orderNumber,
+      invoiceHtml,
+    } = data;
+
+    if (!customerEmail || !invoiceHtml) {
+      await event.data?.ref.update({
+        status: "error",
+        error: "Missing email or HTML",
+      });
+      return;
+    }
+
+    const resend = new Resend(resendApiKey.value());
+    const from = fromEmail.value();
+
+    try {
+      await resend.emails.send({
+        from: `Tropx Wholesale <${from}>`,
+        to: customerEmail,
+        subject: `Invoice ${orderNumber} — Tropx Wholesale`,
+        html: invoiceHtml,
+      });
+
+      await event.data?.ref.update({
+        status: "sent",
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(
+        `Invoice ${orderNumber} sent to ${customerEmail}`
+      );
+    } catch (err: any) {
+      console.error("Error sending invoice email:", err);
+      await event.data?.ref.update({
+        status: "error",
+        error: err.message,
+      });
+    }
+  }
+);
+
 // ─── Email Templates ────────────────────────────────────────────────────────
 
 function welcomeEmailHtml(

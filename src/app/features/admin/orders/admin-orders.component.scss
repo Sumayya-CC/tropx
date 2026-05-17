@@ -70,6 +70,94 @@
           border-color: var(--navy);
         }
       }
+
+      .area-filter {
+        position: relative;
+        
+        .area-trigger {
+          padding: 0.625rem 0.875rem;
+          border: 1px solid var(--color-border);
+          border-radius: 8px;
+          background: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          min-width: 160px;
+          justify-content: space-between;
+          height: 40px;
+          
+          .selected-count {
+            background: var(--navy);
+            color: white;
+            border-radius: 10px;
+            padding: 0.1rem 0.4rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+          }
+
+          svg {
+            color: var(--gray);
+            transition: transform 0.2s;
+          }
+        }
+        
+        .area-dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          min-width: 240px;
+          background: white;
+          border: 1px solid var(--color-border);
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          z-index: 100;
+          padding: 0.5rem;
+
+          .options-list {
+            max-height: 250px;
+            overflow-y: auto;
+          }
+          
+          .area-option {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            
+            &:hover { background: var(--cream); }
+            
+            input[type="checkbox"] {
+              accent-color: var(--navy);
+              width: 16px;
+              height: 16px;
+              cursor: pointer;
+            }
+          }
+          
+          .area-clear {
+            border-top: 1px solid var(--color-border);
+            margin-top: 0.25rem;
+            padding-top: 0.5rem;
+            
+            button {
+              background: none;
+              border: none;
+              color: var(--gray);
+              font-size: 0.8rem;
+              cursor: pointer;
+              padding: 0.25rem 0.75rem;
+              width: 100%;
+              text-align: left;
+              &:hover { color: var(--red); }
+            }
+          }
+        }
+      }
     }
   }
 

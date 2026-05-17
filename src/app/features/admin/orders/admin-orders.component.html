@@ -63,6 +63,46 @@
         <option value="paid">Paid</option>
       </select>
     </div>
+    <div class="filter-group">
+      <label>Service Area</label>
+      <div class="area-filter">
+        <div class="area-trigger" (click)="toggleAreaFilter()">
+          <span>
+            @if (selectedServiceAreas().length === 0) {
+              All Areas
+            } @else {
+              {{ selectedServiceAreas().length }} Areas
+            }
+          </span>
+          @if (selectedServiceAreas().length > 0) {
+            <span class="selected-count">{{ selectedServiceAreas().length }}</span>
+          }
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+
+        @if (showAreaFilter()) {
+          <div class="area-dropdown">
+            <div class="options-list">
+              @for (area of serviceAreas(); track area.id) {
+                <label class="area-option">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isAreaSelected(area.name)"
+                    (change)="toggleServiceArea(area.name)"
+                  >
+                  <span>{{ area.name }}</span>
+                </label>
+              }
+            </div>
+            @if (selectedServiceAreas().length > 0) {
+              <div class="area-clear">
+                <button (click)="clearAreaFilter()">Clear All</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
   </div>
 
   <div class="table-container">
@@ -71,6 +111,7 @@
         <tr>
           <th>Order #</th>
           <th>Customer</th>
+          <th>Service Area</th>
           <th>Date</th>
           <th>Items</th>
           <th>Total</th>
@@ -86,6 +127,7 @@
               <td><div class="skeleton-box w-medium"></div></td>
               <td><div class="skeleton-box w-large"></div></td>
               <td><div class="skeleton-box w-medium"></div></td>
+              <td><div class="skeleton-box w-medium"></div></td>
               <td><div class="skeleton-box w-small"></div></td>
               <td><div class="skeleton-box w-medium"></div></td>
               <td><div class="skeleton-box w-medium"></div></td>
@@ -95,7 +137,7 @@
           }
         } @else if (filteredOrders().length === 0) {
           <tr>
-            <td colspan="8">
+            <td colspan="9">
               <div class="empty-state">
                 <p>No orders found matching your filters.</p>
               </div>
@@ -111,6 +153,7 @@
                   <span class="phone">{{ order.customerPhone }}</span>
                 </div>
               </td>
+              <td>{{ order.serviceAreaName || '—' }}</td>
               <td>{{ order.createdAt?.toDate() | date:'MMM d, yyyy' }}</td>
               <td>{{ order.items.length }} items</td>
               <td class="fw-bold">{{ formatCurrency(order.totalCents) }}</td>

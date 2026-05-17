@@ -29,9 +29,9 @@ export interface Order {
   orderNumber: string;       // TRX-2026-0001
   customerId: string;
   customerName: string;      // snapshot
-  customerPhone: string;     // snapshot
-  serviceAreaId?: string;    // snapshot from customer
-  serviceAreaName?: string;  // snapshot from customer
+  customerPhone: string | null;     // snapshot
+  serviceAreaId?: string | null;    // snapshot from customer
+  serviceAreaName?: string | null;  // snapshot from customer
 
   items: OrderItem[];
 
@@ -54,10 +54,10 @@ export interface Order {
   source: OrderSource;
   deliveryType: DeliveryType;
 
-  customerNotes: string;     // from customer
-  internalNotes: string;     // staff only
+  customerNotes: string | null;     // from customer
+  internalNotes: string | null;     // staff only
 
-  expectedDeliveryDate?: any;
+  expectedDeliveryDate?: any | null;
   confirmedAt: any;
   confirmedBy: ActionBy;
   outForDeliveryAt?: any;
