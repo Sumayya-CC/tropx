@@ -1,10 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { ToastService } from '../../../shared/services/toast.service';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-login',
@@ -17,7 +18,17 @@ import { ToastService } from '../../../shared/services/toast.service';
         <div class="pattern-overlay"></div>
         <div class="branding-content">
           <div class="logo-area">
-            <h1 class="company-name">Tropx</h1>
+            <a routerLink="/" class="home-link">
+              @if (hasLogo()) {
+                <img [src]="businessSettings().logoUrl"
+                     [alt]="businessSettings().tradingName"
+                     class="login-logo" />
+              } @else {
+                <h1 class="company-name">
+                  {{ businessSettings().tradingName || 'Tropx' }}
+                </h1>
+              }
+            </a>
             <p class="tagline">Premium Wholesale Distribution</p>
           </div>
         </div>
@@ -26,7 +37,17 @@ import { ToastService } from '../../../shared/services/toast.service';
       <!-- Right Panel: Form -->
       <div class="form-panel">
         <header class="mobile-header">
-          <h1 class="company-name">Tropx</h1>
+          <a routerLink="/" class="home-link-mobile">
+            @if (hasLogo()) {
+              <img [src]="businessSettings().logoUrl"
+                   [alt]="businessSettings().tradingName"
+                   class="login-logo-mobile" />
+            } @else {
+              <h1 class="company-name">
+                {{ businessSettings().tradingName || 'Tropx' }}
+              </h1>
+            }
+          </a>
         </header>
 
         <main class="form-content">
@@ -105,6 +126,10 @@ import { ToastService } from '../../../shared/services/toast.service';
               <a routerLink="/forgot-password" class="link-forgot">Forgot your password?</a>
               <a routerLink="/request-access" class="link-request">Request wholesale access &rarr;</a>
             </div>
+
+            <div class="back-to-home">
+              <a routerLink="/">← Back to home</a>
+            </div>
           </div>
         </main>
       </div>
@@ -163,6 +188,13 @@ import { ToastService } from '../../../shared/services/toast.service';
       letter-spacing: -0.02em;
     }
 
+    .login-logo {
+      max-height: 140px;
+      max-width: 280px;
+      object-fit: contain;
+      margin-bottom: 1.5rem;
+    }
+
     .tagline {
       color: var(--gold-light);
       font-size: 1.25rem;
@@ -181,6 +213,9 @@ import { ToastService } from '../../../shared/services/toast.service';
     .mobile-header {
       padding: 1.5rem;
       text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
 
       @media (min-width: 1024px) {
         display: none;
@@ -189,6 +224,13 @@ import { ToastService } from '../../../shared/services/toast.service';
       .company-name {
         font-size: 2rem;
         color: var(--navy-deep);
+        margin: 0;
+      }
+
+      .login-logo-mobile {
+        max-height: 60px;
+        max-width: 200px;
+        object-fit: contain;
       }
     }
 
@@ -364,6 +406,37 @@ import { ToastService } from '../../../shared/services/toast.service';
         &:hover { color: var(--red); }
       }
     }
+
+    .home-link {
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.2s;
+      &:hover { opacity: 0.85; }
+    }
+
+    .home-link-mobile {
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s;
+      &:hover { opacity: 0.8; }
+    }
+
+    .back-to-home {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--color-border);
+
+      a {
+        font-size: 0.875rem;
+        color: var(--gray);
+        text-decoration: none;
+        transition: color 0.2s;
+        &:hover { color: var(--navy); }
+      }
+    }
   `,
 })
 export class LoginComponent {
@@ -371,6 +444,14 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly settingsService = inject(SettingsService);
+
+  businessSettings = computed(() => this.settingsService.business());
+
+  hasLogo = computed(() => 
+    this.businessSettings().logoUrl?.startsWith('http') 
+    ?? false
+  );
 
   loginForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],

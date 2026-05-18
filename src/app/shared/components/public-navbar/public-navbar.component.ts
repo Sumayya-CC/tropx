@@ -2,6 +2,7 @@ import { Component, inject, signal, HostListener } from '@angular/core';
 import { Router, RouterLink, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-public-navbar',
@@ -11,7 +12,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     <nav class="navbar" [class.scrolled]="!isHome() || isScrolled()">
       <div class="nav-container">
         <div class="nav-left">
-          <a (click)="scrollToTop()" class="brand">Tropx</a>
+          @if (settings.business().logoUrl) {
+            <a (click)="scrollToTop()" routerLink="/" class="navbar-logo-link">
+              <img [src]="settings.business().logoUrl"
+                   alt="{{ settings.business().tradingName }}"
+                   class="navbar-logo">
+            </a>
+          } @else {
+            <a (click)="scrollToTop()" routerLink="/" class="brand-name">
+              {{ settings.business().tradingName || 'Tropx' }}
+            </a>
+          }
         </div>
 
         <div class="nav-center desktop-only">
@@ -49,6 +60,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 })
 export class PublicNavbarComponent {
   private router = inject(Router);
+  protected settings = inject(SettingsService);
   
   isScrolled = signal(false);
   isMenuOpen = signal(false);

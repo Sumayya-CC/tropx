@@ -1,0 +1,696 @@
+<app-page-header
+  title="Settings"
+  subtitle="Manage your business configuration">
+</app-page-header>
+
+<div class="settings-page">
+
+  <!-- ── BUSINESS SETTINGS CARD ───────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Business Information</h2>
+        <p>Company details used on invoices and emails</p>
+      </div>
+      @if (!editingBusiness()) {
+        <button class="btn-edit" 
+          (click)="editingBusiness.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg" 
+            width="16" height="16" viewBox="0 0 24 24" 
+            fill="none" stroke="currentColor" 
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingBusiness()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        
+        <!-- Logo -->
+        <div class="view-section">
+          <div class="view-label">Company Logo</div>
+          <div class="view-value">
+            @if (settings.business().logoUrl) {
+              <img [src]="settings.business().logoUrl"
+                alt="Company Logo" class="logo-display">
+            } @else {
+              <span class="no-value">No logo uploaded</span>
+            }
+          </div>
+        </div>
+
+        <div class="view-divider"></div>
+
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Legal Name</div>
+            <div class="view-value">
+              {{ settings.business().companyName || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Trading Name</div>
+            <div class="view-value">
+              {{ settings.business().tradingName || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Business Number</div>
+            <div class="view-value mono">
+              {{ settings.business().businessNumber || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">HST Number</div>
+            <div class="view-value mono">
+              {{ settings.business().hstNumber || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Phone</div>
+            <div class="view-value">
+              {{ settings.business().phone || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Email</div>
+            <div class="view-value">
+              {{ settings.business().email || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Website</div>
+            <div class="view-value">
+              {{ settings.business().website || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Address</div>
+            <div class="view-value">
+              @if (settings.business().street) {
+                {{ settings.business().street }},
+              }
+              {{ settings.business().city }},
+              {{ settings.business().province }}
+              {{ settings.business().postalCode }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Currency</div>
+            <div class="view-value">
+              {{ settings.business().currencyCode }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Timezone</div>
+            <div class="view-value">
+              {{ settings.business().timezone }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+
+        <div class="edit-section">
+          <h3>Company Logo</h3>
+          <div class="logo-upload-area">
+            @if (logoPreview()) {
+              <div class="logo-preview">
+                <img [src]="logoPreview()" alt="Logo">
+                <button class="btn-remove-logo"
+                  (click)="removeLogo()">
+                  Remove
+                </button>
+              </div>
+            } @else {
+              <label class="logo-dropzone" 
+                for="logoInput">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="32" height="32" 
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18"
+                    rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>Click to upload logo</span>
+                <span class="hint">
+                  PNG, JPG, SVG · Max 2MB
+                </span>
+              </label>
+            }
+            <input type="file" id="logoInput"
+              accept="image/*" style="display:none"
+              (change)="onLogoSelected($event)">
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <h3>Company Details</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Legal Company Name</label>
+              <input type="text"
+                [value]="companyName()"
+                (input)="companyName.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Trading Name</label>
+              <input type="text"
+                [value]="tradingName()"
+                (input)="tradingName.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Business Number (BN)</label>
+              <input type="text"
+                [value]="businessNumber()"
+                (input)="businessNumber.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>HST Number</label>
+              <input type="text"
+                [value]="hstNumber()"
+                (input)="hstNumber.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="tel"
+                [value]="phone()"
+                (input)="phone.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email"
+                [value]="email()"
+                (input)="email.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Website</label>
+              <input type="text"
+                [value]="website()"
+                (input)="website.set(
+                  $any($event.target).value
+                )">
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <h3>Address</h3>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Street Address</label>
+              <input type="text"
+                [value]="street()"
+                (input)="street.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text"
+                [value]="city()"
+                (input)="city.set(
+                  $any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Province</label>
+              <select [value]="province()"
+                (change)="province.set(
+                  $any($event.target).value
+                )">
+                <option value="AB">Alberta</option>
+                <option value="BC">
+                  British Columbia
+                </option>
+                <option value="MB">Manitoba</option>
+                <option value="NB">New Brunswick</option>
+                <option value="NL">
+                  Newfoundland and Labrador
+                </option>
+                <option value="NS">Nova Scotia</option>
+                <option value="NT">
+                  Northwest Territories
+                </option>
+                <option value="NU">Nunavut</option>
+                <option value="ON">Ontario</option>
+                <option value="PE">
+                  Prince Edward Island
+                </option>
+                <option value="QC">Quebec</option>
+                <option value="SK">Saskatchewan</option>
+                <option value="YT">Yukon</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Postal Code</label>
+              <input type="text"
+                [value]="postalCode()"
+                (input)="postalCode.set(
+                  $any($event.target).value
+                )">
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <h3>Regional</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Currency</label>
+              <select [value]="currencyCode()"
+                (change)="currencyCode.set(
+                  $any($event.target).value
+                )">
+                <option value="CAD">
+                  CAD — Canadian Dollar
+                </option>
+                <option value="USD">
+                  USD — US Dollar
+                </option>
+                <option value="EUR">EUR — Euro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Timezone</label>
+              <select [value]="timezone()"
+                (change)="timezone.set(
+                  $any($event.target).value
+                )">
+                <option value="America/Toronto">
+                  Eastern — EST/EDT (Toronto)
+                </option>
+                <option value="America/Winnipeg">
+                  Central — CST/CDT (Winnipeg)
+                </option>
+                <option value="America/Edmonton">
+                  Mountain — MST/MDT (Edmonton)
+                </option>
+                <option value="America/Vancouver">
+                  Pacific — PST/PDT (Vancouver)
+                </option>
+                <option value="America/Halifax">
+                  Atlantic — AST/ADT (Halifax)
+                </option>
+                <option value="America/St_Johns">
+                  Newfoundland — NST/NDT
+                </option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelBusiness()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveBusiness()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Business Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── INVOICE SETTINGS CARD ────────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Invoice Settings</h2>
+        <p>Payment terms and invoice configuration</p>
+      </div>
+      @if (!editingInvoice()) {
+        <button class="btn-edit"
+          (click)="editingInvoice.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingInvoice()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Payment Terms</div>
+            <div class="view-value">
+              Net {{ settings.invoice().paymentTermsDays }}
+              days
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">E-Transfer Email</div>
+            <div class="view-value">
+              {{ settings.invoice().etransferEmail || '—'}}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Invoice Footer</div>
+            <div class="view-value">
+              {{ settings.invoice().footerMessage || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Cash on Delivery</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.invoice().acceptCash"
+                [class.no]="!settings.invoice().acceptCash">
+                {{ settings.invoice().acceptCash 
+                  ? 'Accepted' : 'Not accepted' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">HST Breakdown</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="
+                  settings.invoice().showHstBreakdown"
+                [class.no]="
+                  !settings.invoice().showHstBreakdown">
+                {{ settings.invoice().showHstBreakdown
+                  ? 'Shown on invoice' 
+                  : 'Hidden' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Payment Terms (Days)</label>
+              <input type="number" min="0"
+                [value]="paymentTermsDays()"
+                (input)="paymentTermsDays.set(
+                  +$any($event.target).value
+                )">
+              <span class="hint">
+                e.g. 30 = "Net 30" on invoices
+              </span>
+            </div>
+            <div class="form-group">
+              <label>E-Transfer Email</label>
+              <input type="email"
+                [value]="etransferEmail()"
+                (input)="etransferEmail.set(
+                  $any($event.target).value
+                )">
+              <span class="hint">
+                Shown on invoices as payment destination
+              </span>
+            </div>
+            <div class="form-group full-width">
+              <label>Invoice Footer Message</label>
+              <textarea rows="2"
+                [value]="footerMessage()"
+                (input)="footerMessage.set(
+                  $any($event.target).value
+                )"></textarea>
+            </div>
+          </div>
+
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Accept Cash on Delivery
+                </span>
+                <span class="toggle-desc">
+                  Show cash payment option on invoices
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="acceptCash()"
+                  (change)="acceptCash.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Show HST Breakdown
+                </span>
+                <span class="toggle-desc">
+                  Show HST line item separately
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="showHstBreakdown()"
+                  (change)="showHstBreakdown.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelInvoice()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveInvoice()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Invoice Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── ORDERING SETTINGS CARD ───────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Ordering Defaults</h2>
+        <p>Default values for new orders and numbering</p>
+      </div>
+      @if (!editingOrdering()) {
+        <button class="btn-edit"
+          (click)="editingOrdering.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingOrdering()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Default Tax Rate</div>
+            <div class="view-value">
+              {{ settings.ordering().defaultTaxRatePercent
+              }}% HST
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">
+              Default Delivery Type
+            </div>
+            <div class="view-value capitalize">
+              {{ settings.ordering().defaultDeliveryType }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Order Prefix</div>
+            <div class="view-value mono">
+              {{ settings.ordering().orderPrefix }}-2026-XXXX
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Payment Prefix</div>
+            <div class="view-value mono">
+              {{ settings.ordering().paymentPrefix }}-2026-XXXX
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Return Prefix</div>
+            <div class="view-value mono">
+              {{ settings.ordering().returnPrefix }}-2026-XXXX
+            </div>
+          </div>
+        </div>
+      </div>
+
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <h3>Order Defaults</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Default Tax Rate (%)</label>
+              <input type="number" min="0" max="100"
+                step="0.5"
+                [value]="defaultTaxRatePercent()"
+                (input)="defaultTaxRatePercent.set(
+                  +$any($event.target).value
+                )">
+            </div>
+            <div class="form-group">
+              <label>Default Delivery Type</label>
+              <div class="radio-group">
+                <label>
+                  <input type="radio"
+                    name="deliveryType"
+                    value="delivery"
+                    [checked]="
+                      defaultDeliveryType() === 'delivery'"
+                    (change)="
+                      defaultDeliveryType.set('delivery')">
+                  Delivery
+                </label>
+                <label>
+                  <input type="radio"
+                    name="deliveryType"
+                    value="pickup"
+                    [checked]="
+                      defaultDeliveryType() === 'pickup'"
+                    (change)="
+                      defaultDeliveryType.set('pickup')">
+                  Pickup
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <h3>Number Prefixes</h3>
+          <p class="section-desc">
+            Changing a prefix only affects new records.
+            Existing records keep their current numbers.
+          </p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Order Prefix</label>
+              <input type="text" maxlength="10"
+                [value]="orderPrefix()"
+                (input)="orderPrefix.set(
+                  $any($event.target).value.toUpperCase()
+                ); orderPrefixChanged.set(true)">
+              <span class="hint mono">
+                → {{ orderPrefix() }}-2026-0001
+              </span>
+              @if (orderPrefixChanged()) {
+                <span class="prefix-warning">
+                  ⚠️ Affects new orders only
+                </span>
+              }
+            </div>
+            <div class="form-group">
+              <label>Payment Prefix</label>
+              <input type="text" maxlength="10"
+                [value]="paymentPrefix()"
+                (input)="paymentPrefix.set(
+                  $any($event.target).value.toUpperCase()
+                ); paymentPrefixChanged.set(true)">
+              <span class="hint mono">
+                → {{ paymentPrefix() }}-2026-0001
+              </span>
+              @if (paymentPrefixChanged()) {
+                <span class="prefix-warning">
+                  ⚠️ Affects new payments only
+                </span>
+              }
+            </div>
+            <div class="form-group">
+              <label>Return Prefix</label>
+              <input type="text" maxlength="10"
+                [value]="returnPrefix()"
+                (input)="returnPrefix.set(
+                  $any($event.target).value.toUpperCase()
+                ); returnPrefixChanged.set(true)">
+              <span class="hint mono">
+                → {{ returnPrefix() }}-2026-0001
+              </span>
+              @if (returnPrefixChanged()) {
+                <span class="prefix-warning">
+                  ⚠️ Affects new returns only
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelOrdering()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveOrdering()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Ordering Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+</div>

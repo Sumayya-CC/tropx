@@ -13,6 +13,7 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where, serverTimestamp, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
+import { SettingsService } from '../../../../core/services/settings.service';
 
 @Component({
   selector: 'app-order-form',
@@ -27,6 +28,7 @@ export class OrderFormComponent {
   protected readonly toast = inject(ToastService);
   protected readonly router = inject(Router);
   protected readonly route = inject(ActivatedRoute);
+  protected readonly settingsService = inject(SettingsService);
 
   // State
   isSaving = signal(false);
@@ -153,6 +155,15 @@ export class OrderFormComponent {
       };
       localStorage.setItem('tropx_order_draft', JSON.stringify(draft));
     });
+
+    // 5. Populate defaults from settings in CREATE mode only
+    effect(() => {
+      if (!this.isEditMode()) {
+        const ord = this.settingsService.ordering();
+        this.taxRatePercent.set(ord.defaultTaxRatePercent);
+        this.deliveryType.set(ord.defaultDeliveryType);
+      }
+    }, { allowSignalWrites: true });
   }
 
   private loadOrderForEdit(id: string) {

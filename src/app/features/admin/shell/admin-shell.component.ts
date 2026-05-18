@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal, HostListener, effect, computed } fro
 import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { filter } from 'rxjs/operators';
+import { SettingsService } from '../../../core/services/settings.service';
 
 interface NavItem {
   label: string;
@@ -29,11 +30,26 @@ interface NavSection {
         <div class="sidebar-top">
           @if (!isCollapsed()) {
             <div class="brand-expanded">
-              <span class="logo-text">Tropx</span>
-              <span class="logo-subtext">Wholesale</span>
+              @if (businessSettings().logoUrl) {
+                <img [src]="businessSettings().logoUrl" 
+                     alt="Logo"
+                     class="sidebar-logo">
+              } @else {
+                <span class="logo-text">
+                  {{ businessSettings().tradingName || 'Tropx' }}
+                </span>
+              }
             </div>
           } @else {
-            <div class="brand-collapsed">T</div>
+            <div class="brand-collapsed">
+              @if (businessSettings().logoUrl) {
+                <img [src]="businessSettings().logoUrl"
+                     alt="Logo" 
+                     class="sidebar-logo-collapsed">
+              } @else {
+                {{ (businessSettings().tradingName || 'T')[0] }}
+              }
+            </div>
           }
           <button class="collapse-toggle" (click)="toggleCollapse()" [attr.title]="isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
             @if (isCollapsed()) {
@@ -133,6 +149,9 @@ interface NavSection {
 export class AdminShellComponent implements OnInit {
   authService = inject(AuthService);
   router = inject(Router);
+  settingsService = inject(SettingsService);
+
+  businessSettings = computed(() => this.settingsService.business());
 
   isCollapsed = signal<boolean>(false);
   isMobileOpen = signal<boolean>(false);

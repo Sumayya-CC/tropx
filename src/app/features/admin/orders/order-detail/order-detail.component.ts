@@ -16,6 +16,7 @@ import { RecordPaymentModalComponent } from '../../payments/record-payment-modal
 import { Payment, PaymentMethod, PAYMENT_METHOD_LABELS } from '../../../../core/models/payment.model';
 import { Return, RETURN_TYPE_LABELS, RETURN_STATUS_LABELS, ReturnType } from '../../../../core/models/return.model';
 import { CreateReturnModalComponent } from '../../returns/create-return-modal/create-return-modal.component';
+import { SettingsService } from '../../../../core/services/settings.service';
 
 @Component({
   selector: 'app-order-detail',
@@ -30,6 +31,7 @@ export class OrderDetailComponent {
   private readonly firestore = inject(FirestoreService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  protected readonly settingsService = inject(SettingsService);
 
   // State
   isLoading = signal(true);
@@ -228,13 +230,29 @@ export class OrderDetailComponent {
       });
     };
 
+    const business = this.settingsService.business();
+    const invoice = this.settingsService.invoice();
+
+    const companyName = business.tradingName || 'Tropx Wholesale';
+    const legalName = business.companyName || 'Tropx Enterprises Inc.';
+    const address = [
+      business.city, business.province, business.country
+    ].filter(Boolean).join(', ') || 'Kitchener, Ontario, Canada';
+    const hstNumber = business.hstNumber || '793273830 RT 0001';
+    const contactEmail = business.email || 'admin@tropxwholesale.ca';
+    const website = business.website || 'tropxwholesale.ca';
+    const etransferEmail = invoice.etransferEmail || 'tropxenterprises@gmail.com';
+    const footerMsg = invoice.footerMessage || 'Thank you for your business!';
+    const paymentTermsDays = invoice.paymentTermsDays || 30;
+    const logoUrl = business.logoUrl;
+
     const dueDate = (() => {
       if (!order.confirmedAt) return '—';
       const d = order.confirmedAt.toDate 
         ? order.confirmedAt.toDate() 
         : new Date(order.confirmedAt);
       const due = new Date(d);
-      due.setDate(due.getDate() + 30);
+      due.setDate(due.getDate() + paymentTermsDays);
       return due.toLocaleDateString('en-CA', {
         year: 'numeric', month: 'long', day: 'numeric'
       });
@@ -298,9 +316,6 @@ export class OrderDetailComponent {
     .header {
       display: flex; justify-content: space-between; align-items: flex-start;
       margin-bottom: 40px; padding-bottom: 24px; border-bottom: 3px solid #0a2d4a;
-    }
-    .company-info .company-name {
-      font-size: 1.5rem; font-weight: 800; color: #0a2d4a; letter-spacing: -0.02em;
     }
     .company-info .tagline {
       color: #c9952a; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
@@ -379,13 +394,19 @@ export class OrderDetailComponent {
     <!-- Header -->
     <div class="header">
       <div class="company-info">
-        <div class="company-name">Tropx Wholesale</div>
-        <div class="tagline">Your Wholesale Partner</div>
+        ${logoUrl ? 
+          `<img src="${logoUrl}" alt="${companyName}" 
+           style="height:48px;object-fit:contain;
+           margin-bottom:8px;">
+           <div class="tagline">${companyName}</div>` :
+          `<div class="company-name">${companyName}</div>
+           <div class="tagline">Your Wholesale Partner</div>`
+        }
         <div class="details">
-          Tropx Enterprises Inc.<br>
-          Kitchener, Ontario, Canada<br>
-          HST# 793273830 RT 0001<br>
-          admin@tropxwholesale.ca
+          ${legalName}<br>
+          ${address}<br>
+          HST# ${hstNumber}<br>
+          ${contactEmail}
         </div>
       </div>
       <div class="invoice-title">
@@ -486,11 +507,13 @@ export class OrderDetailComponent {
     <div class="payment-info">
       <div class="pi-title">Payment Information</div>
       <div class="pi-detail">
-        💳 E-Transfer: tropxenterprises@gmail.com
+        💳 E-Transfer: ${etransferEmail}
       </div>
+      ${invoice.acceptCash ? `
       <div class="pi-detail">
         💵 Cash on Delivery accepted
       </div>
+      ` : ''}
       <div class="pi-detail" style="margin-top:8px;font-size:0.75rem;color:#444;">
         Please reference invoice number 
         <strong>${order.orderNumber}</strong> 
@@ -510,9 +533,9 @@ export class OrderDetailComponent {
     <!-- Footer -->
     <div class="footer">
       <div class="thank-you">
-        Thank you for your business!
+        ${footerMsg}
       </div>
-      <div class="website">tropxwholesale.ca</div>
+      <div class="website">${website}</div>
     </div>
 
   </div>
