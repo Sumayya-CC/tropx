@@ -1,0 +1,487 @@
+.content-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.live-site-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(26,124,74,0.06);
+  border: 1px solid rgba(26,124,74,0.2);
+  border-radius: 10px;
+  flex-wrap: wrap;
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px rgba(26,124,74,0.2);
+  }
+
+  .live-label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .live-link {
+    font-size: 0.8125rem;
+    color: var(--navy);
+    font-weight: 600;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+
+  .live-hint {
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-left: auto;
+  }
+}
+
+.content-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--color-shadow);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--cream);
+
+  .card-title-group {
+    h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--navy-deep);
+      margin: 0;
+    }
+    p {
+      font-size: 0.8125rem;
+      color: var(--gray);
+      margin: 0.2rem 0 0;
+    }
+  }
+}
+
+.btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--navy);
+    color: white;
+    border-color: var(--navy);
+  }
+}
+
+.card-body {
+  padding: 1.5rem;
+  &.edit-mode { padding: 0; }
+}
+
+/* ── VIEW MODE ─────────────────────────────────────── */
+
+.view-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.view-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &.full-width { grid-column: span 2; }
+
+  .view-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray);
+  }
+
+  .view-value {
+    font-size: 0.9375rem;
+    color: var(--charcoal);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+}
+
+.headline-preview {
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  color: var(--navy-deep) !important;
+}
+
+.about-preview {
+  font-size: 0.9rem !important;
+  line-height: 1.7 !important;
+  color: var(--charcoal) !important;
+}
+
+.cta-preview {
+  display: inline-flex;
+  padding: 0.4rem 1rem;
+  background: var(--red);
+  color: white;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Why Partner Points View */
+.points-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.point-view-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 0.875rem;
+  background: var(--cream);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+
+  .point-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--navy-deep);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .point-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    .point-heading {
+      font-weight: 700;
+      color: var(--navy-deep);
+      font-size: 0.9375rem;
+    }
+
+    .point-body {
+      font-size: 0.875rem;
+      color: var(--gray);
+      line-height: 1.5;
+    }
+  }
+}
+
+/* ── EDIT MODE ─────────────────────────────────────── */
+
+.edit-section {
+  padding: 1.5rem;
+
+  .section-desc {
+    font-size: 0.8125rem;
+    color: var(--gray);
+    margin-bottom: 1rem;
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--charcoal);
+  }
+
+  input, textarea {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-family: inherit;
+    background: white;
+    color: var(--charcoal);
+    resize: vertical;
+
+    &:focus {
+      outline: none;
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(22,88,142,0.1);
+    }
+  }
+
+  .hint {
+    font-size: 0.75rem;
+    color: var(--gray);
+  }
+}
+
+/* Why Partner Edit */
+.points-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.point-edit-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem;
+  background: var(--cream);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+
+  .point-edit-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--navy-deep);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+  }
+
+  .point-edit-fields {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+.btn-remove-point {
+  background: none;
+  border: none;
+  color: var(--gray);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--red);
+    background: rgba(231,34,46,0.05);
+  }
+}
+
+.btn-add-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px dashed var(--navy);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(22,88,142,0.05);
+  }
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--cream);
+  border-top: 1px solid var(--color-border);
+
+  .btn-cancel-edit {
+    padding: 0.625rem 1.25rem;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--charcoal);
+    cursor: pointer;
+    &:hover { background: var(--cream); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
+  .btn-save-edit {
+    padding: 0.625rem 1.5rem;
+    background: var(--navy-deep);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    &:hover:not(:disabled) { background: var(--navy); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+}
+
+.badge-preview {
+  display: inline-flex;
+  padding: 0.3rem 0.875rem;
+  border: 1px solid rgba(240,192,64,0.4);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #b8860b;
+  background: rgba(240,192,64,0.1);
+}
+
+.pills-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.supply-pill {
+  display: inline-flex;
+  padding: 0.4rem 1rem;
+  background: rgba(10,45,74,0.08);
+  color: var(--navy-deep);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pills-edit-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pill-edit-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem 0.4rem 1rem;
+  background: rgba(10,45,74,0.08);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+
+  .pill-edit-text {
+    font-size: 0.875rem;
+    color: var(--navy-deep);
+    font-weight: 500;
+  }
+}
+
+.btn-remove-pill {
+  background: none;
+  border: none;
+  color: var(--gray);
+  cursor: pointer;
+  padding: 0.15rem;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+
+  &:hover {
+    color: var(--red);
+    background: rgba(231,34,46,0.1);
+  }
+}
+
+.add-supply-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+
+  .add-supply-input {
+    flex: 1;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(22,88,142,0.1);
+    }
+  }
+
+  .btn-add-supply {
+    padding: 0.625rem 1.25rem;
+    background: var(--navy-deep);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) { background: var(--navy); }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  }
+}

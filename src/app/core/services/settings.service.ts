@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, computed } from '@angular/core';
 import { FirestoreService } from './firestore.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -77,32 +77,33 @@ export class SettingsService {
   private readonly firestore = inject(FirestoreService);
   private readonly storage = inject(Storage);
 
-  business = toSignal(
-    this.firestore.getDocument<BusinessSettings>(
-      'settings/business'
-    ).pipe(
-      map(data => ({ ...DEFAULT_BUSINESS, ...data }))
-    ),
-    { initialValue: DEFAULT_BUSINESS }
-  );
+  private business$ = this.firestore
+    .getDocument<BusinessSettings>('settings/business');
 
-  invoice = toSignal(
-    this.firestore.getDocument<InvoiceSettings>(
-      'settings/invoice'
-    ).pipe(
-      map(data => ({ ...DEFAULT_INVOICE, ...data }))
-    ),
-    { initialValue: DEFAULT_INVOICE }
-  );
+  private invoice$ = this.firestore
+    .getDocument<InvoiceSettings>('settings/invoice');
 
-  ordering = toSignal(
-    this.firestore.getDocument<OrderingSettings>(
-      'settings/ordering'
-    ).pipe(
-      map(data => ({ ...DEFAULT_ORDERING, ...data }))
-    ),
-    { initialValue: DEFAULT_ORDERING }
-  );
+  private ordering$ = this.firestore
+    .getDocument<OrderingSettings>('settings/ordering');
+
+  private _business = toSignal(this.business$);
+  private _invoice = toSignal(this.invoice$);
+  private _ordering = toSignal(this.ordering$);
+
+  business = computed(() => ({
+    ...DEFAULT_BUSINESS,
+    ...this._business()
+  }));
+
+  invoice = computed(() => ({
+    ...DEFAULT_INVOICE,
+    ...this._invoice()
+  }));
+
+  ordering = computed(() => ({
+    ...DEFAULT_ORDERING,
+    ...this._ordering()
+  }));
 
   async uploadLogo(file: File): Promise<string> {
     const ext = file.name.split('.').pop();

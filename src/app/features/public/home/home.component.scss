@@ -564,3 +564,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+.hero-logo-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.hero-logo {
+  max-height: 100px;
+  max-width: 280px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  /* Inverted to white since hero is dark navy */
+}

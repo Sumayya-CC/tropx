@@ -1,0 +1,615 @@
+<app-page-header
+  title="Website Content"
+  subtitle="Edit the text shown on your public website">
+</app-page-header>
+
+<div class="content-page">
+
+  <!-- LIVE SITE LINK -->
+  <div class="live-site-bar">
+    <span class="live-dot"></span>
+    <span class="live-label">Live site:</span>
+    <a href="https://tropxwholesale.ca" 
+      target="_blank" class="live-link">
+      tropxwholesale.ca →
+    </a>
+    <span class="live-hint">
+      Changes appear immediately after saving
+    </span>
+  </div>
+
+  <!-- ── HERO SECTION ─────────────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Hero Section</h2>
+        <p>The first thing visitors see on the homepage</p>
+      </div>
+      @if (!editingHero()) {
+        <button class="btn-edit" 
+          (click)="editingHero.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" 
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingHero()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item full-width">
+            <div class="view-label">Badge Text</div>
+            <div class="view-value">
+              <span class="badge-preview">
+                {{ content.content().heroBadgeText }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item full-width">
+            <div class="view-label">Headline</div>
+            <div class="view-value headline-preview">
+              {{ content.content().heroHeadline }}
+            </div>
+          </div>
+          <div class="view-item full-width">
+            <div class="view-label">Subheadline</div>
+            <div class="view-value">
+              {{ content.content().heroSubheadline }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">CTA Button Text</div>
+            <div class="view-value">
+              <span class="cta-preview">
+                {{ content.content().heroCtaText }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-group">
+            <label>Badge Text</label>
+            <input type="text"
+              [value]="heroBadgeText()"
+              (input)="heroBadgeText.set(
+                $any($event.target).value
+              )"
+              placeholder="Wholesale Distribution">
+            <span class="hint">
+              Small gold badge shown above the headline
+            </span>
+          </div>
+          <div class="form-group">
+            <label>Headline</label>
+            <input type="text"
+              [value]="heroHeadline()"
+              (input)="heroHeadline.set(
+                $any($event.target).value
+              )"
+              placeholder="The Wholesale Partner Your Business Deserves.">
+            <span class="hint">
+              Keep it short and impactful — 
+              shown as the large H1 on homepage
+            </span>
+          </div>
+          <div class="form-group">
+            <label>Subheadline</label>
+            <textarea rows="2"
+              [value]="heroSubheadline()"
+              (input)="heroSubheadline.set(
+                $any($event.target).value
+              )"
+              placeholder="Quality products. Competitive pricing...">
+            </textarea>
+            <span class="hint">
+              Shown below the headline in smaller text
+            </span>
+          </div>
+          <div class="form-group">
+            <label>CTA Button Text</label>
+            <input type="text"
+              [value]="heroCtaText()"
+              (input)="heroCtaText.set(
+                $any($event.target).value
+              )"
+              placeholder="Become a Wholesale Partner">
+            <span class="hint">
+              Text on the main call-to-action button
+            </span>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelHero()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveHero()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Hero }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── WHY PARTNER SECTION ───────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Why Partner With Us</h2>
+        <p>Feature cards shown in the second section</p>
+      </div>
+      @if (!editingWhyUs()) {
+        <button class="btn-edit"
+          (click)="editingWhyUs.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingWhyUs()) {
+      <div class="card-body">
+        <div class="points-view">
+          @for (point of content.content().whyPartnerPoints; 
+            track point.heading; let i = $index) {
+            <div class="point-view-item">
+              <div class="point-number">{{ i + 1 }}</div>
+              <div class="point-content">
+                <div class="point-heading">
+                  {{ point.heading }}
+                </div>
+                <div class="point-body">{{ point.body }}</div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <p class="section-desc">
+            These appear as feature cards on the homepage. 
+            Recommended: 4 points.
+          </p>
+          <div class="points-edit-list">
+            @for (point of whyPartnerPoints(); 
+              track $index; let i = $index) {
+              <div class="point-edit-item">
+                <div class="point-edit-number">
+                  {{ i + 1 }}
+                </div>
+                <div class="point-edit-fields">
+                  <div class="form-group">
+                    <label>Heading</label>
+                    <input type="text"
+                      [value]="point.heading"
+                      (input)="updatePointHeading(
+                        i, $any($event.target).value
+                      )"
+                      placeholder="e.g. Wide Product Range">
+                  </div>
+                  <div class="form-group">
+                    <label>Description</label>
+                    <textarea rows="2"
+                      [value]="point.body"
+                      (input)="updatePointBody(
+                        i, $any($event.target).value
+                      )"
+                      placeholder="Brief description...">
+                    </textarea>
+                  </div>
+                </div>
+                <button class="btn-remove-point"
+                  (click)="removePoint(i)"
+                  title="Remove point">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="16" height="16" 
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            }
+          </div>
+          <button class="btn-add-point" (click)="addPoint()">
+            + Add Point
+          </button>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelWhyUs()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveWhyUs()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Section }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── ABOUT SECTION ────────────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>About Section</h2>
+        <p>Company description shown in the About section</p>
+      </div>
+      @if (!editingAbout()) {
+        <button class="btn-edit"
+          (click)="editingAbout.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingAbout()) {
+      <div class="card-body">
+        <div class="view-item">
+          <div class="view-label">About Text</div>
+          <div class="view-value about-preview">
+            {{ content.content().aboutText }}
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-group">
+            <label>About Text</label>
+            <textarea rows="5"
+              [value]="aboutText()"
+              (input)="aboutText.set(
+                $any($event.target).value
+              )"
+              placeholder="Describe your business...">
+            </textarea>
+            <span class="hint">
+              Shown in the dark About section on homepage
+            </span>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelAbout()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveAbout()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save About }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── WHAT WE SUPPLY ───────────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>What We Supply</h2>
+        <p>Product category pills shown in the About section</p>
+      </div>
+      @if (!editingWhatWeSupply()) {
+        <button class="btn-edit"
+          (click)="editingWhatWeSupply.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingWhatWeSupply()) {
+      <div class="card-body">
+        <div class="pills-view">
+          @for (item of content.content().whatWeSupply; 
+            track item) {
+            <span class="supply-pill">{{ item }}</span>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <p class="section-desc">
+            Add or remove product categories shown as 
+            pills in the About section.
+          </p>
+
+          <!-- Existing pills with remove -->
+          <div class="pills-edit-list">
+            @for (item of whatWeSupply(); 
+              track item; let i = $index) {
+              <div class="pill-edit-item">
+                <span class="pill-edit-text">{{ item }}</span>
+                <button class="btn-remove-pill"
+                  (click)="removeSupplyItem(i)">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="12" height="12"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Add new item -->
+          <div class="add-supply-row">
+            <input type="text"
+              [value]="newSupplyItem()"
+              (input)="newSupplyItem.set(
+                $any($event.target).value
+              )"
+              (keydown.enter)="addSupplyItem()"
+              placeholder="e.g. Dairy Products"
+              class="add-supply-input">
+            <button class="btn-add-supply"
+              (click)="addSupplyItem()"
+              [disabled]="!newSupplyItem().trim()">
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelWhatWeSupply()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveWhatWeSupply()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── CONTACT INFO ──────────────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Contact Information</h2>
+        <p>Shown in the Contact section and footer</p>
+      </div>
+      @if (!editingContact()) {
+        <button class="btn-edit"
+          (click)="editingContact.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingContact()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">📞 Phone</div>
+            <div class="view-value">
+              {{ content.content().publicContactInfo.phone 
+                || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">✉️ Email</div>
+            <div class="view-value">
+              {{ content.content().publicContactInfo.email 
+                || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">📍 Address</div>
+            <div class="view-value">
+              {{ content.content().publicContactInfo.address 
+                || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">🕐 Hours</div>
+            <div class="view-value">
+              {{ content.content().publicContactInfo.hours 
+                || '—' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel"
+                [value]="contactPhone()"
+                (input)="contactPhone.set(
+                  $any($event.target).value
+                )"
+                placeholder="(519) 000-0000">
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email"
+                [value]="contactEmail()"
+                (input)="contactEmail.set(
+                  $any($event.target).value
+                )"
+                placeholder="info@tropxwholesale.ca">
+            </div>
+            <div class="form-group">
+              <label>Address</label>
+              <input type="text"
+                [value]="contactAddress()"
+                (input)="contactAddress.set(
+                  $any($event.target).value
+                )"
+                placeholder="Kitchener, Ontario, Canada">
+            </div>
+            <div class="form-group">
+              <label>Business Hours</label>
+              <input type="text"
+                [value]="contactHours()"
+                (input)="contactHours.set(
+                  $any($event.target).value
+                )"
+                placeholder="Monday–Friday, 9am–5pm EST">
+            </div>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelContact()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveContact()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Contact Info }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── FOOTER ────────────────────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Footer</h2>
+        <p>Text shown at the bottom of the website</p>
+      </div>
+      @if (!editingFooter()) {
+        <button class="btn-edit"
+          (click)="editingFooter.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
+              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
+              3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingFooter()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Footer Tagline</div>
+            <div class="view-value">
+              {{ content.content().footerTagline || '—' }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Copyright Text</div>
+            <div class="view-value">
+              {{ content.content().footerText || '—' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Footer Tagline</label>
+              <input type="text"
+                [value]="footerTagline()"
+                (input)="footerTagline.set(
+                  $any($event.target).value
+                )"
+                placeholder="Your Wholesale Partner">
+              <span class="hint">
+                Shown next to logo in footer
+              </span>
+            </div>
+            <div class="form-group">
+              <label>Copyright Text</label>
+              <input type="text"
+                [value]="footerText()"
+                (input)="footerText.set(
+                  $any($event.target).value
+                )"
+                placeholder="© 2026 Tropx Enterprises Inc.">
+              <span class="hint">
+                Shown at the very bottom of the footer
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelFooter()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveFooter()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Footer }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+</div>

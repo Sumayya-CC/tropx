@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
@@ -8,6 +8,7 @@ import { FirestoreService } from '../../../core/services/firestore.service';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { PublicNavbarComponent } from '../../../shared/components/public-navbar/public-navbar.component';
 import { PublicFooterComponent } from '../../../shared/components/public-footer/public-footer.component';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-home',
@@ -20,7 +21,16 @@ import { PublicFooterComponent } from '../../../shared/components/public-footer/
       <!-- Section 1: Hero -->
       <section id="hero" class="hero">
         <div class="hero-content">
-          <span class="badge-gold">Wholesale Distribution</span>
+          @if (logoUrl()) {
+            <div class="hero-logo-wrapper">
+              <img [src]="logoUrl()!"
+                   [alt]="tradingName()"
+                   class="hero-logo">
+            </div>
+          }
+          <span class="badge-gold">
+            {{ content().heroBadgeText }}
+          </span>
           <h1>{{ content().heroHeadline }}</h1>
           <p class="subheadline">{{ content().heroSubheadline }}</p>
           <div class="cta-group">
@@ -126,7 +136,7 @@ import { PublicFooterComponent } from '../../../shared/components/public-footer/
               <div class="badge-group">
                 <label class="gold-text uppercase">What We Supply</label>
                 <div class="pills-grid mt-1">
-                  @for (cat of categories; track cat) {
+                  @for (cat of content().whatWeSupply; track cat) {
                     <span class="pill-dark">{{ cat }}</span>
                   }
                 </div>
@@ -263,6 +273,16 @@ export class HomeComponent implements OnInit {
   private firestore = inject(FirestoreService);
   private title = inject(Title);
   protected content = inject(ContentService).content;
+  private readonly settingsService = inject(SettingsService);
+  
+  logoUrl = computed(() => {
+    const url = this.settingsService.business().logoUrl;
+    return url && url.startsWith('http') ? url : null;
+  });
+
+  tradingName = computed(() =>
+    this.settingsService.business().tradingName || 'Tropx'
+  );
 
   isSubmitting = signal(false);
   isSubmitted = signal(false);
@@ -275,12 +295,6 @@ export class HomeComponent implements OnInit {
     message: ['', Validators.required],
   });
 
-  categories = [
-    'General Merchandise', 'Food & Beverages', 
-    'Snacks & Confectionery', 'Household Products',
-    'Imported Goods', 'Personal Care',
-    'Seasonal Items', 'And More...'
-  ];
 
   serviceAreas = [
     'Ontario'

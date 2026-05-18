@@ -7,6 +7,7 @@ export interface ContentData {
   heroHeadline: string;
   heroSubheadline: string;
   heroCtaText: string;
+  heroBadgeText: string;
   aboutText: string;
   publicContactInfo: {
     phone: string;
@@ -20,12 +21,14 @@ export interface ContentData {
     heading: string;
     body: string;
   }[];
+  whatWeSupply: string[];
 }
 
 const DEFAULT_CONTENT: ContentData = {
   heroHeadline: 'The Wholesale Partner Your Business Deserves.',
   heroSubheadline: 'Quality products. Competitive pricing. Reliable supply — for retail businesses across Ontario.',
   heroCtaText: 'Become a Wholesale Partner',
+  heroBadgeText: 'Wholesale Distribution',
   aboutText: 'Tropx Wholesale is a federally incorporated Canadian distributor based in Kitchener, Ontario. We supply retail businesses across the region with a wide range of quality products and competitive wholesale pricing.',
   publicContactInfo: {
     phone: '',
@@ -52,6 +55,16 @@ const DEFAULT_CONTENT: ContentData = {
       heading: 'Easy Online Ordering',
       body: 'Place and track orders 24/7 through our portal.'
     }
+  ],
+  whatWeSupply: [
+    'General Merchandise',
+    'Food & Beverages',
+    'Snacks & Confectionery',
+    'Household Products',
+    'Imported Goods',
+    'Personal Care',
+    'Seasonal Items',
+    'And More...'
   ]
 };
 
