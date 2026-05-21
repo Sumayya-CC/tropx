@@ -280,6 +280,9 @@
 }
 .step-icon.red { background: var(--red); }
 .step-icon.green { background: var(--green); }
+.step-icon.gold { background: var(--gold); }
+.step-icon.blue { background: var(--navy); }
+.step-icon.purple { background: #7c3aed; }
 
 .step h3 {
   font-size: 1.25rem;
@@ -572,9 +575,7 @@
 }
 
 .hero-logo {
-  max-height: 100px;
-  max-width: 280px;
+  max-height: 120px;
+  max-width: 300px;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  /* Inverted to white since hero is dark navy */
 }

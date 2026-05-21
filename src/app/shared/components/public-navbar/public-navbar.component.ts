@@ -12,17 +12,10 @@ import { SettingsService } from '../../../core/services/settings.service';
     <nav class="navbar" [class.scrolled]="!isHome() || isScrolled()">
       <div class="nav-container">
         <div class="nav-left">
-          @if (settings.business().logoUrl) {
-            <a (click)="scrollToTop()" routerLink="/" class="navbar-logo-link">
-              <img [src]="settings.business().logoUrl"
-                   alt="{{ settings.business().tradingName }}"
-                   class="navbar-logo">
-            </a>
-          } @else {
-            <a (click)="scrollToTop()" routerLink="/" class="brand-name">
-              {{ settings.business().tradingName || 'Tropx' }}
-            </a>
-          }
+          <a (click)="scrollToTop()" routerLink="/" 
+            class="brand-name">
+            {{ settings.business().tradingName || 'Tropx' }}
+          </a>
         </div>
 
         <div class="nav-center desktop-only">

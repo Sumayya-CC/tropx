@@ -47,9 +47,9 @@ import { SettingsService } from '../../../core/services/settings.service';
       <section id="why-us" class="why-us section-padding">
         <div class="container">
           <div class="section-header">
-            <span class="section-label">Why Choose Tropx</span>
-            <h2>Why Partner With Us?</h2>
-            <p class="section-subtext">The supply partner built for growing retail businesses.</p>
+            <span class="section-label">{{ content().whyUsSectionLabel }}</span>
+            <h2>{{ content().whyUsSectionTitle }}</h2>
+            <p class="section-subtext">{{ content().whyUsSectionSubtext }}</p>
           </div>
 
           <div class="features-grid">
@@ -71,48 +71,37 @@ import { SettingsService } from '../../../core/services/settings.service';
       <section id="how-it-works" class="how-it-works section-padding white-bg">
         <div class="container">
           <div class="section-header">
-            <span class="section-label">Simple Process</span>
-            <h2>Getting Started Is Simple</h2>
+            <span class="section-label">{{ content().howItWorksSectionLabel }}</span>
+            <h2>{{ content().howItWorksSectionTitle }}</h2>
           </div>
 
           <div class="steps-row">
-            <div class="step">
-              <div class="step-icon-wrapper">
-                <div class="step-icon">1</div>
+            @for (step of content().howItWorksSteps; 
+              track step.title; let i = $index) {
+              @if (i > 0) {
+                <div class="step-connector desktop-only"></div>
+              }
+              <div class="step">
+                <div class="step-icon-wrapper">
+                  <div class="step-icon" 
+                    [class.red]="step.color === 'red'"
+                    [class.green]="step.color === 'green'"
+                    [class.gold]="step.color === 'gold'"
+                    [class.blue]="step.color === 'blue'"
+                    [class.purple]="step.color === 'purple'">
+                    {{ i + 1 }}
+                  </div>
+                </div>
+                <div class="step-content">
+                  <h3>{{ step.title }}</h3>
+                  <p>{{ step.description }}</p>
+                </div>
               </div>
-              <div class="step-content">
-                <h3>Request Access</h3>
-                <p>Fill out our short form with your business details.</p>
-              </div>
-            </div>
-
-            <div class="step-connector desktop-only"></div>
-
-            <div class="step">
-              <div class="step-icon-wrapper">
-                <div class="step-icon red">2</div>
-              </div>
-              <div class="step-content">
-                <h3>Get Approved</h3>
-                <p>We review applications within 24 hours.</p>
-              </div>
-            </div>
-
-            <div class="step-connector desktop-only"></div>
-
-            <div class="step">
-              <div class="step-icon-wrapper">
-                <div class="step-icon green">3</div>
-              </div>
-              <div class="step-content">
-                <h3>Start Ordering</h3>
-                <p>Log in and browse our full catalog anytime.</p>
-              </div>
-            </div>
+            }
           </div>
 
           <div class="steps-cta">
-            <a routerLink="/request-access" class="btn btn-crimson lg">Request Access Now</a>
+            <a routerLink="/request-access" class="btn btn-crimson lg">{{ content().howItWorksCtaText }}</a>
           </div>
         </div>
       </section>
@@ -122,19 +111,20 @@ import { SettingsService } from '../../../core/services/settings.service';
         <div class="container">
           <div class="about-grid">
             <div class="about-info">
-              <span class="section-label gold">About Tropx</span>
-              <h2>A Canadian Wholesale Distributor You Can Trust</h2>
+              <span class="section-label gold">{{ content().aboutSectionLabel }}</span>
+              <h2>{{ content().aboutSectionTitle }}</h2>
               <p class="about-text">{{ content().aboutText }}</p>
               
               <div class="trust-badges">
-                <span class="badge-dark">CBCA Incorporated</span>
-                <span class="badge-dark">Ontario</span>
+                @for (badge of content().aboutTrustBadges; track badge) {
+                  <span class="badge-dark">{{ badge }}</span>
+                }
               </div>
             </div>
 
             <div class="about-badges">
               <div class="badge-group">
-                <label class="gold-text uppercase">What We Supply</label>
+                <label class="gold-text uppercase">{{ content().aboutWhatWeSupplyLabel }}</label>
                 <div class="pills-grid mt-1">
                   @for (cat of content().whatWeSupply; track cat) {
                     <span class="pill-dark">{{ cat }}</span>
@@ -151,8 +141,8 @@ import { SettingsService } from '../../../core/services/settings.service';
       <section id="contact" class="contact section-padding">
         <div class="container">
           <div class="section-header">
-            <span class="section-label">Get In Touch</span>
-            <h2>Contact Us</h2>
+            <span class="section-label">{{ content().contactSectionLabel }}</span>
+            <h2>{{ content().contactSectionTitle }}</h2>
           </div>
 
           <div class="contact-grid">
@@ -228,21 +218,25 @@ import { SettingsService } from '../../../core/services/settings.service';
                   <span class="icon">📞</span>
                   <div>
                     <label>Phone</label>
-                    <p>{{ content().publicContactInfo.phone || 'Coming soon' }}</p>
+                    <p>{{ settingsService.business().phone || 'Coming soon' }}</p>
                   </div>
                 </div>
                 <div class="info-card">
                   <span class="icon">✉️</span>
                   <div>
                     <label>Email</label>
-                    <p>{{ content().publicContactInfo.email || 'Coming soon' }}</p>
+                    <p>{{ settingsService.business().email || 'Coming soon' }}</p>
                   </div>
                 </div>
                 <div class="info-card">
                   <span class="icon">📍</span>
                   <div>
                     <label>Address</label>
-                    <p>{{ content().publicContactInfo.address }}</p>
+                    <p>{{ [settingsService.business().street, 
+                           settingsService.business().city, 
+                           settingsService.business().province]
+                          .filter(Boolean).join(', ') 
+                          || content().publicContactInfo.address }}</p>
                   </div>
                 </div>
                 <div class="info-card">
@@ -255,7 +249,7 @@ import { SettingsService } from '../../../core/services/settings.service';
               </div>
 
               <div class="partner-note">
-                <p>Looking to become a wholesale partner? Use our Request Access form for faster onboarding.</p>
+                <p>{{ content().contactPartnerNote }}</p>
                 <a routerLink="/request-access" class="link-red">Request Access →</a>
               </div>
             </div>
@@ -273,7 +267,8 @@ export class HomeComponent implements OnInit {
   private firestore = inject(FirestoreService);
   private title = inject(Title);
   protected content = inject(ContentService).content;
-  private readonly settingsService = inject(SettingsService);
+  protected readonly settingsService = inject(SettingsService);
+  protected readonly Boolean = Boolean;
   
   logoUrl = computed(() => {
     const url = this.settingsService.business().logoUrl;

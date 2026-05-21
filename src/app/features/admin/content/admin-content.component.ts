@@ -21,7 +21,6 @@ export class AdminContentComponent {
   // Edit state per section
   editingHero = signal(false);
   editingAbout = signal(false);
-  editingContact = signal(false);
   editingWhyUs = signal(false);
   editingFooter = signal(false);
   editingWhatWeSupply = signal(false);
@@ -40,18 +39,51 @@ export class AdminContentComponent {
   whatWeSupply = signal<string[]>([]);
   newSupplyItem = signal('');
 
-  // Contact fields
-  contactPhone = signal('');
-  contactEmail = signal('');
-  contactAddress = signal('');
-  contactHours = signal('');
-
   // Why Partner Points
   whyPartnerPoints = signal<{ heading: string; body: string }[]>([]);
 
   // Footer fields
   footerText = signal('');
   footerTagline = signal('');
+
+  // Why Us
+  whyUsSectionLabel = signal('');
+  whyUsSectionTitle = signal('');
+  whyUsSectionSubtext = signal('');
+  editingWhyUsSection = signal(false);
+
+  // How It Works
+  stepColors = [
+    { value: 'navy' as const, label: 'Navy', hex: 'var(--navy-deep)' },
+    { value: 'blue' as const, label: 'Blue', hex: 'var(--navy)' },
+    { value: 'red' as const, label: 'Red', hex: 'var(--red)' },
+    { value: 'green' as const, label: 'Green', hex: 'var(--green)' },
+    { value: 'gold' as const, label: 'Gold', hex: 'var(--gold)' },
+    { value: 'purple' as const, label: 'Purple', hex: '#7c3aed' },
+  ];
+  howItWorksSectionLabel = signal('');
+  howItWorksSectionTitle = signal('');
+  howItWorksSteps = signal<{
+    title: string;
+    description: string;
+    color: 'navy' | 'red' | 'green' | 'gold' | 'blue' | 'purple';
+  }[]>([]);
+  howItWorksCtaText = signal('');
+  editingHowItWorks = signal(false);
+
+  // About headings
+  aboutSectionLabel = signal('');
+  aboutSectionTitle = signal('');
+  aboutTrustBadges = signal<string[]>([]);
+  aboutWhatWeSupplyLabel = signal('');
+  newTrustBadge = signal('');
+  editingAboutSection = signal(false);
+
+  // Contact headings
+  contactSectionLabel = signal('');
+  contactSectionTitle = signal('');
+  contactPartnerNote = signal('');
+  editingContactSection = signal(false);
 
   constructor() {
     effect(() => {
@@ -61,16 +93,28 @@ export class AdminContentComponent {
       this.heroCtaText.set(c.heroCtaText || '');
       this.heroBadgeText.set(c.heroBadgeText || '');
       this.aboutText.set(c.aboutText || '');
-      this.contactPhone.set(c.publicContactInfo?.phone || '');
-      this.contactEmail.set(c.publicContactInfo?.email || '');
-      this.contactAddress.set(c.publicContactInfo?.address || '');
-      this.contactHours.set(c.publicContactInfo?.hours || '');
       this.whyPartnerPoints.set(
         c.whyPartnerPoints?.map(p => ({ ...p })) || []
       );
       this.footerText.set(c.footerText || '');
       this.footerTagline.set(c.footerTagline || '');
       this.whatWeSupply.set([...(c.whatWeSupply || [])]);
+      this.whyUsSectionLabel.set(c.whyUsSectionLabel || '');
+      this.whyUsSectionTitle.set(c.whyUsSectionTitle || '');
+      this.whyUsSectionSubtext.set(c.whyUsSectionSubtext || '');
+      this.howItWorksSectionLabel.set(c.howItWorksSectionLabel || '');
+      this.howItWorksSectionTitle.set(c.howItWorksSectionTitle || '');
+      this.howItWorksSteps.set(
+        c.howItWorksSteps?.map(s => ({ ...s })) || []
+      );
+      this.howItWorksCtaText.set(c.howItWorksCtaText || '');
+      this.aboutSectionLabel.set(c.aboutSectionLabel || '');
+      this.aboutSectionTitle.set(c.aboutSectionTitle || '');
+      this.aboutTrustBadges.set([...(c.aboutTrustBadges || [])]);
+      this.aboutWhatWeSupplyLabel.set(c.aboutWhatWeSupplyLabel || '');
+      this.contactSectionLabel.set(c.contactSectionLabel || '');
+      this.contactSectionTitle.set(c.contactSectionTitle || '');
+      this.contactPartnerNote.set(c.contactPartnerNote || '');
     }, { allowSignalWrites: true });
   }
 
@@ -87,15 +131,6 @@ export class AdminContentComponent {
   cancelAbout() {
     this.aboutText.set(this.content.content().aboutText);
     this.editingAbout.set(false);
-  }
-
-  cancelContact() {
-    const c = this.content.content();
-    this.contactPhone.set(c.publicContactInfo?.phone || '');
-    this.contactEmail.set(c.publicContactInfo?.email || '');
-    this.contactAddress.set(c.publicContactInfo?.address || '');
-    this.contactHours.set(c.publicContactInfo?.hours || '');
-    this.editingContact.set(false);
   }
 
   cancelWhyUs() {
@@ -148,26 +183,6 @@ export class AdminContentComponent {
       this.editingAbout.set(false);
     } catch (err) {
       this.toast.error('Failed to save about section');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async saveContact() {
-    this.isSaving.set(true);
-    try {
-      await this.saveContent({
-        publicContactInfo: {
-          phone: this.contactPhone(),
-          email: this.contactEmail(),
-          address: this.contactAddress(),
-          hours: this.contactHours(),
-        }
-      });
-      this.toast.success('Contact info saved');
-      this.editingContact.set(false);
-    } catch (err) {
-      this.toast.error('Failed to save contact info');
     } finally {
       this.isSaving.set(false);
     }
@@ -269,6 +284,156 @@ export class AdminContentComponent {
     this.whatWeSupply.update(list =>
       list.filter((_, i) => i !== index)
     );
+  }
+
+  async saveWhyUsSection() {
+    this.isSaving.set(true);
+    try {
+      await this.saveContent({
+        whyUsSectionLabel: this.whyUsSectionLabel(),
+        whyUsSectionTitle: this.whyUsSectionTitle(),
+        whyUsSectionSubtext: this.whyUsSectionSubtext(),
+      });
+      this.toast.success('Why Us section saved');
+      this.editingWhyUsSection.set(false);
+    } catch { this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelWhyUsSection() {
+    const c = this.content.content();
+    this.whyUsSectionLabel.set(c.whyUsSectionLabel || '');
+    this.whyUsSectionTitle.set(c.whyUsSectionTitle || '');
+    this.whyUsSectionSubtext.set(c.whyUsSectionSubtext || '');
+    this.editingWhyUsSection.set(false);
+  }
+
+  async saveHowItWorks() {
+    this.isSaving.set(true);
+    try {
+      await this.saveContent({
+        howItWorksSectionLabel: this.howItWorksSectionLabel(),
+        howItWorksSectionTitle: this.howItWorksSectionTitle(),
+        howItWorksSteps: this.howItWorksSteps(),
+        howItWorksCtaText: this.howItWorksCtaText(),
+      });
+      this.toast.success('How It Works section saved');
+      this.editingHowItWorks.set(false);
+    } catch { this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelHowItWorks() {
+    const c = this.content.content();
+    this.howItWorksSectionLabel.set(
+      c.howItWorksSectionLabel || ''
+    );
+    this.howItWorksSectionTitle.set(
+      c.howItWorksSectionTitle || ''
+    );
+    this.howItWorksSteps.set(
+      c.howItWorksSteps?.map(s => ({ ...s })) || []
+    );
+    this.howItWorksCtaText.set(c.howItWorksCtaText || '');
+    this.editingHowItWorks.set(false);
+  }
+
+  // How It Works steps management
+  addStep() {
+    this.howItWorksSteps.update(steps => [
+      ...steps,
+      { title: '', description: '', color: 'navy' as const }
+    ]);
+  }
+
+  removeStep(index: number) {
+    this.howItWorksSteps.update(steps =>
+      steps.filter((_, i) => i !== index)
+    );
+  }
+
+  updateStepTitle(index: number, value: string) {
+    this.howItWorksSteps.update(steps =>
+      steps.map((s, i) => i === index 
+        ? { ...s, title: value } : s)
+    );
+  }
+
+  updateStepDescription(index: number, value: string) {
+    this.howItWorksSteps.update(steps =>
+      steps.map((s, i) => i === index 
+        ? { ...s, description: value } : s)
+    );
+  }
+
+  updateStepColor(index: number, 
+    value: 'navy' | 'red' | 'green' | 'gold' | 'blue' | 'purple') {
+    this.howItWorksSteps.update(steps =>
+      steps.map((s, i) => i === index 
+        ? { ...s, color: value } : s)
+    );
+  }
+
+  async saveAboutSection() {
+    this.isSaving.set(true);
+    try {
+      await this.saveContent({
+        aboutSectionLabel: this.aboutSectionLabel(),
+        aboutSectionTitle: this.aboutSectionTitle(),
+        aboutTrustBadges: this.aboutTrustBadges(),
+        aboutWhatWeSupplyLabel: this.aboutWhatWeSupplyLabel(),
+      });
+      this.toast.success('About section headings saved');
+      this.editingAboutSection.set(false);
+    } catch { this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelAboutSection() {
+    const c = this.content.content();
+    this.aboutSectionLabel.set(c.aboutSectionLabel || '');
+    this.aboutSectionTitle.set(c.aboutSectionTitle || '');
+    this.aboutTrustBadges.set([...(c.aboutTrustBadges || [])]);
+    this.aboutWhatWeSupplyLabel.set(
+      c.aboutWhatWeSupplyLabel || ''
+    );
+    this.newTrustBadge.set('');
+    this.editingAboutSection.set(false);
+  }
+
+  addTrustBadge() {
+    const item = this.newTrustBadge().trim();
+    if (!item) return;
+    this.aboutTrustBadges.update(list => [...list, item]);
+    this.newTrustBadge.set('');
+  }
+
+  removeTrustBadge(index: number) {
+    this.aboutTrustBadges.update(list =>
+      list.filter((_, i) => i !== index)
+    );
+  }
+
+  async saveContactSection() {
+    this.isSaving.set(true);
+    try {
+      await this.saveContent({
+        contactSectionLabel: this.contactSectionLabel(),
+        contactSectionTitle: this.contactSectionTitle(),
+        contactPartnerNote: this.contactPartnerNote(),
+      });
+      this.toast.success('Contact section saved');
+      this.editingContactSection.set(false);
+    } catch { this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelContactSection() {
+    const c = this.content.content();
+    this.contactSectionLabel.set(c.contactSectionLabel || '');
+    this.contactSectionTitle.set(c.contactSectionTitle || '');
+    this.contactPartnerNote.set(c.contactPartnerNote || '');
+    this.editingContactSection.set(false);
   }
 }
 

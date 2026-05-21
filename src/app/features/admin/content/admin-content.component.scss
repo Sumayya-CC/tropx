@@ -485,3 +485,38 @@
     &:disabled { opacity: 0.4; cursor: not-allowed; }
   }
 }
+
+.step-navy { background: var(--navy-deep) !important; }
+.step-red { background: var(--red) !important; }
+.step-green { background: var(--green) !important; }
+.step-gold { background: var(--gold) !important; }
+.step-blue { background: var(--navy) !important; }
+.step-purple { background: #7c3aed !important; }
+
+.color-picker-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  outline: none;
+  flex-shrink: 0;
+
+  &:hover {
+    transform: scale(1.15);
+  }
+
+  &.selected {
+    border-color: white;
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.3);
+    transform: scale(1.1);
+  }
+}

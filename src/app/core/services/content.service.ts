@@ -22,6 +22,32 @@ export interface ContentData {
     body: string;
   }[];
   whatWeSupply: string[];
+
+  // Why Us section
+  whyUsSectionLabel: string;   // "Why Choose Tropx"
+  whyUsSectionTitle: string;   // "Why Partner With Us?"
+  whyUsSectionSubtext: string; // "The supply partner..."
+
+  // How It Works section
+  howItWorksSectionLabel: string;  // "Simple Process"
+  howItWorksSectionTitle: string;  // "Getting Started Is Simple"
+  howItWorksSteps: {
+    title: string;
+    description: string;
+    color: 'navy' | 'red' | 'green' | 'gold' | 'blue' | 'purple';
+  }[];
+  howItWorksCtaText: string;  // "Request Access Now"
+
+  // About section
+  aboutSectionLabel: string;   // "About Tropx"
+  aboutSectionTitle: string;   // "A Canadian Wholesale..."
+  aboutTrustBadges: string[];  // ["CBCA Incorporated", "Ontario"]
+  aboutWhatWeSupplyLabel: string; // "What We Supply"
+
+  // Contact section
+  contactSectionLabel: string; // "Get In Touch"
+  contactSectionTitle: string; // "Contact Us"
+  contactPartnerNote: string;  // "Looking to become..."
 }
 
 const DEFAULT_CONTENT: ContentData = {
@@ -65,7 +91,28 @@ const DEFAULT_CONTENT: ContentData = {
     'Personal Care',
     'Seasonal Items',
     'And More...'
-  ]
+  ],
+  whyUsSectionLabel: 'Why Choose Tropx',
+  whyUsSectionTitle: 'Why Partner With Us?',
+  whyUsSectionSubtext: 'The supply partner built for growing retail businesses.',
+
+  howItWorksSectionLabel: 'Simple Process',
+  howItWorksSectionTitle: 'Getting Started Is Simple',
+  howItWorksSteps: [
+    { title: 'Request Access', description: 'Fill out our short form with your business details.', color: 'navy' },
+    { title: 'Get Approved', description: 'We review applications within 24 hours.', color: 'red' },
+    { title: 'Start Ordering', description: 'Log in and browse our full catalog anytime.', color: 'green' },
+  ],
+  howItWorksCtaText: 'Request Access Now',
+
+  aboutSectionLabel: 'About Tropx',
+  aboutSectionTitle: 'A Canadian Wholesale Distributor You Can Trust',
+  aboutTrustBadges: ['CBCA Incorporated', 'Ontario'],
+  aboutWhatWeSupplyLabel: 'What We Supply',
+
+  contactSectionLabel: 'Get In Touch',
+  contactSectionTitle: 'Contact Us',
+  contactPartnerNote: 'Looking to become a wholesale partner? Use our Request Access form for faster onboarding.',
 };
 
 

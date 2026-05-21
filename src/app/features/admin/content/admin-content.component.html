@@ -144,6 +144,102 @@
     }
   </div>
 
+  <!-- ── WHY US SECTION HEADINGS ───────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Why Us — Section Headings</h2>
+        <p>Label, title and subtext above the feature cards</p>
+      </div>
+      @if (!editingWhyUsSection()) {
+        <button class="btn-edit"
+          (click)="editingWhyUsSection.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14
+              a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1
+              1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+    @if (!editingWhyUsSection()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Section Label</div>
+            <div class="view-value">
+              {{ content.content().whyUsSectionLabel }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Title</div>
+            <div class="view-value headline-preview">
+              {{ content.content().whyUsSectionTitle }}
+            </div>
+          </div>
+          <div class="view-item full-width">
+            <div class="view-label">Subtext</div>
+            <div class="view-value">
+              {{ content.content().whyUsSectionSubtext }}
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Section Label</label>
+              <input type="text"
+                [value]="whyUsSectionLabel()"
+                (input)="whyUsSectionLabel.set(
+                  $any($event.target).value
+                )"
+                placeholder="Why Choose Tropx">
+              <span class="hint">
+                Small uppercase label above title
+              </span>
+            </div>
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text"
+                [value]="whyUsSectionTitle()"
+                (input)="whyUsSectionTitle.set(
+                  $any($event.target).value
+                )"
+                placeholder="Why Partner With Us?">
+            </div>
+            <div class="form-group full-width">
+              <label>Subtext</label>
+              <input type="text"
+                [value]="whyUsSectionSubtext()"
+                (input)="whyUsSectionSubtext.set(
+                  $any($event.target).value
+                )"
+                placeholder="The supply partner built for...">
+            </div>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelWhyUsSection()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveWhyUsSection()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
   <!-- ── WHY PARTNER SECTION ───────────────────────── -->
   <div class="content-card">
     <div class="card-header">
@@ -247,6 +343,329 @@
             [disabled]="isSaving()">
             @if (isSaving()) { Saving... }
             @else { Save Section }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── HOW IT WORKS SECTION ────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>How It Works</h2>
+        <p>Steps shown in the "Getting Started" section</p>
+      </div>
+      @if (!editingHowItWorks()) {
+        <button class="btn-edit"
+          (click)="editingHowItWorks.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14
+              a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1
+              1-4 9.5-9.5z"/>
+          </svg> Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingHowItWorks()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Section Label</div>
+            <div class="view-value">
+              {{ content.content().howItWorksSectionLabel }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Title</div>
+            <div class="view-value headline-preview">
+              {{ content.content().howItWorksSectionTitle }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">CTA Button</div>
+            <div class="view-value">
+              <span class="cta-preview">
+                {{ content.content().howItWorksCtaText }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="points-view" style="margin-top:1rem">
+          @for (step of content.content().howItWorksSteps;
+            track step.title; let i = $index) {
+            <div class="point-view-item">
+              <div class="point-number step-{{ step.color }}">{{ i + 1 }}</div>
+              <div class="point-content">
+                <div class="point-heading">{{ step.title }}</div>
+                <div class="point-body">
+                  {{ step.description }}
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Section Label</label>
+              <input type="text"
+                [value]="howItWorksSectionLabel()"
+                (input)="howItWorksSectionLabel.set(
+                  $any($event.target).value
+                )"
+                placeholder="Simple Process">
+            </div>
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text"
+                [value]="howItWorksSectionTitle()"
+                (input)="howItWorksSectionTitle.set(
+                  $any($event.target).value
+                )"
+                placeholder="Getting Started Is Simple">
+            </div>
+            <div class="form-group">
+              <label>CTA Button Text</label>
+              <input type="text"
+                [value]="howItWorksCtaText()"
+                (input)="howItWorksCtaText.set(
+                  $any($event.target).value
+                )"
+                placeholder="Request Access Now">
+            </div>
+          </div>
+
+          <div style="margin-top:1.25rem">
+            <label style="font-size:0.8125rem;font-weight:700;
+              color:var(--charcoal);display:block;
+              margin-bottom:0.75rem;">
+              Steps
+            </label>
+            <div class="points-edit-list">
+              @for (step of howItWorksSteps();
+                track $index; let i = $index) {
+                <div class="point-edit-item">
+                  <div class="point-edit-number">
+                    {{ i + 1 }}
+                  </div>
+                  <div class="point-edit-fields">
+                    <div class="form-group">
+                      <label>Step Title</label>
+                      <input type="text"
+                        [value]="step.title"
+                        (input)="updateStepTitle(
+                          i, $any($event.target).value
+                        )"
+                        placeholder="e.g. Request Access">
+                    </div>
+                    <div class="form-group">
+                      <label>Description</label>
+                      <textarea rows="2"
+                        [value]="step.description"
+                        (input)="updateStepDescription(
+                          i, $any($event.target).value
+                        )"
+                        placeholder="Brief description...">
+                      </textarea>
+                    </div>
+                    <div class="form-group">
+                      <label>Icon Color</label>
+                      <div class="color-picker-row">
+                        @for (color of stepColors; track color.value) {
+                          <button 
+                            type="button"
+                            class="color-swatch"
+                            [class.selected]="step.color === color.value"
+                            [style.background]="color.hex"
+                            [title]="color.label"
+                            (click)="updateStepColor(i, color.value)">
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  <button class="btn-remove-point"
+                    (click)="removeStep(i)">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="16" height="16"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+            <button class="btn-add-point" (click)="addStep()">
+              + Add Step
+            </button>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelHowItWorks()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveHowItWorks()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── ABOUT SECTION HEADINGS ───────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>About — Section Headings</h2>
+        <p>Label, title, trust badges and supply label</p>
+      </div>
+      @if (!editingAboutSection()) {
+        <button class="btn-edit"
+          (click)="editingAboutSection.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14
+              a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1
+              1-4 9.5-9.5z"/>
+          </svg> Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingAboutSection()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Section Label</div>
+            <div class="view-value">
+              {{ content.content().aboutSectionLabel }}
+            </div>
+          </div>
+          <div class="view-item full-width">
+            <div class="view-label">Title</div>
+            <div class="view-value headline-preview">
+              {{ content.content().aboutSectionTitle }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">What We Supply Label</div>
+            <div class="view-value">
+              {{ content.content().aboutWhatWeSupplyLabel }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Trust Badges</div>
+            <div class="view-value">
+              <div class="pills-view">
+                @for (b of content.content().aboutTrustBadges;
+                  track b) {
+                  <span class="supply-pill">{{ b }}</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Section Label</label>
+              <input type="text"
+                [value]="aboutSectionLabel()"
+                (input)="aboutSectionLabel.set(
+                  $any($event.target).value
+                )"
+                placeholder="About Tropx">
+            </div>
+            <div class="form-grid full-width" style="display: contents;">
+              <div class="form-group full-width">
+                <label>Title</label>
+                <input type="text"
+                  [value]="aboutSectionTitle()"
+                  (input)="aboutSectionTitle.set(
+                    $any($event.target).value
+                  )"
+                  placeholder="A Canadian Wholesale Distributor...">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>What We Supply Label</label>
+              <input type="text"
+                [value]="aboutWhatWeSupplyLabel()"
+                (input)="aboutWhatWeSupplyLabel.set(
+                  $any($event.target).value
+                )"
+                placeholder="What We Supply">
+            </div>
+          </div>
+
+          <div style="margin-top:1rem">
+            <label style="font-size:0.8125rem;font-weight:700;
+              color:var(--charcoal);display:block;
+              margin-bottom:0.5rem;">
+              Trust Badges
+            </label>
+            <div class="pills-edit-list">
+              @for (badge of aboutTrustBadges();
+                track badge; let i = $index) {
+                <div class="pill-edit-item">
+                  <span class="pill-edit-text">{{ badge }}</span>
+                  <button class="btn-remove-pill"
+                    (click)="removeTrustBadge(i)">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="12" height="12"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+            <div class="add-supply-row">
+              <input type="text"
+                [value]="newTrustBadge()"
+                (input)="newTrustBadge.set(
+                  $any($event.target).value
+                )"
+                (keydown.enter)="addTrustBadge()"
+                placeholder="e.g. ISO Certified"
+                class="add-supply-input">
+              <button class="btn-add-supply"
+                (click)="addTrustBadge()"
+                [disabled]="!newTrustBadge().trim()">
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelAboutSection()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveAboutSection()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save }
           </button>
         </div>
       </div>
@@ -412,59 +831,47 @@
     }
   </div>
 
-  <!-- ── CONTACT INFO ──────────────────────────────── -->
+  <!-- ── CONTACT SECTION HEADINGS ─────────────────── -->
   <div class="content-card">
     <div class="card-header">
       <div class="card-title-group">
-        <h2>Contact Information</h2>
-        <p>Shown in the Contact section and footer</p>
+        <h2>Contact — Section Headings</h2>
+        <p>Label, title and partner note text</p>
       </div>
-      @if (!editingContact()) {
+      @if (!editingContactSection()) {
         <button class="btn-edit"
-          (click)="editingContact.set(true)">
+          (click)="editingContactSection.set(true)">
           <svg xmlns="http://www.w3.org/2000/svg"
             width="16" height="16" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor"
-            stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 
-              0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 
-              3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-          Edit
+            fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14
+              a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1
+              1-4 9.5-9.5z"/>
+          </svg> Edit
         </button>
       }
     </div>
 
-    @if (!editingContact()) {
+    @if (!editingContactSection()) {
       <div class="card-body">
         <div class="view-grid">
           <div class="view-item">
-            <div class="view-label">📞 Phone</div>
+            <div class="view-label">Section Label</div>
             <div class="view-value">
-              {{ content.content().publicContactInfo.phone 
-                || '—' }}
+              {{ content.content().contactSectionLabel }}
             </div>
           </div>
           <div class="view-item">
-            <div class="view-label">✉️ Email</div>
-            <div class="view-value">
-              {{ content.content().publicContactInfo.email 
-                || '—' }}
+            <div class="view-label">Title</div>
+            <div class="view-value headline-preview">
+              {{ content.content().contactSectionTitle }}
             </div>
           </div>
-          <div class="view-item">
-            <div class="view-label">📍 Address</div>
+          <div class="view-item full-width">
+            <div class="view-label">Partner Note</div>
             <div class="view-value">
-              {{ content.content().publicContactInfo.address 
-                || '—' }}
-            </div>
-          </div>
-          <div class="view-item">
-            <div class="view-label">🕐 Hours</div>
-            <div class="view-value">
-              {{ content.content().publicContactInfo.hours 
-                || '—' }}
+              {{ content.content().contactPartnerNote }}
             </div>
           </div>
         </div>
@@ -474,52 +881,47 @@
         <div class="edit-section">
           <div class="form-grid">
             <div class="form-group">
-              <label>Phone Number</label>
-              <input type="tel"
-                [value]="contactPhone()"
-                (input)="contactPhone.set(
-                  $any($event.target).value
-                )"
-                placeholder="(519) 000-0000">
-            </div>
-            <div class="form-group">
-              <label>Email Address</label>
-              <input type="email"
-                [value]="contactEmail()"
-                (input)="contactEmail.set(
-                  $any($event.target).value
-                )"
-                placeholder="info@tropxwholesale.ca">
-            </div>
-            <div class="form-group">
-              <label>Address</label>
+              <label>Section Label</label>
               <input type="text"
-                [value]="contactAddress()"
-                (input)="contactAddress.set(
+                [value]="contactSectionLabel()"
+                (input)="contactSectionLabel.set(
                   $any($event.target).value
                 )"
-                placeholder="Kitchener, Ontario, Canada">
+                placeholder="Get In Touch">
             </div>
             <div class="form-group">
-              <label>Business Hours</label>
+              <label>Title</label>
               <input type="text"
-                [value]="contactHours()"
-                (input)="contactHours.set(
+                [value]="contactSectionTitle()"
+                (input)="contactSectionTitle.set(
                   $any($event.target).value
                 )"
-                placeholder="Monday–Friday, 9am–5pm EST">
+                placeholder="Contact Us">
+            </div>
+            <div class="form-group full-width">
+              <label>Partner Note</label>
+              <textarea rows="2"
+                [value]="contactPartnerNote()"
+                (input)="contactPartnerNote.set(
+                  $any($event.target).value
+                )"
+                placeholder="Looking to become a wholesale partner...">
+              </textarea>
+              <span class="hint">
+                Shown beside the contact form
+              </span>
             </div>
           </div>
         </div>
         <div class="edit-actions">
           <button class="btn-cancel-edit"
-            (click)="cancelContact()"
+            (click)="cancelContactSection()"
             [disabled]="isSaving()">Cancel</button>
           <button class="btn-save-edit"
-            (click)="saveContact()"
+            (click)="saveContactSection()"
             [disabled]="isSaving()">
             @if (isSaving()) { Saving... }
-            @else { Save Contact Info }
+            @else { Save }
           </button>
         </div>
       </div>
