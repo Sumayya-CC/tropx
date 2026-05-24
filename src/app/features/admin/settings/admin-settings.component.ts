@@ -59,6 +59,7 @@ export class AdminSettingsComponent {
   orderPrefix = signal('TRX');
   paymentPrefix = signal('PAY');
   returnPrefix = signal('RET');
+  overdueAfterDays = signal(30);
 
   // Prefix warning: show if user changes prefix
   orderPrefixChanged = signal(false);
@@ -102,6 +103,7 @@ export class AdminSettingsComponent {
       this.orderPrefix.set(ord.orderPrefix || 'TRX');
       this.paymentPrefix.set(ord.paymentPrefix || 'PAY');
       this.returnPrefix.set(ord.returnPrefix || 'RET');
+      this.overdueAfterDays.set(ord.overdueAfterDays || 30);
     }, { allowSignalWrites: true });
   }
 
@@ -144,6 +146,7 @@ export class AdminSettingsComponent {
     this.orderPrefix.set(ord.orderPrefix || 'TRX');
     this.paymentPrefix.set(ord.paymentPrefix || 'PAY');
     this.returnPrefix.set(ord.returnPrefix || 'RET');
+    this.overdueAfterDays.set(ord.overdueAfterDays || 30);
     this.orderPrefixChanged.set(false);
     this.paymentPrefixChanged.set(false);
     this.returnPrefixChanged.set(false);
@@ -216,6 +219,7 @@ export class AdminSettingsComponent {
         orderPrefix: this.orderPrefix(),
         paymentPrefix: this.paymentPrefix(),
         returnPrefix: this.returnPrefix(),
+        overdueAfterDays: this.overdueAfterDays(),
       });
 
       // Update sequence docs if prefix changed

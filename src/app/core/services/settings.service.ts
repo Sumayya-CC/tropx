@@ -36,6 +36,7 @@ export interface OrderingSettings {
   orderPrefix: string;
   paymentPrefix: string;
   returnPrefix: string;
+  overdueAfterDays: number;  // default 30
 }
 
 export const DEFAULT_BUSINESS: BusinessSettings = {
@@ -62,7 +63,7 @@ export const DEFAULT_INVOICE: InvoiceSettings = {
   etransferEmail: 'tropxenterprises@gmail.com',
   acceptCash: true,
   showHstBreakdown: true,
-};
+ };
 
 export const DEFAULT_ORDERING: OrderingSettings = {
   defaultTaxRatePercent: 13,
@@ -70,6 +71,7 @@ export const DEFAULT_ORDERING: OrderingSettings = {
   orderPrefix: 'TRX',
   paymentPrefix: 'PAY',
   returnPrefix: 'RET',
+  overdueAfterDays: 30,
 };
 
 @Injectable({ providedIn: 'root' })

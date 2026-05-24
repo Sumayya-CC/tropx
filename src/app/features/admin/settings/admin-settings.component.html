@@ -555,6 +555,12 @@
             </div>
           </div>
           <div class="view-item">
+            <div class="view-label">Overdue After</div>
+            <div class="view-value">
+              {{ settings.ordering().overdueAfterDays }} days
+            </div>
+          </div>
+          <div class="view-item">
             <div class="view-label">Order Prefix</div>
             <div class="view-value mono">
               {{ settings.ordering().orderPrefix }}-2026-XXXX
@@ -614,6 +620,17 @@
                   Pickup
                 </label>
               </div>
+            </div>
+            <div class="form-group">
+              <label>Overdue After (Days)</label>
+              <input type="number" min="1" max="365"
+                [value]="overdueAfterDays()"
+                (input)="overdueAfterDays.set(
+                  +$any($event.target).value
+                )">
+              <span class="hint">
+                Invoices older than this are marked overdue
+              </span>
             </div>
           </div>
         </div>

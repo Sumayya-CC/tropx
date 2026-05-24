@@ -3,6 +3,7 @@ import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/rout
 import { AuthService } from '../../../core/services/auth.service';
 import { filter } from 'rxjs/operators';
 import { SettingsService } from '../../../core/services/settings.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 interface NavItem {
   label: string;
@@ -78,6 +79,35 @@ interface NavSection {
                       @if (!isCollapsed()) {
                         <span class="nav-label">{{ item.label }}</span>
                       }
+                      <!-- Badge for Returns -->
+                      @if (item.route === '/admin/returns' && 
+                           pendingReturns() > 0) {
+                        <span class="nav-badge">
+                          {{ pendingReturns() > 99 ? '99+' : pendingReturns() }}
+                        </span>
+                      }
+                      <!-- Badge for Orders (overdue) -->
+                      @if (item.route === '/admin/orders' && 
+                           overdueOrders() > 0) {
+                        <span class="nav-badge orange">
+                          {{ overdueOrders() > 99 ? '99+' : overdueOrders() }}
+                        </span>
+                      }
+                      <!-- Dot for Products (low stock) -->
+                      @if (item.route === '/admin/products' && 
+                           lowStock() > 0) {
+                        <span class="nav-badge">
+                          {{ lowStock() > 99 ? '99+' : lowStock() }}
+                        </span>
+                      }
+                      <!-- Badge for Access Requests -->
+                      @if (item.route === '/admin/access-requests' &&
+                           pendingAccessRequests() > 0) {
+                        <span class="nav-badge">
+                          {{ pendingAccessRequests() > 99 
+                            ? '99+' : pendingAccessRequests() }}
+                        </span>
+                      }
                     </a>
                   }
                 }
@@ -152,6 +182,21 @@ export class AdminShellComponent implements OnInit {
   settingsService = inject(SettingsService);
 
   businessSettings = computed(() => this.settingsService.business());
+
+  private readonly notificationService = inject(NotificationService);
+
+  pendingReturns = computed(() =>
+    this.notificationService.pendingReturnsCount()
+  );
+  overdueOrders = computed(() =>
+    this.notificationService.overdueOrdersCount()
+  );
+  lowStock = computed(() =>
+    this.notificationService.lowStockCount()
+  );
+  pendingAccessRequests = computed(() =>
+    this.notificationService.pendingAccessRequestsCount()
+  );
 
   isCollapsed = signal<boolean>(false);
   isMobileOpen = signal<boolean>(false);
