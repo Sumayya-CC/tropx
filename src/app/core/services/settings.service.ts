@@ -1,4 +1,4 @@
-import { Injectable, inject, computed } from '@angular/core';
+import { Injectable, inject, computed, signal } from '@angular/core';
 import { FirestoreService } from './firestore.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -38,6 +38,36 @@ export interface OrderingSettings {
   returnPrefix: string;
   overdueAfterDays: number;  // default 30
 }
+
+export interface NotificationSettings {
+  // Admin alerts (existing)
+  newOrderAlert: boolean;
+  accessRequestAlert: boolean;
+  returnSubmittedAlert: boolean;
+  lowStockAlert: boolean;
+  // Customer notifications (new)
+  customerOrderConfirmed: boolean;
+  customerOutForDelivery: boolean;
+  customerOrderDelivered: boolean;
+  customerOrderCancelled: boolean;
+  customerReturnApproved: boolean;
+  customerReturnRejected: boolean;
+  customerPaymentReceipt: boolean;
+}
+
+export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
+  newOrderAlert: true,
+  accessRequestAlert: true,
+  returnSubmittedAlert: true,
+  lowStockAlert: true,
+  customerOrderConfirmed: true,
+  customerOutForDelivery: true,
+  customerOrderDelivered: true,
+  customerOrderCancelled: true,
+  customerReturnApproved: true,
+  customerReturnRejected: true,
+  customerPaymentReceipt: true,
+};
 
 export const DEFAULT_BUSINESS: BusinessSettings = {
   companyName: 'Tropx Enterprises Inc.',
@@ -91,6 +121,13 @@ export class SettingsService {
   private _business = toSignal(this.business$);
   private _invoice = toSignal(this.invoice$);
   private _ordering = toSignal(this.ordering$);
+  private _notificationsData = signal<NotificationSettings | null>(null);
+
+  constructor() {
+    this.firestore.getDocument<NotificationSettings>(
+      'settings/notifications'
+    ).subscribe(data => this._notificationsData.set(data));
+  }
 
   business = computed(() => ({
     ...DEFAULT_BUSINESS,
@@ -105,6 +142,11 @@ export class SettingsService {
   ordering = computed(() => ({
     ...DEFAULT_ORDERING,
     ...this._ordering()
+  }));
+
+  notifications = computed(() => ({
+    ...DEFAULT_NOTIFICATIONS,
+    ...(this._notificationsData() ?? {})
   }));
 
   async uploadLogo(file: File): Promise<string> {

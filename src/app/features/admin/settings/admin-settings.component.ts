@@ -25,6 +25,7 @@ export class AdminSettingsComponent {
   editingBusiness = signal(false);
   editingInvoice = signal(false);
   editingOrdering = signal(false);
+  editingNotifications = signal(false);
   isSaving = signal(false);
 
   // Business form fields
@@ -60,6 +61,20 @@ export class AdminSettingsComponent {
   paymentPrefix = signal('PAY');
   returnPrefix = signal('RET');
   overdueAfterDays = signal(30);
+
+  // Notification settings form fields
+  newOrderAlert = signal(true);
+  accessRequestAlert = signal(true);
+  returnSubmittedAlert = signal(true);
+  lowStockAlert = signal(true);
+
+  customerOrderConfirmed = signal(true);
+  customerOutForDelivery = signal(true);
+  customerOrderDelivered = signal(true);
+  customerOrderCancelled = signal(true);
+  customerReturnApproved = signal(true);
+  customerReturnRejected = signal(true);
+  customerPaymentReceipt = signal(true);
 
   // Prefix warning: show if user changes prefix
   orderPrefixChanged = signal(false);
@@ -104,6 +119,21 @@ export class AdminSettingsComponent {
       this.paymentPrefix.set(ord.paymentPrefix || 'PAY');
       this.returnPrefix.set(ord.returnPrefix || 'RET');
       this.overdueAfterDays.set(ord.overdueAfterDays || 30);
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const n = this.settings.notifications();
+      this.newOrderAlert.set(n.newOrderAlert);
+      this.accessRequestAlert.set(n.accessRequestAlert);
+      this.returnSubmittedAlert.set(n.returnSubmittedAlert);
+      this.lowStockAlert.set(n.lowStockAlert);
+      this.customerOrderConfirmed.set(n.customerOrderConfirmed);
+      this.customerOutForDelivery.set(n.customerOutForDelivery);
+      this.customerOrderDelivered.set(n.customerOrderDelivered);
+      this.customerOrderCancelled.set(n.customerOrderCancelled);
+      this.customerReturnApproved.set(n.customerReturnApproved);
+      this.customerReturnRejected.set(n.customerReturnRejected);
+      this.customerPaymentReceipt.set(n.customerPaymentReceipt);
     }, { allowSignalWrites: true });
   }
 
@@ -151,6 +181,48 @@ export class AdminSettingsComponent {
     this.paymentPrefixChanged.set(false);
     this.returnPrefixChanged.set(false);
     this.editingOrdering.set(false);
+  }
+
+  cancelNotifications() {
+    const n = this.settings.notifications();
+    this.newOrderAlert.set(n.newOrderAlert);
+    this.accessRequestAlert.set(n.accessRequestAlert);
+    this.returnSubmittedAlert.set(n.returnSubmittedAlert);
+    this.lowStockAlert.set(n.lowStockAlert);
+    this.customerOrderConfirmed.set(n.customerOrderConfirmed);
+    this.customerOutForDelivery.set(n.customerOutForDelivery);
+    this.customerOrderDelivered.set(n.customerOrderDelivered);
+    this.customerOrderCancelled.set(n.customerOrderCancelled);
+    this.customerReturnApproved.set(n.customerReturnApproved);
+    this.customerReturnRejected.set(n.customerReturnRejected);
+    this.customerPaymentReceipt.set(n.customerPaymentReceipt);
+    this.editingNotifications.set(false);
+  }
+
+  async saveNotifications() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument('settings/notifications', {
+        newOrderAlert: this.newOrderAlert(),
+        accessRequestAlert: this.accessRequestAlert(),
+        returnSubmittedAlert: this.returnSubmittedAlert(),
+        lowStockAlert: this.lowStockAlert(),
+        customerOrderConfirmed: this.customerOrderConfirmed(),
+        customerOutForDelivery: this.customerOutForDelivery(),
+        customerOrderDelivered: this.customerOrderDelivered(),
+        customerOrderCancelled: this.customerOrderCancelled(),
+        customerReturnApproved: this.customerReturnApproved(),
+        customerReturnRejected: this.customerReturnRejected(),
+        customerPaymentReceipt: this.customerPaymentReceipt(),
+      });
+      this.toast.success('Notification settings saved');
+      this.editingNotifications.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to save notification settings');
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   async saveBusiness() {

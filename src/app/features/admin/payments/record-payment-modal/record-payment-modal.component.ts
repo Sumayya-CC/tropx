@@ -111,6 +111,7 @@ export class RecordPaymentModalComponent {
           orderNumber: this.order.orderNumber,
           customerId: this.order.customerId,
           customerName: this.order.customerName,
+          customerEmail: this.order.customerEmail || '',
           amountCents: this.amountCents(),
           currencyCode: 'CAD',
           method: this.method(),

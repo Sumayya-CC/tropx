@@ -205,6 +205,7 @@ export class CreateReturnModalComponent implements OnInit {
           customerId: this.order.customerId,
           customerName: this.order.customerName,
           customerPhone: this.order.customerPhone || '',
+          customerEmail: this.order.customerEmail || '',
           type: this.returnType(),
           status: 'pending',
           items: returnItems,

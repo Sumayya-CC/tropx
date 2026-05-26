@@ -33,6 +33,7 @@ export interface Return {
   customerId: string;
   customerName: string;         // snapshot
   customerPhone: string;        // snapshot
+  customerEmail?: string;       // snapshot from order
   type: ReturnType;
   status: ReturnStatus;
   items: ReturnItem[];

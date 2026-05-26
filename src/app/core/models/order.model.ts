@@ -30,6 +30,7 @@ export interface Order {
   customerId: string;
   customerName: string;      // snapshot
   customerPhone: string | null;     // snapshot
+  customerEmail?: string;           // snapshot from customer
   serviceAreaId?: string | null;    // snapshot from customer
   serviceAreaName?: string | null;  // snapshot from customer
 

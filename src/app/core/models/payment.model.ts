@@ -20,6 +20,7 @@ export interface Payment {
   orderNumber: string;          // snapshot
   customerId: string;           // linked customer
   customerName: string;         // snapshot
+  customerEmail?: string;       // snapshot from order
   amountCents: number;          // amount of this payment
   currencyCode: string;         // CAD
   method: PaymentMethod;

@@ -710,4 +710,443 @@
     }
   </div>
 
+  <!-- ── NOTIFICATIONS SETTINGS CARD ───────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Notifications</h2>
+        <p>Email alerts sent to your business email</p>
+      </div>
+      @if (!editingNotifications()) {
+        <button class="btn-edit"
+          (click)="editingNotifications.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0
+              2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12
+              15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingNotifications()) {
+      <div class="card-body">
+        <p class="view-hint">
+          Alerts sent to:
+          <strong>
+            {{ settings.business().email || 
+              'No email configured' }}
+          </strong>
+        </p>
+        <div class="view-section-label">Admin Alerts</div>
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">New Order</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="
+                  settings.notifications().newOrderAlert"
+                [class.no]="
+                  !settings.notifications().newOrderAlert">
+                {{ settings.notifications().newOrderAlert
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Access Request</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="
+                  settings.notifications()
+                    .accessRequestAlert"
+                [class.no]="
+                  !settings.notifications()
+                    .accessRequestAlert">
+                {{ settings.notifications().accessRequestAlert
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Return Submitted</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="
+                  settings.notifications()
+                    .returnSubmittedAlert"
+                [class.no]="
+                  !settings.notifications()
+                    .returnSubmittedAlert">
+                {{ settings.notifications()
+                  .returnSubmittedAlert
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Low Stock</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="
+                  settings.notifications().lowStockAlert"
+                [class.no]="
+                  !settings.notifications().lowStockAlert">
+                {{ settings.notifications().lowStockAlert
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-section-label" 
+          style="margin-top:1rem;">
+          Customer Notifications
+        </div>
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Order Confirmed</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerOrderConfirmed"
+                [class.no]="!settings.notifications()
+                  .customerOrderConfirmed">
+                {{ settings.notifications()
+                  .customerOrderConfirmed
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Out for Delivery</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerOutForDelivery"
+                [class.no]="!settings.notifications()
+                  .customerOutForDelivery">
+                {{ settings.notifications()
+                  .customerOutForDelivery
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Order Delivered</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerOrderDelivered"
+                [class.no]="!settings.notifications()
+                  .customerOrderDelivered">
+                {{ settings.notifications()
+                  .customerOrderDelivered
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Order Cancelled</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerOrderCancelled"
+                [class.no]="!settings.notifications()
+                  .customerOrderCancelled">
+                {{ settings.notifications()
+                  .customerOrderCancelled
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Return Approved</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerReturnApproved"
+                [class.no]="!settings.notifications()
+                  .customerReturnApproved">
+                {{ settings.notifications()
+                  .customerReturnApproved
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Return Rejected</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerReturnRejected"
+                [class.no]="!settings.notifications()
+                  .customerReturnRejected">
+                {{ settings.notifications()
+                  .customerReturnRejected
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Payment Receipt</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications()
+                  .customerPaymentReceipt"
+                [class.no]="!settings.notifications()
+                  .customerPaymentReceipt">
+                {{ settings.notifications()
+                  .customerPaymentReceipt
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <p class="section-desc">
+            All alerts are sent to your business email:
+            <strong>
+              {{ settings.business().email || 
+                'Configure in Business Settings' }}
+            </strong>
+          </p>
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  New Order Placed
+                </span>
+                <span class="toggle-desc">
+                  Alert when a new order is confirmed
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="newOrderAlert()"
+                  (change)="newOrderAlert.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Access Request Received
+                </span>
+                <span class="toggle-desc">
+                  Alert when a business requests access
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="accessRequestAlert()"
+                  (change)="accessRequestAlert.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Return Submitted
+                </span>
+                <span class="toggle-desc">
+                  Alert when a customer submits a return
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="returnSubmittedAlert()"
+                  (change)="returnSubmittedAlert.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Low Stock Alert
+                </span>
+                <span class="toggle-desc">
+                  Alert when a product drops below its
+                  stock threshold (max once per 24h per
+                  product)
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="lowStockAlert()"
+                  (change)="lowStockAlert.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <div class="toggle-section-label">
+            Customer Notifications
+          </div>
+          <p class="section-desc">
+            Emails sent directly to customers
+          </p>
+
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Order Confirmed
+                </span>
+                <span class="toggle-desc">
+                  Customer receives confirmation when order
+                  is confirmed
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerOrderConfirmed()"
+                  (change)="customerOrderConfirmed.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Out for Delivery
+                </span>
+                <span class="toggle-desc">
+                  Customer notified when order is out for delivery
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerOutForDelivery()"
+                  (change)="customerOutForDelivery.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Order Delivered</span>
+                <span class="toggle-desc">
+                  Customer notified when order is marked delivered
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerOrderDelivered()"
+                  (change)="customerOrderDelivered.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Order Cancelled</span>
+                <span class="toggle-desc">
+                  Customer notified when order is cancelled
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerOrderCancelled()"
+                  (change)="customerOrderCancelled.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Return Approved</span>
+                <span class="toggle-desc">
+                  Customer notified when return is approved
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerReturnApproved()"
+                  (change)="customerReturnApproved.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Return Rejected</span>
+                <span class="toggle-desc">
+                  Customer notified when return is rejected
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerReturnRejected()"
+                  (change)="customerReturnRejected.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Payment Receipt</span>
+                <span class="toggle-desc">
+                  Customer receives receipt when payment is
+                  recorded
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="customerPaymentReceipt()"
+                  (change)="customerPaymentReceipt.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelNotifications()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveNotifications()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Notification Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
 </div>
