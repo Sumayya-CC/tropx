@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
+import { PortalAuthGuard } from './core/guards/portal-auth.guard';
 
 export const routes: Routes = [
   // ── Public ──────────────────────────────────────────────────────────────
@@ -69,6 +70,51 @@ export const routes: Routes = [
       },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
+  },
+
+  // ── Portal (auth required, role: customer) ─────────────────────────
+  {
+    path: 'portal',
+    loadComponent: () => import('./features/portal/portal-shell/portal-shell.component').then(m => m.PortalShellComponent),
+    canActivate: [PortalAuthGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./features/portal/portal-dashboard/portal-dashboard.component').then(m => m.PortalDashboardComponent),
+      },
+      {
+        path: 'catalog',
+        loadComponent: () => import('./features/portal/portal-catalog/portal-catalog.component').then(m => m.PortalCatalogComponent),
+      },
+      {
+        path: 'catalog/:id',
+        loadComponent: () => import('./features/portal/portal-product-detail/portal-product-detail.component').then(m => m.PortalProductDetailComponent),
+      },
+      {
+        path: 'cart',
+        loadComponent: () => import('./features/portal/portal-cart/portal-cart.component').then(m => m.PortalCartComponent),
+      },
+      {
+        path: 'orders',
+        loadComponent: () => import('./features/portal/portal-orders/portal-orders.component').then(m => m.PortalOrdersComponent),
+      },
+      {
+        path: 'orders/:id',
+        loadComponent: () => import('./features/portal/portal-order-detail/portal-order-detail.component').then(m => m.PortalOrderDetailComponent),
+      },
+      {
+        path: 'payments',
+        loadComponent: () => import('./features/portal/portal-payments/portal-payments.component').then(m => m.PortalPaymentsComponent),
+      },
+      {
+        path: 'returns',
+        loadComponent: () => import('./features/portal/portal-returns/portal-returns.component').then(m => m.PortalReturnsComponent),
+      },
+      {
+        path: '**',
+        redirectTo: '',
+      }
+    ]
   },
 
   // ── Admin (auth required, role: admin | employee) ───────────────────

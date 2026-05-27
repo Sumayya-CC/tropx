@@ -100,6 +100,26 @@
   padding: 0 1.5rem;
 }
 
+.hero-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.hero-welcome-text {
+  font-size: 1.125rem;
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+}
+
+.hero-business {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
 .badge-gold {
   display: inline-block;
   color: var(--gold-light);

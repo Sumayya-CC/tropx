@@ -1,0 +1,245 @@
+<header class="portal-navbar"
+  [class.scrolled]="isScrolled()">
+  <div class="navbar-inner">
+
+    <!-- Brand -->
+    <a routerLink="/" class="navbar-brand">
+      <span class="brand-tropx">Tropx</span>
+      <span class="brand-sep">|</span>
+      <span class="brand-wholesale">Wholesale</span>
+    </a>
+
+    <!-- Desktop nav links -->
+    <nav class="navbar-links">
+      <a routerLink="/portal/dashboard"
+        routerLinkActive="active"
+        class="nav-link">
+        Dashboard
+      </a>
+      <a routerLink="/portal/catalog"
+        routerLinkActive="active"
+        class="nav-link">
+        Catalog
+      </a>
+      <a routerLink="/portal/orders"
+        routerLinkActive="active"
+        class="nav-link">
+        Orders
+      </a>
+      <a routerLink="/portal/payments"
+        routerLinkActive="active"
+        class="nav-link hide-tablet">
+        Payments
+      </a>
+      <a routerLink="/portal/returns"
+        routerLinkActive="active"
+        class="nav-link hide-tablet">
+        @if (portal.pendingReturnsCount() > 0) {
+          <span class="link-badge">
+            {{ portal.pendingReturnsCount() }}
+          </span>
+        }
+        Returns
+      </a>
+    </nav>
+
+    <!-- Right: Cart + Account -->
+    <div class="navbar-right">
+
+      <!-- Cart -->
+      <a routerLink="/portal/cart"
+        class="cart-icon-btn"
+        [class.has-items]="portal.cartCount() > 0">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="22" height="22" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14
+            a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        @if (portal.cartCount() > 0) {
+          <span class="cart-badge">
+            {{ portal.cartCount() > 99
+              ? '99+' : portal.cartCount() }}
+          </span>
+        }
+      </a>
+
+      <!-- Account dropdown -->
+      <div class="account-menu-wrapper">
+        <button class="account-btn"
+          (click)="showAccountMenu.set(
+            !showAccountMenu()
+          )">
+          <div class="account-avatar">
+            {{ portal.businessName()
+              .charAt(0).toUpperCase() }}
+          </div>
+          <span class="account-name">
+            {{ portal.businessName() }}
+          </span>
+          <svg class="chevron"
+            xmlns="http://www.w3.org/2000/svg"
+            width="14" height="14"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5"
+            [class.open]="showAccountMenu()">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        @if (showAccountMenu()) {
+          <div class="account-dropdown">
+            <div class="dropdown-header">
+              <div class="dropdown-business">
+                {{ portal.businessName() }}
+              </div>
+              <div class="dropdown-email">
+                {{ portal.customerProfile()?.email }}
+              </div>
+            </div>
+            <div class="dropdown-body">
+              <a routerLink="/portal/dashboard"
+                class="dropdown-item"
+                (click)="showAccountMenu.set(false)">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Dashboard
+              </a>
+              <a routerLink="/portal/payments"
+                class="dropdown-item hide-desktop"
+                (click)="showAccountMenu.set(false)">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="4" width="22"
+                    height="16" rx="2" ry="2"/>
+                  <line x1="1" y1="10"
+                    x2="23" y2="10"/>
+                </svg>
+                Payments
+              </a>
+              <a routerLink="/portal/returns"
+                class="dropdown-item hide-desktop"
+                (click)="showAccountMenu.set(false)">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 .49-3.6"/>
+                </svg>
+                Returns
+                @if (portal.pendingReturnsCount() > 0) {
+                  <span class="link-badge">
+                    {{ portal.pendingReturnsCount() }}
+                  </span>
+                }
+              </a>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item sign-out"
+                (click)="signOut()">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5
+                    a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12"
+                    x2="9" y2="12"/>
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Hamburger (mobile only) -->
+      <button class="hamburger-btn mobile-only"
+        (click)="mobileMenuOpen.set(!mobileMenuOpen())">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="24" height="24" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          @if (mobileMenuOpen()) {
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          } @else {
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          }
+        </svg>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  @if (mobileMenuOpen()) {
+    <div class="mobile-menu-wrapper">
+      <nav class="mobile-menu">
+        <a routerLink="/portal/dashboard"
+          routerLinkActive="active"
+          class="mobile-link"
+          (click)="closeMobileMenu()">
+          Dashboard
+        </a>
+        <a routerLink="/portal/catalog"
+          routerLinkActive="active"
+          class="mobile-link"
+          (click)="closeMobileMenu()">
+          Catalog
+        </a>
+        <a routerLink="/portal/orders"
+          routerLinkActive="active"
+          class="mobile-link"
+          (click)="closeMobileMenu()">
+          Orders
+        </a>
+        <a routerLink="/portal/payments"
+          routerLinkActive="active"
+          class="mobile-link"
+          (click)="closeMobileMenu()">
+          Payments
+        </a>
+        <a routerLink="/portal/returns"
+          routerLinkActive="active"
+          class="mobile-link"
+          (click)="closeMobileMenu()">
+          Returns
+          @if (portal.pendingReturnsCount() > 0) {
+            <span class="link-badge">
+              {{ portal.pendingReturnsCount() }}
+            </span>
+          }
+        </a>
+        <div class="mobile-divider"></div>
+        <div class="mobile-account-info">
+          <span class="mobile-business">
+            {{ portal.businessName() }}
+          </span>
+          <span class="mobile-email">
+            {{ portal.customerProfile()?.email }}
+          </span>
+        </div>
+        <button class="mobile-link sign-out"
+          (click)="signOut()">
+          Sign Out
+        </button>
+      </nav>
+    </div>
+  }
+</header>

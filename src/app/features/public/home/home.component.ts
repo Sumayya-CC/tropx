@@ -9,13 +9,19 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 import { PublicNavbarComponent } from '../../../shared/components/public-navbar/public-navbar.component';
 import { PublicFooterComponent } from '../../../shared/components/public-footer/public-footer.component';
 import { SettingsService } from '../../../core/services/settings.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { PortalNavbarComponent } from '../../../shared/components/portal-navbar/portal-navbar.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent, PublicNavbarComponent, PublicFooterComponent],
+  imports: [RouterLink, ReactiveFormsModule, LoadingSpinnerComponent, PublicNavbarComponent, PublicFooterComponent, PortalNavbarComponent],
   template: `
-    <app-public-navbar />
+    @if (isCustomer()) {
+      <app-portal-navbar />
+    } @else {
+      <app-public-navbar />
+    }
 
     <main>
       <!-- Section 1: Hero -->
@@ -31,12 +37,56 @@ import { SettingsService } from '../../../core/services/settings.service';
           <span class="badge-gold">
             {{ content().heroBadgeText }}
           </span>
-          <h1>{{ content().heroHeadline }}</h1>
-          <p class="subheadline">{{ content().heroSubheadline }}</p>
-          <div class="cta-group">
-            <a routerLink="/request-access" class="btn btn-crimson lg">{{ content().heroCtaText }}</a>
-            <a routerLink="/login" class="btn btn-ghost-white lg">Sign In</a>
-          </div>
+
+          @if (isCustomer()) {
+            <h1>
+              Welcome back,<br>
+              {{ customerBusinessName() }}
+            </h1>
+            <p class="subheadline">
+              Your wholesale partner is ready. Browse our
+              catalog and place your next order.
+            </p>
+          } @else {
+            <h1>{{ content().heroHeadline }}</h1>
+            <p class="subheadline">
+              {{ content().heroSubheadline }}
+            </p>
+          }
+
+          @if (isCustomer()) {
+            <!-- Customer hero CTAs -->
+            <div class="hero-welcome">
+              <span class="hero-welcome-text">
+                Welcome back, {{ customerFirstName() }} 👋
+              </span>
+              <span class="hero-business">
+                {{ customerBusinessName() }}
+              </span>
+            </div>
+            <div class="cta-group">
+              <a routerLink="/portal/dashboard"
+                class="btn btn-crimson lg">
+                Go to Dashboard
+              </a>
+              <a routerLink="/portal/catalog"
+                class="btn btn-ghost-white lg">
+                Browse Catalog
+              </a>
+            </div>
+          } @else {
+            <!-- Guest hero CTAs -->
+            <div class="cta-group">
+              <a routerLink="/request-access"
+                class="btn btn-crimson lg">
+                {{ content().heroCtaText }}
+              </a>
+              <a routerLink="/login"
+                class="btn btn-ghost-white lg">
+                Sign In
+              </a>
+            </div>
+          }
         </div>
         <div class="scroll-indicator" (click)="scrollToSection('why-us')">
           <span class="arrow"></span>
@@ -250,7 +300,9 @@ import { SettingsService } from '../../../core/services/settings.service';
 
               <div class="partner-note">
                 <p>{{ content().contactPartnerNote }}</p>
-                <a routerLink="/request-access" class="link-red">Request Access →</a>
+                @if (!isCustomer()) {
+                  <a routerLink="/request-access" class="link-red">Request Access →</a>
+                }
               </div>
             </div>
           </div>
@@ -269,6 +321,27 @@ export class HomeComponent implements OnInit {
   protected content = inject(ContentService).content;
   protected readonly settingsService = inject(SettingsService);
   protected readonly Boolean = Boolean;
+
+  private readonly authService = inject(AuthService);
+
+  isCustomer = computed(() =>
+    this.authService.currentProfile()?.role === 'customer'
+  );
+
+  isGuest = computed(() =>
+    !this.authService.currentProfile()
+  );
+
+  customerFirstName = computed(() =>
+    this.authService.currentProfile()?.firstName || ''
+  );
+
+  customerBusinessName = computed(() => {
+    const p = this.authService.currentProfile() as any;
+    return p?.businessName ||
+      `${p?.firstName ?? ''} ${p?.lastName ?? ''}`.trim()
+      || 'Welcome';
+  });
   
   logoUrl = computed(() => {
     const url = this.settingsService.business().logoUrl;

@@ -1,0 +1,382 @@
+<div class="catalog-page">
+
+  <!-- PAGE HEADER -->
+  <div class="catalog-header">
+    <div class="catalog-header-left">
+      <h1>Product Catalog</h1>
+      <p class="catalog-subtitle">
+        {{ filteredProducts().length }} products
+        @if (selectedCategory() !== 'all') {
+          in selected category
+        }
+      </p>
+    </div>
+
+    <!-- View toggle + Sort -->
+    <div class="catalog-header-right">
+      <select class="sort-select"
+        [value]="sortBy()"
+        (change)="sortBy.set(
+          $any($event.target).value
+        )">
+        <option value="name">Name A–Z</option>
+        <option value="price_asc">
+          Price: Low to High
+        </option>
+        <option value="price_desc">
+          Price: High to Low
+        </option>
+      </select>
+
+      <div class="view-toggle">
+        <button class="view-btn"
+          [class.active]="viewMode() === 'grid'"
+          (click)="viewMode.set('grid')"
+          title="Grid view">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="18" height="18"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+        </button>
+        <button class="view-btn"
+          [class.active]="viewMode() === 'list'"
+          (click)="viewMode.set('list')"
+          title="List view">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="18" height="18"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"/>
+            <line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/>
+            <line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <div class="search-bar-wrapper">
+    <div class="search-bar">
+      <svg class="search-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21"
+          x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search by product name or SKU..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set(
+          $any($event.target).value
+        )">
+      @if (searchQuery()) {
+        <button class="search-clear"
+          (click)="clearSearch()">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- CATEGORY PILLS -->
+  <div class="category-pills">
+    <button class="cat-pill"
+      [class.active]="selectedCategory() === 'all'"
+      (click)="selectedCategory.set('all')">
+      All Products
+    </button>
+    @for (cat of categories(); track cat.id) {
+      <button class="cat-pill"
+        [class.active]="selectedCategory() === cat.id"
+        (click)="selectedCategory.set(cat.id)">
+        {{ cat.name }}
+      </button>
+    }
+  </div>
+
+  <!-- EMPTY STATE -->
+  @if (filteredProducts().length === 0) {
+    <div class="catalog-empty">
+      <div class="empty-icon">🔍</div>
+      <h3>No products found</h3>
+      <p>
+        Try a different search term or category.
+      </p>
+      <button class="btn-clear-filters"
+        (click)="searchQuery.set('');
+          selectedCategory.set('all')">
+        Clear Filters
+      </button>
+    </div>
+  } @else {
+
+    <!-- GRID VIEW -->
+    @if (viewMode() === 'grid') {
+      <div class="product-grid">
+        @for (product of filteredProducts();
+          track product.id) {
+          <div class="product-card"
+            [class.out-of-stock]="product.stock <= 0">
+
+            <!-- Image -->
+            <a [routerLink]="[
+              '/portal/catalog', product.id]"
+              class="product-image-link">
+              @if (product.imageUrl) {
+                <img [src]="product.imageUrl"
+                  [alt]="product.name"
+                  class="product-img">
+              } @else {
+                <div class="product-img-placeholder">
+                  <span class="product-initial">
+                    {{ getProductInitial(product.name) }}
+                  </span>
+                </div>
+              }
+              <!-- Stock badge overlay -->
+              @if (product.stock <= 0) {
+                <div class="stock-overlay">
+                  Out of Stock
+                </div>
+              } @else if (product.stock <=
+                (product.lowStockThreshold || 5)) {
+                <div class="low-stock-ribbon">
+                  Only {{ product.stock }} left
+                </div>
+              }
+            </a>
+
+            <!-- Info -->
+            <div class="product-info">
+              <a [routerLink]="[
+                '/portal/catalog', product.id]"
+                class="product-name-link">
+                <h3 class="product-name">
+                  {{ product.name }}
+                </h3>
+              </a>
+              <span class="product-sku">
+                {{ product.sku }}
+              </span>
+              <div class="product-price-row">
+                <span class="product-price">
+                  {{ formatCurrency(
+                    product.priceCents || 0
+                  ) }}
+                </span>
+                <span class="price-unit">/ unit</span>
+              </div>
+            </div>
+
+            <!-- Cart controls -->
+            <div class="product-actions">
+              @if (product.stock <= 0) {
+                <button class="btn-add-cart disabled"
+                  disabled>
+                  Out of Stock
+                </button>
+              } @else if (isInCart(product.id)) {
+                <div class="qty-stepper">
+                  <button class="qty-btn minus"
+                    (click)="decrement(product)">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="16" height="16"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5">
+                      <line x1="5" y1="12"
+                        x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                  <span class="qty-count">
+                    {{ getCartQty(product.id) }}
+                  </span>
+                  <button class="qty-btn plus"
+                    (click)="increment(product)"
+                    [disabled]="getCartQty(product.id)
+                      >= product.stock">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="16" height="16"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5">
+                      <line x1="12" y1="5"
+                        x2="12" y2="19"/>
+                      <line x1="5" y1="12"
+                        x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+              } @else {
+                <button class="btn-add-cart"
+                  (click)="addToCart(product)">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="16" height="16"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0
+                      0 0 2 1.61h9.72a2 2 0 0 0
+                      2-1.61L23 6H6"/>
+                  </svg>
+                  Add to Cart
+                </button>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
+    }
+
+    <!-- LIST VIEW -->
+    @if (viewMode() === 'list') {
+      <div class="product-list">
+        @for (product of filteredProducts();
+          track product.id) {
+          <div class="list-product-row"
+            [class.out-of-stock]="product.stock <= 0">
+
+            <!-- Image thumbnail -->
+            <a [routerLink]="[
+              '/portal/catalog', product.id]"
+              class="list-thumb-link">
+              @if (product.imageUrl) {
+                <img [src]="product.imageUrl"
+                  [alt]="product.name"
+                  class="list-thumb">
+              } @else {
+                <div class="list-thumb-placeholder">
+                  {{ getProductInitial(product.name) }}
+                </div>
+              }
+            </a>
+
+            <!-- Info -->
+            <div class="list-product-info">
+              <a [routerLink]="[
+                '/portal/catalog', product.id]"
+                class="list-product-name">
+                {{ product.name }}
+              </a>
+              <span class="list-product-sku">
+                SKU: {{ product.sku }}
+              </span>
+              @if (product.description) {
+                <span class="list-product-desc">
+                  {{ product.description }}
+                </span>
+              }
+            </div>
+
+            <!-- Stock -->
+            <div class="list-stock">
+              @let status = getStockStatus(product);
+              <span class="stock-badge"
+                [class]="'stock-' + status.class">
+                {{ status.label }}
+              </span>
+            </div>
+
+            <!-- Price -->
+            <div class="list-price">
+              <span class="list-price-value">
+                {{ formatCurrency(
+                  product.priceCents || 0
+                ) }}
+              </span>
+              <span class="list-price-unit">
+                per unit
+              </span>
+            </div>
+
+            <!-- Cart action -->
+            <div class="list-actions">
+              @if (product.stock <= 0) {
+                <button class="btn-add-cart-sm disabled"
+                  disabled>
+                  Out of Stock
+                </button>
+              } @else if (isInCart(product.id)) {
+                <div class="qty-stepper sm">
+                  <button class="qty-btn minus"
+                    (click)="decrement(product)">−</button>
+                  <span class="qty-count">
+                    {{ getCartQty(product.id) }}
+                  </span>
+                  <button class="qty-btn plus"
+                    (click)="increment(product)"
+                    [disabled]="getCartQty(product.id)
+                      >= product.stock">
+                    +
+                  </button>
+                </div>
+              } @else {
+                <button class="btn-add-cart-sm"
+                  (click)="addToCart(product)">
+                  + Add
+                </button>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
+    }
+
+  } <!-- end @else products exist -->
+
+  <!-- FLOATING CART BAR (shows when cart has items) -->
+  @if (portal.cartCount() > 0) {
+    <div class="floating-cart-bar">
+      <div class="cart-bar-info">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="20" height="20" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14
+            a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span>
+          <strong>{{ portal.cartCount() }}</strong>
+          item{{ portal.cartCount() > 1 ? 's' : '' }}
+          in cart
+        </span>
+        <span class="cart-bar-total">
+          {{ formatCurrency(
+            portal.cartSubtotalCents()
+          ) }}
+        </span>
+      </div>
+      <a routerLink="/portal/cart"
+        class="cart-bar-btn">
+        View Cart & Checkout →
+      </a>
+    </div>
+  }
+
+</div>

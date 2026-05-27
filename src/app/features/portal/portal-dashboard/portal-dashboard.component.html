@@ -1,0 +1,267 @@
+<div class="portal-dashboard">
+
+  <!-- GREETING -->
+  <div class="dash-greeting">
+    <div>
+      <h1>{{ greeting() }} 👋</h1>
+      <p>{{ portal.businessName() }}</p>
+    </div>
+    <a routerLink="/portal/catalog"
+      class="btn-shop-now">
+      Browse Catalog →
+    </a>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+
+    <div class="kpi-card"
+      [class.kpi-alert]="portal.totalOwingCents() > 0">
+      <div class="kpi-icon-box outstanding">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="22" height="22" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5
+            a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Outstanding Balance</span>
+        <span class="kpi-value"
+          [class.red]="portal.totalOwingCents() > 0"
+          [class.green]="portal.totalOwingCents() === 0">
+          {{ formatCurrency(portal.totalOwingCents()) }}
+        </span>
+        <span class="kpi-sub">
+          {{ portal.totalOwingCents() === 0
+            ? 'All paid up ✓'
+            : 'Across your orders' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-box orders">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="22" height="22" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0
+            0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Total Orders</span>
+        <span class="kpi-value navy">
+          {{ portal.activeOrders().length }}
+        </span>
+        <span class="kpi-sub">lifetime orders</span>
+      </div>
+    </div>
+
+    <div class="kpi-card"
+      [class.kpi-alert]="
+        portal.pendingReturnsCount() > 0">
+      <div class="kpi-icon-box returns">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="22" height="22" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-3.6"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <span class="kpi-label">Pending Returns</span>
+        <span class="kpi-value"
+          [class.gold]="
+            portal.pendingReturnsCount() > 0"
+          [class.navy]="
+            portal.pendingReturnsCount() === 0">
+          {{ portal.pendingReturnsCount() }}
+        </span>
+        <span class="kpi-sub">awaiting review</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- OUTSTANDING BALANCE ALERT -->
+  @if (portal.totalOwingCents() > 0) {
+    <div class="balance-alert">
+      <div class="balance-alert-left">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="18" height="18" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>
+          Outstanding balance of
+          <strong>
+            {{ formatCurrency(portal.totalOwingCents()) }}
+          </strong>
+          — please arrange payment at your earliest
+          convenience.
+        </span>
+      </div>
+      <a routerLink="/portal/payments"
+        class="balance-alert-link">
+        View Payments →
+      </a>
+    </div>
+  }
+
+  <!-- QUICK ACTIONS -->
+  <div class="quick-actions">
+    <a routerLink="/portal/catalog"
+      class="quick-action primary">
+      <div class="qa-icon">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="24" height="24" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/>
+          <rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+      <div class="qa-text">
+        <span class="qa-title">Browse Catalog</span>
+        <span class="qa-sub">
+          {{ portal.allProducts().length }} products
+          available
+        </span>
+      </div>
+      <svg class="qa-arrow"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </a>
+
+    <a routerLink="/portal/orders"
+      class="quick-action">
+      <div class="qa-icon navy">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="24" height="24" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0
+            0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div class="qa-text">
+        <span class="qa-title">My Orders</span>
+        <span class="qa-sub">
+          View order history and invoices
+        </span>
+      </div>
+      <svg class="qa-arrow"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </a>
+
+    <a routerLink="/portal/payments"
+      class="quick-action">
+      <div class="qa-icon green">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="24" height="24" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <rect x="1" y="4" width="22" height="16"
+            rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="qa-text">
+        <span class="qa-title">Payments</span>
+        <span class="qa-sub">
+          Payment history and balance
+        </span>
+      </div>
+      <svg class="qa-arrow"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- RECENT ORDERS -->
+  <div class="dash-section">
+    <div class="section-header">
+      <h2>Recent Orders</h2>
+      <a routerLink="/portal/orders"
+        class="section-link">View all →</a>
+    </div>
+
+    @if (portal.recentOrders().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📦</div>
+        <h3>No orders yet</h3>
+        <p>Start shopping from our catalog to place
+          your first order.</p>
+        <a routerLink="/portal/catalog"
+          class="btn-primary">Browse Catalog →</a>
+      </div>
+    } @else {
+      <div class="orders-list">
+        @for (order of portal.recentOrders();
+          track order.id) {
+          <a [routerLink]="['/portal/orders', order.id]"
+            class="order-row">
+            <div class="order-row-left">
+              <span class="order-num">
+                {{ order.orderNumber }}
+              </span>
+              <span class="order-date">
+                {{ formatShortDate(order.confirmedAt) }}
+              </span>
+            </div>
+            <div class="order-row-center">
+              <span class="order-items">
+                {{ order.items?.length || 0 }} item{{
+                  order.items?.length !== 1 ? 's' : ''
+                }}
+              </span>
+            </div>
+            <div class="order-row-right">
+              <span class="status-pill"
+                [attr.data-status]="order.status">
+                {{ getStatusLabel(order.status) }}
+              </span>
+              @if ((order.balanceCents || 0) > 0) {
+                <span class="owing-tag">
+                  {{ formatCurrency(order.balanceCents) }}
+                  owing
+                </span>
+              }
+              <span class="order-total">
+                {{ formatCurrency(order.totalCents) }}
+              </span>
+            </div>
+          </a>
+        }
+      </div>
+    }
+  </div>
+
+</div>

@@ -510,15 +510,12 @@ export class LoginComponent {
         return;
       }
 
-      if (['admin', 'manager', 'sales_rep', 'warehouse'].includes(profile.role)) {
+      if (profile.role === 'customer') {
+        this.toast.success(`Welcome back, ${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}!`);
+        await this.router.navigate(['/portal']);
+      } else {
         this.toast.success(`Welcome back, ${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}!`);
         await this.router.navigate(['/admin/dashboard']);
-      } else if (profile.role === 'customer') {
-        this.toast.success(`Welcome back, ${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}!`);
-        await this.router.navigate(['/customer/dashboard']);
-      } else {
-        await this.auth.logout();
-        this.toast.error('Unknown role. Contact support.');
       }
     } catch (error: any) {
       this.handleAuthError(error.code || error.message);
