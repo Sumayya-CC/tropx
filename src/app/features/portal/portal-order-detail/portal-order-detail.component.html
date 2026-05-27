@@ -1,0 +1,763 @@
+<div class="portal-order-detail">
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading order...</p>
+    </div>
+  } @else if (order()) {
+
+    <!-- BACK + HEADER -->
+    <div class="detail-header">
+      <a routerLink="/portal/orders"
+        class="back-link">
+        ← Back to Orders
+      </a>
+      <div class="header-main">
+        <div class="header-left">
+          <h1 class="order-number">
+            {{ order().orderNumber }}
+          </h1>
+          <span class="order-date">
+            {{ formatDate(order().confirmedAt) }}
+          </span>
+        </div>
+        <div class="header-actions">
+          <button class="btn-secondary"
+            (click)="reorder()"
+            [disabled]="portal.allProducts()
+              .length === 0">
+            <svg xmlns="http://www.w3.org/2000/svg"
+              width="16" height="16"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <polyline
+                points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36
+                L23 10"/>
+            </svg>
+            Reorder
+          </button>
+          <button class="btn-secondary"
+            (click)="downloadInvoice()"
+            [disabled]="isGeneratingPdf()">
+            <svg xmlns="http://www.w3.org/2000/svg"
+              width="16" height="16"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5
+                a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            @if (isGeneratingPdf()) {
+              Generating...
+            } @else {
+              Download Invoice
+            }
+          </button>
+          @if (canCancel()) {
+            <button class="btn-cancel-order"
+              (click)="showCancelConfirm.set(true)">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor"
+                stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              Cancel Order
+            </button>
+          }
+          @if (canSubmitReturn()) {
+            <button class="btn-return"
+              (click)="openReturnModal()">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="16" height="16"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0
+                  .49-3.6"/>
+              </svg>
+              Submit Return
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS TIMELINE -->
+    @if (order().status !== 'cancelled') {
+      <div class="status-timeline">
+        <div class="timeline-track">
+
+          <div class="timeline-step"
+            [class.done]="currentStep() >= 1"
+            [class.active]="currentStep() === 1">
+            <div class="step-circle">
+              @if (currentStep() > 1) {
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor"
+                  stroke-width="3">
+                  <polyline
+                    points="20 6 9 17 4 12"/>
+                </svg>
+              } @else {
+                <span>1</span>
+              }
+            </div>
+            <div class="step-label">
+              <strong>Confirmed</strong>
+              @if (order().confirmedAt) {
+                <span>
+                  {{ formatDate(order().confirmedAt) }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="timeline-line"
+            [class.done]="currentStep() >= 2">
+          </div>
+
+          <div class="timeline-step"
+            [class.done]="currentStep() >= 2"
+            [class.active]="currentStep() === 2">
+            <div class="step-circle">
+              @if (currentStep() > 2) {
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor"
+                  stroke-width="3">
+                  <polyline
+                    points="20 6 9 17 4 12"/>
+                </svg>
+              } @else {
+                <span>2</span>
+              }
+            </div>
+            <div class="step-label">
+              <strong>Out for Delivery</strong>
+              @if (order().outForDeliveryAt) {
+                <span>
+                  {{ formatDate(
+                    order().outForDeliveryAt
+                  ) }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="timeline-line"
+            [class.done]="currentStep() >= 3">
+          </div>
+
+          <div class="timeline-step"
+            [class.done]="currentStep() >= 3"
+            [class.active]="currentStep() === 3">
+            <div class="step-circle">
+              @if (currentStep() >= 3) {
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor"
+                  stroke-width="3">
+                  <polyline
+                    points="20 6 9 17 4 12"/>
+                </svg>
+              } @else {
+                <span>3</span>
+              }
+            </div>
+            <div class="step-label">
+              <strong>Delivered</strong>
+              @if (order().deliveredAt) {
+                <span>
+                  {{ formatDate(order().deliveredAt) }}
+                </span>
+              }
+            </div>
+          </div>
+
+        </div>
+      </div>
+    } @else {
+      <div class="cancelled-banner">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="18" height="18" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <span>
+          This order was cancelled.
+          @if (order().cancellationReason) {
+            Reason:
+            <strong>
+              {{ order().cancellationReason }}
+            </strong>
+          }
+        </span>
+      </div>
+    }
+
+    <!-- MAIN CONTENT -->
+    <div class="detail-body">
+
+      <!-- LEFT: Items + Totals -->
+      <div class="detail-left">
+
+        <!-- Items -->
+        <div class="detail-card">
+          <div class="card-header">
+            <h2>Order Items</h2>
+          </div>
+          <div class="items-table">
+            <div class="items-header">
+              <span>Product</span>
+              <span class="right">Qty</span>
+              <span class="right">Unit Price</span>
+              <span class="right">Total</span>
+            </div>
+            @for (item of order().items; track item.productId) {
+              <div class="item-row">
+                <div class="item-info">
+                  <span class="item-name">
+                    {{ item.productName }}
+                  </span>
+                  <span class="item-sku">
+                    {{ item.productSku }}
+                  </span>
+                </div>
+                <span class="item-qty right">
+                  {{ item.quantity }}
+                </span>
+                <span class="item-price right">
+                  {{ formatCurrency(
+                    item.unitPriceCents
+                  ) }}
+                </span>
+                <span class="item-total right">
+                  {{ formatCurrency(
+                    item.lineTotalCents
+                  ) }}
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Totals -->
+          <div class="totals-section">
+            <div class="totals-row">
+              <span>Subtotal</span>
+              <span>
+                {{ formatCurrency(
+                  order().subtotalCents
+                ) }}
+              </span>
+            </div>
+            @if ((order().discountCents || 0) > 0) {
+              <div class="totals-row discount">
+                <span>Discount</span>
+                <span>
+                  -{{ formatCurrency(
+                    order().discountCents
+                  ) }}
+                </span>
+              </div>
+            }
+            <div class="totals-row">
+              <span>
+                HST ({{ order().taxRatePercent }}%)
+              </span>
+              <span>
+                {{ formatCurrency(order().taxCents) }}
+              </span>
+            </div>
+            <div class="totals-row total-row">
+              <span>Total</span>
+              <span>
+                {{ formatCurrency(order().totalCents) }}
+              </span>
+            </div>
+            @if ((order().amountPaidCents || 0) > 0) {
+              <div class="totals-row paid-row">
+                <span>Amount Paid</span>
+                <span class="green">
+                  -{{ formatCurrency(
+                    order().amountPaidCents
+                  ) }}
+                </span>
+              </div>
+            }
+            @if (order().status !== 'cancelled') {
+              <div class="totals-row balance-row"
+                [class.all-paid]="
+                  (order().balanceCents || 0) === 0">
+                <span>Balance Due</span>
+                <span>
+                  {{ formatCurrency(
+                    order().balanceCents || 0
+                  ) }}
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Returns on this order -->
+        @if (activeReturns().length > 0) {
+          <div class="detail-card">
+            <div class="card-header">
+              <h2>Returns</h2>
+            </div>
+            <div class="returns-list">
+              @for (ret of activeReturns();
+                track ret.id) {
+                <div class="return-row">
+                  <div class="return-row-left">
+                    <span class="return-num">
+                      {{ ret.returnNumber }}
+                    </span>
+                    <span class="return-type">
+                      {{ ret.type === 'credit_note'
+                        ? 'Credit Note' : 'Refund' }}
+                    </span>
+                  </div>
+                  <div class="return-row-right">
+                    <span class="return-status"
+                      [class]="'ret-' + ret.status">
+                      {{ ret.status | titlecase }}
+                    </span>
+                    <span class="return-amount">
+                      {{ formatCurrency(ret.amountCents) }}
+                    </span>
+                  </div>
+                </div>
+              }
+            </div>
+            <div class="card-footer">
+              @if (canSubmitReturn()) {
+                <button class="btn-return-sm"
+                  (click)="openReturnModal()">
+                  + Submit Another Return
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+      </div>
+
+      <!-- RIGHT: Order info + Payments -->
+      <div class="detail-right">
+
+        <!-- Order Info -->
+        <div class="detail-card">
+          <div class="card-header">
+            <h2>Order Details</h2>
+          </div>
+          <div class="info-rows">
+            <div class="info-row">
+              <span class="info-label">
+                Order Number
+              </span>
+              <span class="info-value mono">
+                {{ order().orderNumber }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Date</span>
+              <span class="info-value">
+                {{ formatDate(order().confirmedAt) }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Delivery</span>
+              <span class="info-value">
+                {{ order().deliveryType === 'pickup'
+                  ? '📦 Pickup' : '🚚 Delivery' }}
+              </span>
+            </div>
+            @if (order().expectedDeliveryDate) {
+              <div class="info-row">
+                <span class="info-label">
+                  Expected
+                </span>
+                <span class="info-value">
+                  {{ formatDate(
+                    order().expectedDeliveryDate
+                  ) }}
+                </span>
+              </div>
+            }
+            <div class="info-row">
+              <span class="info-label">
+                Payment Status
+              </span>
+              <span class="info-value">
+                <span class="payment-badge"
+                  [class]="'pay-' +
+                    order().paymentStatus">
+                  {{ order().paymentStatus === 'paid'
+                    ? 'Paid'
+                    : order().paymentStatus === 'partial'
+                      ? 'Partial'
+                      : 'Unpaid' }}
+                </span>
+              </span>
+            </div>
+            @if (order().customerNotes) {
+              <div class="info-row">
+                <span class="info-label">Notes</span>
+                <span class="info-value note">
+                  {{ order().customerNotes }}
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Payments -->
+        @if (activePayments().length > 0) {
+          <div class="detail-card">
+            <div class="card-header">
+              <h2>Payments Received</h2>
+            </div>
+            <div class="payments-list">
+              @for (p of activePayments(); track p.id) {
+                <div class="payment-row">
+                  <div class="payment-row-left">
+                    <span class="payment-date">
+                      {{ p.receivedDate }}
+                    </span>
+                    <span class="payment-method">
+                      {{ getMethodLabel(p.method) }}
+                    </span>
+                    @if (p.referenceNumber) {
+                      <span class="payment-ref">
+                        Ref: {{ p.referenceNumber }}
+                      </span>
+                    }
+                  </div>
+                  <span class="payment-amount green">
+                    {{ formatCurrency(p.amountCents) }}
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Payment instructions (if balance > 0) -->
+        @if ((order().balanceCents || 0) > 0 &&
+             order().status !== 'cancelled') {
+          <div class="payment-instructions">
+            <div class="pi-header">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="18" height="18"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect x="1" y="4" width="22"
+                  height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10"
+                  x2="23" y2="10"/>
+              </svg>
+              Payment Instructions
+            </div>
+            <div class="pi-body">
+              <p>
+                <strong>Balance Due:</strong>
+                {{ formatCurrency(
+                  order().balanceCents || 0
+                ) }}
+              </p>
+              @if (settingsService.invoice()
+                .etransferEmail) {
+                <p>
+                  💳 E-Transfer to:
+                  <strong>
+                    {{ settingsService.invoice()
+                      .etransferEmail }}
+                  </strong>
+                </p>
+              }
+              @if (settingsService.invoice()
+                .acceptCash) {
+                <p>💵 Cash on delivery accepted</p>
+              }
+              <p class="pi-ref">
+                Reference:
+                <strong>
+                  {{ order().orderNumber }}
+                </strong>
+              </p>
+            </div>
+          </div>
+        }
+
+      </div>
+    </div>
+
+  }
+
+</div>
+
+<!-- RETURN MODAL -->
+@if (showReturnModal()) {
+  <div class="modal-overlay"
+    (click)="showReturnModal.set(false)">
+    <div class="modal-panel"
+      (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <h2>Submit Return Request</h2>
+        <button class="modal-close"
+          (click)="showReturnModal.set(false)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="20" height="20"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- Step 1: Select items -->
+        <div class="modal-section">
+          <div class="modal-section-label">
+            1. Select items to return
+          </div>
+          <div class="return-items-list">
+            @for (item of returnItems();
+              track item.productId; let i = $index) {
+              <div class="return-item-row"
+                [class.selected]="item.selected">
+                <label class="return-item-check">
+                  <input type="checkbox"
+                    [checked]="item.selected"
+                    (change)="toggleReturnItem(i)">
+                  <div class="return-item-info">
+                    <span class="return-item-name">
+                      {{ item.productName }}
+                    </span>
+                    <span class="return-item-sku">
+                      {{ item.productSku }}
+                    </span>
+                  </div>
+                </label>
+                @if (item.selected) {
+                  <div class="return-item-qty">
+                    <span class="qty-label">Qty:</span>
+                    <div class="qty-stepper-sm">
+                      <button
+                        (click)="updateReturnQty(
+                          i, item.selectedQty - 1
+                        )">−</button>
+                      <span>{{ item.selectedQty }}</span>
+                      <button
+                        (click)="updateReturnQty(
+                          i, item.selectedQty + 1
+                        )"
+                        [disabled]="item.selectedQty
+                          >= item.maxQty">+</button>
+                    </div>
+                    <span class="qty-max">
+                      of {{ item.maxQty }}
+                    </span>
+                    <span class="item-line-total">
+                      {{ formatCurrency(
+                        item.unitPriceCents *
+                        item.selectedQty
+                      ) }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Step 2: Return type -->
+        <div class="modal-section">
+          <div class="modal-section-label">
+            2. Return type
+          </div>
+          <div class="type-pills">
+            <button class="type-pill"
+              [class.active]="
+                returnType() === 'credit_note'"
+              (click)="returnType.set('credit_note')">
+              Credit Note
+            </button>
+            <button class="type-pill"
+              [class.active]="
+                returnType() === 'refund'"
+              (click)="returnType.set('refund')">
+              Refund
+            </button>
+          </div>
+          <p class="type-hint">
+            @if (returnType() === 'credit_note') {
+              Credit will be applied to your account
+              balance.
+            } @else {
+              Refund will be processed to your
+              original payment method.
+            }
+          </p>
+        </div>
+
+        <!-- Step 3: Reason -->
+        <div class="modal-section">
+          <div class="modal-section-label">
+            3. Reason for return
+          </div>
+          <select class="reason-select"
+            [value]="returnReasonCode()"
+            (change)="returnReasonCode.set(
+              $any($event.target).value
+            )">
+            @for (r of reasonCodes; track r.value) {
+              <option [value]="r.value">
+                {{ r.label }}
+              </option>
+            }
+          </select>
+          <textarea class="notes-input"
+            rows="3"
+            [value]="returnNotes()"
+            (input)="returnNotes.set(
+              $any($event.target).value
+            )"
+            placeholder="Additional details (optional)">
+          </textarea>
+        </div>
+
+        <!-- Summary -->
+        @if (selectedReturnItems().length > 0) {
+          <div class="return-summary">
+            <span>Return Value</span>
+            <strong>
+              {{ formatCurrency(returnTotal()) }}
+            </strong>
+          </div>
+        }
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel"
+          (click)="showReturnModal.set(false)"
+          [disabled]="isSubmittingReturn()">
+          Cancel
+        </button>
+        <button class="btn-submit-return"
+          (click)="submitReturn()"
+          [disabled]="
+            isSubmittingReturn() ||
+            selectedReturnItems().length === 0">
+          @if (isSubmittingReturn()) {
+            Submitting...
+          } @else {
+            Submit Return Request
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+@if (showCancelConfirm()) {
+  <div class="modal-overlay"
+    (click)="showCancelConfirm.set(false)">
+    <div class="modal-panel small"
+      (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <h2>Cancel Order</h2>
+        <button class="modal-close"
+          (click)="showCancelConfirm.set(false)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="20" height="20"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="cancel-warning">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="32" height="32"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0
+              1.71 3h16.94a2 2 0 0 0 1.71-3L13.71
+              3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17"
+              x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            <p class="cancel-warning-title">
+              Are you sure you want to cancel
+              <strong>{{ order()?.orderNumber }}</strong>?
+            </p>
+            <p class="cancel-warning-sub">
+              This action cannot be undone. Stock
+              will be restored automatically.
+            </p>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-label">
+            Reason for cancellation
+          </div>
+          <textarea class="notes-input"
+            rows="3"
+            placeholder="Please tell us why you're
+              cancelling this order..."
+            [value]="cancelReason()"
+            (input)="cancelReason.set(
+              $any($event.target).value
+            )">
+          </textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel"
+          (click)="showCancelConfirm.set(false)"
+          [disabled]="isCancelling()">
+          Keep Order
+        </button>
+        <button class="btn-confirm-cancel"
+          (click)="cancelOrder()"
+          [disabled]="isCancelling() ||
+            !cancelReason().trim()">
+          @if (isCancelling()) {
+            Cancelling...
+          } @else {
+            Yes, Cancel Order
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

@@ -43,6 +43,25 @@ export class PortalService {
   // Use a signal to hold customer data
   private _customerData = signal<any>(null);
 
+  // Load customer doc reactively for credit balance
+  private customerDoc$ = computed(() => {
+    const id = this.customerId();
+    if (!id) return of(null);
+    return this.firestoreService
+      .getDocument<any>(`customers/${id}`);
+  });
+
+  customerDoc = toSignal(
+    toObservable(this.customerDoc$).pipe(
+      switchMap(obs => obs ?? of(null))
+    ),
+    { initialValue: null as any }
+  );
+
+  creditBalanceCents = computed(() =>
+    this.customerDoc()?.creditBalanceCents || 0
+  );
+
   // My orders
   private myOrders$ = computed(() => {
     const id = this.customerId();

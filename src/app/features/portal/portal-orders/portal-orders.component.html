@@ -1,0 +1,152 @@
+<div class="portal-orders">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <h1>My Orders</h1>
+      <p>{{ portal.activeOrders().length }} total orders
+      </p>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-bar">
+    <div class="search-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2" class="search-ico">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21"
+          x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text"
+        class="search-input"
+        placeholder="Search orders or products..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set(
+          $any($event.target).value
+        )">
+    </div>
+
+    <div class="status-pills">
+      @for (s of [
+        { value: 'all', label: 'All' },
+        { value: 'confirmed', label: 'Confirmed' },
+        { value: 'out_for_delivery',
+          label: 'Out for Delivery' },
+        { value: 'delivered', label: 'Delivered' },
+        { value: 'cancelled', label: 'Cancelled' },
+      ]; track s.value) {
+        <button class="status-pill"
+          [class.active]="statusFilter() === s.value"
+          (click)="statusFilter.set(s.value)">
+          {{ s.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- ORDERS LIST -->
+  @if (filteredOrders().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <h3>No orders found</h3>
+      <p>
+        @if (searchQuery() || statusFilter() !== 'all') {
+          Try adjusting your filters.
+        } @else {
+          You haven't placed any orders yet.
+        }
+      </p>
+      @if (!searchQuery() && statusFilter() === 'all') {
+        <a routerLink="/portal/catalog"
+          class="btn-primary">
+          Browse Catalog →
+        </a>
+      }
+    </div>
+  } @else {
+    <div class="orders-list">
+
+      <!-- List header (desktop) -->
+      <div class="list-header">
+        <span>Order</span>
+        <span>Date</span>
+        <span>Items</span>
+        <span>Status</span>
+        <span>Payment</span>
+        <span>Total</span>
+        <span></span>
+      </div>
+
+      @for (order of filteredOrders(); track order.id) {
+        <a [routerLink]="['/portal/orders', order.id]"
+          class="order-row">
+
+          <div class="col-order">
+            <span class="order-num">
+              {{ order.orderNumber }}
+            </span>
+            @if (order.source === 'customer_portal') {
+              <span class="source-tag">Online</span>
+            }
+          </div>
+
+          <div class="col-date">
+            {{ formatDate(order.confirmedAt) }}
+          </div>
+
+          <div class="col-items">
+            {{ order.items?.length || 0 }} item{{
+              order.items?.length !== 1 ? 's' : ''
+            }}
+          </div>
+
+          <div class="col-status">
+            @let cfg = getStatusConfig(order.status);
+            <span class="status-badge"
+              [class]="'status-' + cfg.class">
+              {{ cfg.label }}
+            </span>
+          </div>
+
+          <div class="col-payment">
+            <span class="payment-badge"
+              [class]="'pay-' + order.paymentStatus">
+              {{ order.paymentStatus === 'paid'
+                ? 'Paid'
+                : order.paymentStatus === 'partial'
+                  ? 'Partial'
+                  : 'Unpaid' }}
+            </span>
+            @if ((order.balanceCents || 0) > 0 &&
+                 order.status !== 'cancelled') {
+              <span class="balance-hint">
+                {{ formatCurrency(order.balanceCents) }}
+                owing
+              </span>
+            }
+          </div>
+
+          <div class="col-total">
+            <strong>
+              {{ formatCurrency(order.totalCents) }}
+            </strong>
+          </div>
+
+          <div class="col-arrow">
+            <svg xmlns="http://www.w3.org/2000/svg"
+              width="16" height="16"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+
+        </a>
+      }
+    </div>
+  }
+
+</div>

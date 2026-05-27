@@ -403,3 +403,33 @@
   }
 }
 
+.stat-item.credit {
+  background: rgba(26, 124, 74, 0.05);
+  border: 1px solid rgba(26, 124, 74, 0.15);
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 1.5rem;
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--gray);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .stat-hint {
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-top: 0.25rem;
+  }
+}
+

@@ -1,0 +1,322 @@
+<div class="portal-returns">
+
+  <div class="page-header">
+    <div>
+      <h1>My Returns</h1>
+      <p>
+        {{ portal.activeReturns().length }}
+        total return{{
+          portal.activeReturns().length !== 1
+            ? 's' : ''
+        }}
+      </p>
+    </div>
+    <a routerLink="/portal/orders"
+      class="btn-new-return">
+      + Submit Return
+    </a>
+  </div>
+
+  <!-- Status filter pills -->
+  <div class="filter-pills">
+    @for (s of [
+      { value: 'all', label: 'All' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'approved', label: 'Approved' },
+      { value: 'rejected', label: 'Not Approved' },
+    ]; track s.value) {
+      <button class="filter-pill"
+        [class.active]="statusFilter() === s.value"
+        (click)="statusFilter.set(s.value)">
+        {{ s.label }}
+        @if (s.value === 'pending' &&
+             portal.pendingReturnsCount() > 0) {
+          <span class="pill-count">
+            {{ portal.pendingReturnsCount() }}
+          </span>
+        }
+      </button>
+    }
+  </div>
+
+  @if (filteredReturns().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">↩️</div>
+      <h3>No returns found</h3>
+      <p>
+        @if (statusFilter() !== 'all') {
+          No returns with this status.
+        } @else {
+          You haven't submitted any returns yet.
+          Returns can be submitted from a delivered
+          order.
+        }
+      </p>
+      <a routerLink="/portal/orders"
+        class="btn-primary">
+        View My Orders →
+      </a>
+    </div>
+  } @else {
+    <div class="returns-list">
+
+      <!-- Header -->
+      <div class="list-header">
+        <span>Return</span>
+        <span>Order</span>
+        <span>Date</span>
+        <span>Type</span>
+        <span>Status</span>
+        <span class="right">Amount</span>
+      </div>
+
+      @for (ret of filteredReturns(); track ret.id) {
+        <div class="return-row"
+          (click)="selectReturn(ret)">
+
+          <div class="col-return">
+            <span class="return-num">
+              {{ ret.returnNumber }}
+            </span>
+            @if (ret.source === 'customer_portal') {
+              <span class="source-tag">Online</span>
+            }
+          </div>
+
+          <div class="col-order">
+            <span class="order-ref">
+              {{ ret.orderNumber }}
+            </span>
+          </div>
+
+          <div class="col-date">
+            {{ formatDate(ret.createdAt) }}
+          </div>
+
+          <div class="col-type">
+            <span class="type-tag">
+              {{ ret.type === 'credit_note'
+                ? 'Credit Note' : 'Refund' }}
+            </span>
+          </div>
+
+          <div class="col-status">
+            @let cfg = getStatusConfig(ret.status);
+            <div class="status-group">
+              <span class="status-badge"
+                [class]="'status-' + cfg.class">
+                {{ cfg.label }}
+              </span>
+              @if (ret.status === 'rejected' &&
+                   ret.rejectionReason) {
+                <span class="rejection-reason">
+                  {{ ret.rejectionReason }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="col-amount">
+            <span class="return-amount">
+              {{ formatCurrency(ret.amountCents) }}
+            </span>
+          </div>
+
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Info note -->
+  <div class="info-note">
+    <svg xmlns="http://www.w3.org/2000/svg"
+      width="16" height="16" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor"
+      stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    Returns can be submitted from any delivered order.
+    Go to
+    <a routerLink="/portal/orders">My Orders</a>
+    and open a delivered order to submit a return.
+  </div>
+
+</div>
+
+@if (selectedReturn()) {
+  <div class="panel-overlay"
+    (click)="closePanel()">
+  </div>
+  <div class="return-panel">
+    <div class="panel-header">
+      <div class="panel-header-left">
+        <span class="panel-return-num">
+          {{ selectedReturn().returnNumber }}
+        </span>
+        @if (selectedReturn().source ===
+             'customer_portal') {
+          <span class="portal-badge">
+            Via Portal
+          </span>
+        }
+      </div>
+      <button class="panel-close"
+        (click)="closePanel()">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="20" height="20"
+          viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="panel-body">
+
+      <!-- Status -->
+      <div class="panel-status-row">
+        <span class="status-badge"
+          [class]="'status-' +
+            selectedReturn().status">
+          {{ getStatusConfig(
+            selectedReturn().status
+          ).label }}
+        </span>
+        <span class="panel-date">
+          {{ formatDate(selectedReturn().createdAt) }}
+        </span>
+      </div>
+
+      <!-- Info grid -->
+      <div class="panel-info-grid">
+        <div class="panel-info-item">
+          <span class="pi-label">Order</span>
+          <a [routerLink]="['/portal/orders',
+            selectedReturn().orderId]"
+            class="pi-value link"
+            (click)="closePanel()">
+            {{ selectedReturn().orderNumber }}
+          </a>
+        </div>
+        <div class="panel-info-item">
+          <span class="pi-label">Type</span>
+          <span class="pi-value">
+            {{ getTypeLabel(selectedReturn().type) }}
+          </span>
+        </div>
+        <div class="panel-info-item">
+          <span class="pi-label">Return Value</span>
+          <span class="pi-value amount">
+            {{ formatCurrency(
+              selectedReturn().amountCents
+            ) }}
+          </span>
+        </div>
+        <div class="panel-info-item">
+          <span class="pi-label">Reason</span>
+          <span class="pi-value">
+            {{ getReasonLabel(
+              selectedReturn().reasonCode
+            ) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      @if (selectedReturn().reason) {
+        <div class="panel-section">
+          <div class="panel-section-label">
+            Additional Details
+          </div>
+          <p class="panel-notes">
+            {{ selectedReturn().reason }}
+          </p>
+        </div>
+      }
+
+      <!-- Items -->
+      <div class="panel-section">
+        <div class="panel-section-label">
+          Items Returned
+        </div>
+        <div class="panel-items">
+          @for (item of selectedReturn().items;
+            track item.productId) {
+            <div class="panel-item-row">
+              <div class="panel-item-info">
+                <span class="panel-item-name">
+                  {{ item.productName }}
+                </span>
+                <span class="panel-item-sku">
+                  {{ item.productSku }}
+                </span>
+              </div>
+              <div class="panel-item-right">
+                <span class="panel-item-qty">
+                  ×{{ item.quantity }}
+                </span>
+                <span class="panel-item-total">
+                  {{ formatCurrency(
+                    item.lineTotalCents
+                  ) }}
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Rejection reason if rejected -->
+      @if (selectedReturn().status === 'rejected' &&
+           selectedReturn().rejectionReason) {
+        <div class="panel-rejection">
+          <div class="rejection-label">
+            Reason for Rejection
+          </div>
+          <p class="rejection-text">
+            {{ selectedReturn().rejectionReason }}
+          </p>
+        </div>
+      }
+
+      <!-- Approved info -->
+      @if (selectedReturn().status === 'approved') {
+        <div class="panel-approved">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="18" height="18"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <div>
+            <p class="approved-title">
+              Return Approved
+            </p>
+            <p class="approved-sub">
+              Your
+              {{ getTypeLabel(selectedReturn().type) }}
+              of
+              {{ formatCurrency(
+                selectedReturn().amountCents
+              ) }}
+              has been processed.
+            </p>
+          </div>
+        </div>
+      }
+
+    </div>
+
+    <div class="panel-footer">
+      <a [routerLink]="['/portal/orders',
+        selectedReturn().orderId]"
+        class="btn-view-order"
+        (click)="closePanel()">
+        View Order →
+      </a>
+    </div>
+  </div>
+}

@@ -1,0 +1,363 @@
+.portal-payments {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-header {
+  h1 {
+    font-size: 1.625rem;
+    font-weight: 800;
+    color: var(--navy-deep);
+    margin: 0;
+  }
+  p {
+    font-size: 0.9rem;
+    color: var(--gray);
+    margin: 0.2rem 0 0;
+  }
+}
+
+/* Summary Row */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+
+  &.alert-card {
+    border-color: rgba(231,34,46,0.18);
+    background: rgba(231,34,46,0.01);
+  }
+}
+
+.summary-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.owing {
+    background: rgba(231,34,46,0.08);
+    color: var(--red);
+  }
+
+  &.paid {
+    background: rgba(26,124,74,0.08);
+    color: var(--green);
+  }
+}
+
+.summary-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.summary-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+
+  &.red { color: var(--red); }
+  &.green { color: var(--green); }
+}
+
+.summary-hint {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+/* Outstanding Invoices */
+.outstanding-section {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  padding: 1.25rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--red);
+  margin-bottom: 0.75rem;
+}
+
+.outstanding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.outstanding-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--red);
+    background: rgba(231,34,46,0.02);
+  }
+}
+
+.outstanding-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.outstanding-num {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--navy-deep);
+  font-size: 0.875rem;
+}
+
+.outstanding-date {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.outstanding-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  svg { color: var(--gray); }
+}
+
+.outstanding-total {
+  font-size: 0.8125rem;
+  color: var(--gray);
+
+  @media (max-width: 600px) { display: none; }
+}
+
+.outstanding-balance {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.payment-instructions-note {
+  font-size: 0.8125rem;
+  color: var(--charcoal);
+  padding: 0.75rem;
+  background: var(--cream);
+  border-radius: 8px;
+  border-left: 3px solid var(--gold);
+}
+
+/* History Section */
+.history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  h2 {
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: var(--navy-deep);
+    margin: 0;
+  }
+}
+
+.payments-list {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.payments-header {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--cream);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray);
+
+  .right { text-align: right; }
+
+  @media (max-width: 768px) { display: none; }
+}
+
+.payment-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  transition: background 0.15s;
+
+  &:hover { background: var(--cream); }
+  &:last-child { border-bottom: none; }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0.5rem;
+  }
+}
+
+.pay-col-num {
+  display: flex;
+  flex-direction: column;
+}
+
+.pay-num {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--navy-deep);
+  font-size: 0.9375rem;
+}
+
+.pay-col-order {
+  @media (max-width: 768px) { display: none; }
+}
+
+.pay-order {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: var(--gray);
+}
+
+.pay-col-date {
+  font-size: 0.875rem;
+  color: var(--gray);
+
+  @media (max-width: 768px) { display: none; }
+}
+
+.pay-col-method {
+  @media (max-width: 768px) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+
+.method-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  padding: 0.2rem 0.5rem;
+  background: var(--cream);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.pay-col-amount {
+  text-align: right;
+
+  @media (max-width: 768px) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+.pay-amount {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.empty-state {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  padding: 4rem 2rem;
+  text-align: center;
+
+  .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: var(--gray);
+    font-size: 0.9375rem;
+    margin: 0;
+  }
+}
+
+.summary-card.credit-card {
+  border-color: rgba(26,124,74,0.25);
+  background: rgba(26,124,74,0.03);
+}
+
+.summary-icon.credit {
+  background: rgba(26,124,74,0.1);
+  color: var(--green);
+}
+
+.summary-value.credit-val {
+  color: var(--green) !important;
+}
+
+.credit-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(26,124,74,0.06);
+  border: 1px solid rgba(26,124,74,0.2);
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  color: var(--charcoal);
+  line-height: 1.6;
+
+  svg {
+    color: var(--green);
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  strong { color: var(--navy-deep); }
+}

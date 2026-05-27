@@ -12,6 +12,7 @@ export type ReturnReasonCode =
   | 'customer_changed_mind'
   | 'expired'
   | 'quality_issue'
+  | 'order_cancelled'
   | 'other';
 
 export type RefundMethod = 'cash' | 'e_transfer' | 'store_credit';
@@ -59,6 +60,7 @@ export interface Return {
   isDeleted: boolean;
   isDeletedAt?: any;
   deletedBy?: ActionBy;
+  source?: 'admin' | 'customer_portal' | 'cancellation';
 }
 
 export const RETURN_TYPE_LABELS: Record<ReturnType, string> = {
@@ -79,6 +81,7 @@ export const RETURN_REASON_LABELS:
   customer_changed_mind: 'Customer Changed Mind',
   expired: 'Expired / Past Best Before',
   quality_issue: 'Quality Issue',
+  order_cancelled: 'Order Cancelled',
   other: 'Other',
 };
 

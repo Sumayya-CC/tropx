@@ -101,6 +101,20 @@
           </div>
         </div>
 
+        @if ((customer()?.creditBalanceCents || 0) > 0) {
+          <div class="stat-item credit">
+            <div class="stat-label">Credit Balance</div>
+            <div class="stat-value green">
+              {{ formatCurrency(
+                customer()?.creditBalanceCents || 0
+              ) }}
+            </div>
+            <div class="stat-hint">
+              Owed back to customer
+            </div>
+          </div>
+        }
+
         <div class="financial-dates">
           @if (cust.lastOrderAt) {
             <div class="date-row">

@@ -30,47 +30,7 @@ export const routes: Routes = [
       ),
   },
 
-  // ── Customer (auth required, role: customer) ─────────────────────────
-  {
-    path: 'customer',
-    canActivate: [authGuard],
-    canActivateChild: [roleGuard],
-    data: { roles: ['customer'] },
-    children: [
-      {
-        path: 'dashboard',
-        loadComponent: () =>
-          import('./features/customer/dashboard/customer-dashboard.component').then(
-            m => m.CustomerDashboardComponent
-          ),
-      },
-      {
-        path: 'catalog',
-        loadComponent: () =>
-          import('./features/customer/catalog/catalog.component').then(m => m.CatalogComponent),
-      },
-      {
-        path: 'cart',
-        loadComponent: () =>
-          import('./features/customer/cart/cart.component').then(m => m.CartComponent),
-      },
-      {
-        path: 'orders',
-        loadComponent: () =>
-          import('./features/customer/orders/customer-orders.component').then(
-            m => m.CustomerOrdersComponent
-          ),
-      },
-      {
-        path: 'orders/:id',
-        loadComponent: () =>
-          import('./features/customer/order-detail/order-detail.component').then(
-            m => m.OrderDetailComponent
-          ),
-      },
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-    ],
-  },
+
 
   // ── Portal (auth required, role: customer) ─────────────────────────
   {

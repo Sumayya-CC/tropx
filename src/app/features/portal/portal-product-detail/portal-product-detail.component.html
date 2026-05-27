@@ -1,0 +1,328 @@
+<div class="product-detail-page">
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading product...</p>
+    </div>
+  } @else if (product()) {
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb">
+      <a routerLink="/portal/catalog">Catalog</a>
+      <span class="bc-sep">›</span>
+      <span class="bc-current">
+        {{ product().name }}
+      </span>
+    </nav>
+
+    <!-- PRODUCT LAYOUT -->
+    <div class="product-layout">
+
+      <!-- LEFT: Image -->
+      <div class="product-image-section">
+        <div class="main-image-wrap">
+          @if (product().imageUrl) {
+            <img [src]="product().imageUrl"
+              [alt]="product().name"
+              class="main-image">
+          } @else {
+            <div class="image-placeholder">
+              <span class="placeholder-initial">
+                {{ getProductInitial(product().name) }}
+              </span>
+            </div>
+          }
+
+          <!-- Stock badge -->
+          @if (product().stock <= 0) {
+            <div class="stock-overlay-badge out">
+              Out of Stock
+            </div>
+          } @else if (product().stock <=
+            (product().lowStockThreshold || 5)) {
+            <div class="stock-overlay-badge low">
+              Only {{ product().stock }} left
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- RIGHT: Info + Cart -->
+      <div class="product-info-section">
+
+        <!-- SKU -->
+        <span class="product-sku-tag">
+          SKU: {{ product().sku }}
+        </span>
+
+        <!-- Name -->
+        <h1 class="product-title">
+          {{ product().name }}
+        </h1>
+
+        <!-- Price -->
+        <div class="price-block">
+          <span class="price-main">
+            {{ formatCurrency(
+              product().priceCents || 0
+            ) }}
+          </span>
+          <span class="price-unit">per unit</span>
+          @if (product().measurement?.quantity &&
+               product().measurement?.unit) {
+            <span class="measurement-tag">
+              {{ product().measurement.quantity }}
+              {{ product().measurement.unit }}
+            </span>
+          }
+        </div>
+
+        <!-- Stock status -->
+        <div class="stock-status-bar">
+          <span class="stock-indicator"
+            [class]="'stock-' + stockStatus().class">
+            <span class="stock-dot"></span>
+            {{ stockStatus().label }}
+          </span>
+        </div>
+
+        <!-- Description -->
+        @if (product().description) {
+          <p class="product-description">
+            {{ product().description }}
+          </p>
+        }
+
+        <!-- Divider -->
+        <div class="product-divider"></div>
+
+        <!-- Cart section -->
+        @if (product().stock <= 0) {
+          <button class="btn-out-of-stock" disabled>
+            Out of Stock
+          </button>
+        } @else if (isInCart()) {
+          <!-- Already in cart — show update controls -->
+          <div class="in-cart-section">
+            <div class="in-cart-badge">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="16" height="16"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              In your cart ({{ cartQty() }} unit{{
+                cartQty() > 1 ? 's' : ''
+              }})
+            </div>
+
+            <div class="cart-update-row">
+              <div class="qty-stepper large">
+                <button class="qty-btn"
+                  (click)="updateCartQty(cartQty()-1)"
+                  [disabled]="cartQty() <= 1">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5">
+                    <line x1="5" y1="12"
+                      x2="19" y2="12"/>
+                  </svg>
+                </button>
+                <span class="qty-display">
+                  {{ cartQty() }}
+                </span>
+                <button class="qty-btn"
+                  (click)="updateCartQty(cartQty()+1)"
+                  [disabled]="cartQty() >=
+                    product().stock">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5">
+                    <line x1="12" y1="5"
+                      x2="12" y2="19"/>
+                    <line x1="5" y1="12"
+                      x2="19" y2="12"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="cart-subtotal">
+                <span class="cart-subtotal-label">
+                  Subtotal
+                </span>
+                <span class="cart-subtotal-value">
+                  {{ formatCurrency(
+                    (product().priceCents || 0) *
+                    cartQty()
+                  ) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="cart-actions-row">
+              <a routerLink="/portal/cart"
+                class="btn-view-cart">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="18" height="18"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M6 2L3 6v14a2 2 0 0 0
+                    2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                  <line x1="3" y1="6"
+                    x2="21" y2="6"/>
+                  <path d="M16 10a4 4 0 0 1-8 0"/>
+                </svg>
+                View Cart &
+                Checkout
+              </a>
+              <button class="btn-remove"
+                (click)="removeFromCart()">
+                Remove
+              </button>
+            </div>
+          </div>
+
+        } @else {
+          <!-- Not in cart — show add controls -->
+          <div class="add-to-cart-section">
+            <div class="qty-row">
+              <label class="qty-label">Quantity</label>
+              <div class="qty-stepper large">
+                <button class="qty-btn"
+                  (click)="decrementQty()"
+                  [disabled]="quantity() <= 1">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5">
+                    <line x1="5" y1="12"
+                      x2="19" y2="12"/>
+                  </svg>
+                </button>
+                <span class="qty-display">
+                  {{ quantity() }}
+                </span>
+                <button class="qty-btn"
+                  (click)="incrementQty()"
+                  [disabled]="quantity() >=
+                    product().stock">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5">
+                    <line x1="12" y1="5"
+                      x2="12" y2="19"/>
+                    <line x1="5" y1="12"
+                      x2="19" y2="12"/>
+                  </svg>
+                </button>
+              </div>
+              <span class="qty-total">
+                = {{ formatCurrency(
+                  (product().priceCents || 0) *
+                  quantity()
+                ) }}
+              </span>
+            </div>
+
+            <button class="btn-add-to-cart"
+              (click)="addToCart()">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="20" height="20"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0
+                  2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                <line x1="3" y1="6"
+                  x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+              Add to Cart
+            </button>
+          </div>
+        }
+
+        <!-- Product meta -->
+        <div class="product-meta-grid">
+          @if (product().barcode) {
+            <div class="meta-item">
+              <span class="meta-label">Barcode</span>
+              <span class="meta-value mono">
+                {{ product().barcode }}
+              </span>
+            </div>
+          }
+          <div class="meta-item">
+            <span class="meta-label">SKU</span>
+            <span class="meta-value mono">
+              {{ product().sku }}
+            </span>
+          </div>
+          @if (product().measurement?.quantity) {
+            <div class="meta-item">
+              <span class="meta-label">Unit Size</span>
+              <span class="meta-value">
+                {{ product().measurement.quantity }}
+                {{ product().measurement.unit }}
+              </span>
+            </div>
+          }
+          @if (product().currencyCode) {
+            <div class="meta-item">
+              <span class="meta-label">Currency</span>
+              <span class="meta-value">
+                {{ product().currencyCode }}
+              </span>
+            </div>
+          }
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RELATED PRODUCTS -->
+    @if (relatedProducts().length > 0) {
+      <div class="related-section">
+        <h2 class="related-title">
+          More from this category
+        </h2>
+        <div class="related-grid">
+          @for (p of relatedProducts(); track p.id) {
+            <a [routerLink]="[
+              '/portal/catalog', p.id]"
+              class="related-card">
+              <div class="related-image">
+                @if (p.imageUrl) {
+                  <img [src]="p.imageUrl"
+                    [alt]="p.name"
+                    class="related-img">
+                } @else {
+                  <div class="related-placeholder">
+                    {{ getProductInitial(p.name) }}
+                  </div>
+                }
+              </div>
+              <div class="related-info">
+                <span class="related-name">
+                  {{ p.name }}
+                </span>
+                <span class="related-price">
+                  {{ formatCurrency(p.priceCents || 0) }}
+                </span>
+              </div>
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+  }
+</div>

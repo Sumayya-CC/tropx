@@ -186,6 +186,25 @@
               <tr (click)="selectReturn(r)">
                 <td>
                   <span class="return-num">{{ r.returnNumber }}</span>
+                  @if (r.source === 'customer_portal') {
+                    <span class="portal-source-badge">
+                      <svg xmlns="http://www.w3.org/2000/svg"
+                        width="10" height="10" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                      </svg>
+                      Portal
+                    </span>
+                  }
+                  @if (r.source === 'cancellation') {
+                    <span class="cancellation-source-badge">
+                      Cancellation
+                    </span>
+                  }
                 </td>
                 <td>
                   <a [routerLink]="['/admin/orders', r.orderId]" class="order-link" (click)="$event.stopPropagation()">
@@ -232,6 +251,26 @@
     <div class="side-panel-header">
       <div>
         <div class="sp-number">{{ ret.returnNumber }}</div>
+        @if (selectedReturn()?.source ===
+             'customer_portal') {
+          <span class="portal-source-badge">
+            <svg xmlns="http://www.w3.org/2000/svg"
+              width="10" height="10" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor"
+              stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Via Portal
+          </span>
+        }
+        @if (selectedReturn()?.source === 'cancellation') {
+          <span class="cancellation-source-badge">
+            Cancellation
+          </span>
+        }
         <app-status-badge 
           [status]="ret.status"
           [color]="getReturnStatusColor(ret.status)">

@@ -137,7 +137,8 @@ export class OrderDetailComponent {
           status: 'cancelled',
           cancelledAt: serverTimestamp(),
           cancelledBy: actionBy,
-          cancellationReason: reason
+          cancellationReason: reason,
+          balanceCents: 0,
         });
 
         // 2. Reverse Customer Totals
@@ -146,13 +147,28 @@ export class OrderDetailComponent {
         
         if (customerSnap.exists()) {
           const customerData = customerSnap.data();
+          const amountPaid = order.amountPaidCents || 0;
+
           const totalOrdered = (customerData['totalOrderedCents'] || 0) - order.totalCents;
-          const totalOwing = (customerData['totalOwingCents'] || 0) - (order.totalCents - (order.amountPaidCents || 0));
-          
-          batch.update(customerRef, {
+          const totalOwing = (customerData['totalOwingCents'] || 0) - (order.totalCents - amountPaid);
+
+          const custUpdates: any = {
             totalOrderedCents: Math.max(0, totalOrdered),
             totalOwingCents: Math.max(0, totalOwing)
-          });
+          };
+
+          if (amountPaid > 0) {
+            custUpdates.totalPaidCents = Math.max(
+              0,
+              (customerData['totalPaidCents'] || 0) -
+              amountPaid
+            );
+            custUpdates.creditBalanceCents =
+              (customerData['creditBalanceCents'] || 0) +
+              amountPaid;
+          }
+
+          batch.update(customerRef, custUpdates);
         }
 
         // 3. Restore stock for each item

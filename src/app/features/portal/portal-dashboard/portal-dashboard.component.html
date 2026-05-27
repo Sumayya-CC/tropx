@@ -119,6 +119,33 @@
     </div>
   }
 
+  @if (portal.creditBalanceCents() > 0) {
+    <div class="credit-alert">
+      <div class="credit-alert-content">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="18" height="18" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0
+            0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        <span>
+          You have a credit of
+          <strong>
+            {{ formatCurrency(
+              portal.creditBalanceCents()
+            ) }}
+          </strong>
+          available from a cancelled order.
+        </span>
+      </div>
+      <a routerLink="/portal/payments"
+        class="credit-alert-btn">
+        View Details →
+      </a>
+    </div>
+  }
+
   <!-- QUICK ACTIONS -->
   <div class="quick-actions">
     <a routerLink="/portal/catalog"

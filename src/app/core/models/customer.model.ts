@@ -45,6 +45,9 @@ export interface Customer {
   totalOrderedCents: number;
   totalPaidCents: number;
   totalOwingCents: number;
+  // Credit balance — money owed back to customer
+  // from cancelled paid orders or overpayments
+  creditBalanceCents?: number;
   // Storing code alongside cents avoids currency ambiguity in reports
   currencyCode: string;
   lastOrderAt?: Date;
