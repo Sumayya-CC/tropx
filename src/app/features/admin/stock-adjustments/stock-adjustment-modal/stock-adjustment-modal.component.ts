@@ -82,6 +82,112 @@ export class StockAdjustmentModalComponent implements OnInit {
     return hasProduct && hasReason && positiveQty && noNegativeStock;
   });
 
+  // Multi-product mode (when no productId input)
+  multiItems = signal<{
+    product: Product;
+    quantity: number;
+    direction: 'in' | 'out';
+  }[]>([]);
+
+  selectedProductForAdd = signal<Product | null>(null);
+  pendingQty = signal<number | null>(null);
+  pendingDirection = signal<'in' | 'out'>('in');
+
+  isMultiMode = computed(() => !this.productId());
+
+  // For multi mode: shared reason/type/notes
+  // (type and reason apply to all items)
+
+  multiTotal = computed(() =>
+    this.multiItems().length
+  );
+
+  multiIsValid = computed(() => {
+    if (!this.isMultiMode()) return false;
+    return this.multiItems().length > 0 &&
+      this.reason().trim().length > 0;
+  });
+
+  addItemToMulti() {
+    const p = this.selectedProductForAdd();
+    const qty = this.pendingQty();
+    if (!p || !qty || qty <= 0) return;
+
+    // Check stock for out direction
+    if (this.pendingDirection() === 'out' ||
+        (this.effectivePendingDirection() === 'out')) {
+      const newStk = p.stock - qty;
+      if (newStk < 0) {
+        this.toast.error(
+          `${p.name}: cannot reduce below 0`
+        );
+        return;
+      }
+    }
+
+    // Check if already in list — update qty instead
+    const existing = this.multiItems()
+      .findIndex(i => i.product.id === p.id);
+
+    if (existing >= 0) {
+      this.multiItems.update(items =>
+        items.map((item, idx) =>
+          idx === existing
+            ? { ...item,
+                quantity: qty,
+                direction: this.pendingDirection()
+              }
+            : item
+        )
+      );
+    } else {
+      this.multiItems.update(items => [
+        ...items,
+        {
+          product: p,
+          quantity: qty,
+          direction: this.pendingDirection(),
+        }
+      ]);
+    }
+
+    // Reset pending
+    this.selectedProductForAdd.set(null);
+    this.pendingQty.set(null);
+  }
+
+  removeMultiItem(index: number) {
+    this.multiItems.update(items =>
+      items.filter((_, i) => i !== index)
+    );
+  }
+
+  updateMultiItemQty(index: number, qty: number) {
+    this.multiItems.update(items =>
+      items.map((item, i) =>
+        i === index ? { ...item, quantity: qty } : item
+      )
+    );
+  }
+
+  effectivePendingDirection = computed(() => {
+    const t = this.type();
+    const dir = ADJUSTMENT_TYPE_DIRECTION[t];
+    if (dir === 'either') return this.pendingDirection();
+    return dir as 'in' | 'out';
+  });
+
+  onProductSelectedForMulti(
+    option: SearchableSelectOption
+  ) {
+    const p = this.allProducts()
+      .find(p => p.id === option.value);
+    if (p) {
+      this.selectedProductForAdd.set(p);
+      this.pendingQty.set(1);
+    }
+  }
+
   constructor() {
     effect(() => {
       const id = this.productId();
@@ -138,6 +244,14 @@ export class StockAdjustmentModalComponent implements OnInit {
   }
 
   async save() {
+    if (this.isMultiMode()) {
+      await this.saveMulti();
+    } else {
+      await this.saveSingle();
+    }
+  }
+
+  private async saveSingle() {
     if (!this.isValid()) {
       if ((this.quantity() ?? 0) <= 0) this.toast.warning('Quantity must be at least 1');
       else if (this.newStock() < 0) this.toast.error('Cannot reduce stock below 0');
@@ -184,6 +298,79 @@ export class StockAdjustmentModalComponent implements OnInit {
     } catch (e) {
       console.error('Adjustment error', e);
       this.toast.error('Failed to save adjustment');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  private async saveMulti() {
+    if (!this.multiIsValid()) {
+      if (this.multiItems().length === 0) {
+        this.toast.warning(
+          'Add at least one product'
+        );
+      } else if (!this.reason().trim()) {
+        this.toast.warning('Please provide a reason');
+      }
+      return;
+    }
+
+    const actionBy = this.auth.getActionBy();
+    if (!actionBy) {
+      this.toast.error('User session not found');
+      return;
+    }
+
+    this.isSaving.set(true);
+
+    try {
+      await this.firestore.runBatch(
+        async (batch, db) => {
+          for (const item of this.multiItems()) {
+            const p = item.product;
+            const dir = item.direction;
+            const qty = item.quantity;
+            const newStock = dir === 'in'
+              ? p.stock + qty
+              : p.stock - qty;
+
+            const adjustmentRef =
+              doc(collection(db, 'stockAdjustments'));
+            const productRef =
+              doc(db, `products/${p.id}`);
+
+            batch.set(adjustmentRef, {
+              productId: p.id,
+              productName: p.name,
+              productSku: p.sku,
+              type: this.type(),
+              quantity: dir === 'in' ? qty : -qty,
+              previousStock: p.stock,
+              newStock,
+              reason: this.reason().trim(),
+              notes: this.notes().trim(),
+              adjustedBy: actionBy,
+              createdAt: serverTimestamp(),
+              tenantId: TENANT_ID,
+              isDeleted: false,
+            });
+
+            batch.update(productRef, {
+              stock: newStock,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+      );
+
+      const count = this.multiItems().length;
+      this.toast.success(
+        `${count} product${count > 1 ? 's' : ''} adjusted successfully`
+      );
+      this.closed.emit(true);
+    } catch (e) {
+      console.error('Multi adjustment error', e);
+      this.toast.error('Failed to save adjustments');
     } finally {
       this.isSaving.set(false);
     }

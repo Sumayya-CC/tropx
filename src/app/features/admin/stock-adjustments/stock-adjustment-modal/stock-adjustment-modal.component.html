@@ -1,136 +1,391 @@
 <div class="modal-overlay" (click)="cancel()">
   <div class="modal-container" (click)="$event.stopPropagation()">
+    <!-- HEADER -->
     <div class="modal-header">
-      <h2>New Stock Adjustment</h2>
-      <button class="close-btn" (click)="cancel()">
+      <h2>
+        @if (isMultiMode()) {
+          Adjust Stock — Multiple Products
+        } @else {
+          Adjust Stock
+        }
+      </h2>
+      <button class="btn-close" (click)="cancel()">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
 
     <div class="modal-body">
-      <!-- Product Picker / Locked Card -->
-      <div class="form-section">
-        <label>Product <span class="required">*</span></label>
-        
-        @if (isLoadingProduct()) {
-          <div class="loading-state">
-            <app-loading-spinner size="sm"></app-loading-spinner>
-            <span>Loading product...</span>
-          </div>
-        } @else if (product()) {
-          <div class="product-card" [class.locked]="!!productId()">
-            <div class="product-info">
-              @if (product()?.imageUrl) {
-                <div class="product-img">
-                  <img [src]="product()?.imageUrl" [alt]="product()?.name">
+
+      @if (!isMultiMode()) {
+        <!-- EXISTING single product content completely unchanged -->
+        <!-- Product Picker / Locked Card -->
+        <div class="form-section">
+          <label>Product <span class="required">*</span></label>
+          
+          @if (isLoadingProduct()) {
+            <div class="loading-state">
+              <app-loading-spinner size="sm"></app-loading-spinner>
+              <span>Loading product...</span>
+            </div>
+          } @else if (product()) {
+            <div class="product-card" [class.locked]="!!productId()">
+              <div class="product-info">
+                @if (product()?.imageUrl) {
+                  <div class="product-img">
+                    <img [src]="product()?.imageUrl" [alt]="product()?.name">
+                  </div>
+                }
+                <div class="product-details">
+                  <span class="product-name">{{ product()?.name }}</span>
+                  <span class="product-sku">{{ product()?.sku }}</span>
                 </div>
-              }
-              <div class="product-details">
-                <span class="product-name">{{ product()?.name }}</span>
-                <span class="product-sku">{{ product()?.sku }}</span>
               </div>
+              <div class="current-stock">
+                <span class="label">Current Stock</span>
+                <span class="value">{{ product()?.stock }}</span>
+              </div>
+              @if (!productId()) {
+                <button class="change-btn" (click)="clearProduct()">Change</button>
+              }
             </div>
-            <div class="current-stock">
-              <span class="label">Current Stock</span>
-              <span class="value">{{ product()?.stock }}</span>
-            </div>
-            @if (!productId()) {
-              <button class="change-btn" (click)="clearProduct()">Change</button>
-            }
-          </div>
-        } @else {
-          <app-searchable-select
-            [options]="productOptions()"
-            [placeholder]="'Search by product name or SKU...'"
-            (selected)="onProductSelected($event)">
-          </app-searchable-select>
-        }
-      </div>
-
-      <div class="row">
-        <!-- Adjustment Type -->
-        <div class="col form-group">
-          <label>Adjustment Type <span class="required">*</span></label>
-          <select [(ngModel)]="type">
-            @for (t of adjustmentTypes; track t.value) {
-              <option [value]="t.value">{{ t.label }}</option>
-            }
-          </select>
-        </div>
-
-        <!-- Quantity -->
-        <div class="col form-group">
-          <label>Quantity <span class="required">*</span></label>
-          <div class="quantity-input">
-            <button (click)="adjustQuantity(-1)">-</button>
-            <input type="number" [(ngModel)]="quantity" placeholder="0" min="1">
-            <button (click)="adjustQuantity(1)">+</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Direction Toggle (only for correction) -->
-      @if (showDirectionToggle()) {
-        <div class="form-group">
-          <label>Direction <span class="required">*</span></label>
-          <div class="direction-toggle">
-            <button 
-              [class.active]="direction() === 'in'" 
-              (click)="direction.set('in')">
-              Add to Stock
-            </button>
-            <button 
-              [class.active]="direction() === 'out'" 
-              (click)="direction.set('out')">
-              Remove from Stock
-            </button>
-          </div>
-        </div>
-      }
-
-      <!-- Live Preview -->
-      @if (product() && (quantity() || 0) > 0) {
-        <div class="preview-card" [class.negative]="effectiveDirection() === 'out'">
-          <div class="preview-row">
-            <span>Current Stock</span>
-            <span>{{ product()?.stock }}</span>
-          </div>
-          <div class="preview-row adjustment">
-            <span>Adjustment</span>
-            <span class="adj-val">
-              {{ effectiveDirection() === 'in' ? '+' : '-' }}{{ quantity() }}
-            </span>
-          </div>
-          <div class="preview-divider"></div>
-          <div class="preview-row total">
-            <span>New Stock</span>
-            <span [class.error]="newStock() < 0">{{ newStock() }}</span>
-          </div>
-          @if (newStock() < 0) {
-            <div class="preview-error">Cannot reduce stock below 0</div>
+          } @else {
+            <app-searchable-select
+              [options]="productOptions()"
+              [placeholder]="'Search by product name or SKU...'"
+              (selected)="onProductSelected($event)">
+            </app-searchable-select>
           }
         </div>
+
+        <div class="row">
+          <!-- Adjustment Type -->
+          <div class="col form-group">
+            <label>Adjustment Type <span class="required">*</span></label>
+            <select [(ngModel)]="type">
+              @for (t of adjustmentTypes; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Quantity -->
+          <div class="col form-group">
+            <label>Quantity <span class="required">*</span></label>
+            <div class="quantity-input">
+              <button (click)="adjustQuantity(-1)">-</button>
+              <input type="number" [(ngModel)]="quantity" placeholder="0" min="1">
+              <button (click)="adjustQuantity(1)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Direction Toggle (only for correction) -->
+        @if (showDirectionToggle()) {
+          <div class="form-group">
+            <label>Direction <span class="required">*</span></label>
+            <div class="direction-toggle">
+              <button 
+                [class.active]="direction() === 'in'" 
+                (click)="direction.set('in')">
+                Add to Stock
+              </button>
+              <button 
+                [class.active]="direction() === 'out'" 
+                (click)="direction.set('out')">
+                Remove from Stock
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Live Preview -->
+        @if (product() && (quantity() || 0) > 0) {
+          <div class="preview-card" [class.negative]="effectiveDirection() === 'out'">
+            <div class="preview-row">
+              <span>Current Stock</span>
+              <span>{{ product()?.stock }}</span>
+            </div>
+            <div class="preview-row adjustment">
+              <span>Adjustment</span>
+              <span class="adj-val">
+                {{ effectiveDirection() === 'in' ? '+' : '-' }}{{ quantity() }}
+              </span>
+            </div>
+            <div class="preview-divider"></div>
+            <div class="preview-row total">
+              <span>New Stock</span>
+              <span [class.error]="newStock() < 0">{{ newStock() }}</span>
+            </div>
+            @if (newStock() < 0) {
+              <div class="preview-error">Cannot reduce stock below 0</div>
+            }
+          </div>
+        }
+
+        <!-- Reason -->
+        <div class="form-group">
+          <label>Reason <span class="required">*</span></label>
+          <input type="text" [(ngModel)]="reason" placeholder="e.g. Weekly delivery, Damaged during shipping">
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+          <label>Notes (Optional)</label>
+          <textarea [(ngModel)]="notes" placeholder="Additional details..." rows="3"></textarea>
+        </div>
       }
 
-      <!-- Reason -->
-      <div class="form-group">
-        <label>Reason <span class="required">*</span></label>
-        <input type="text" [(ngModel)]="reason" placeholder="e.g. Weekly delivery, Damaged during shipping">
-      </div>
+      @if (isMultiMode()) {
 
-      <!-- Notes -->
-      <div class="form-group">
-        <label>Notes (Optional)</label>
-        <textarea [(ngModel)]="notes" placeholder="Additional details..." rows="3"></textarea>
-      </div>
+        <!-- SHARED: Type + Reason (applies to all) -->
+        <div class="form-section">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Adjustment Type</label>
+              <select [ngModel]="type()"
+                (ngModelChange)="type.set($event)">
+                @for (t of adjustmentTypes; track t.value) {
+                  <option [value]="t.value">
+                    {{ t.label }}
+                  </option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Reason
+              <span class="required">*</span>
+            </label>
+            <input type="text"
+              [ngModel]="reason()"
+              (ngModelChange)="reason.set($event)"
+              placeholder="e.g. New stock received, Damaged in transit...">
+            <span class="hint">
+              This reason applies to all products below
+            </span>
+          </div>
+          <div class="form-group">
+            <label>Notes
+              <span class="optional">(optional)</span>
+            </label>
+            <textarea rows="2"
+              [ngModel]="notes()"
+              (ngModelChange)="notes.set($event)"
+              placeholder="Additional notes...">
+            </textarea>
+          </div>
+        </div>
+
+        <!-- ADD PRODUCT ROW -->
+        <div class="multi-add-section">
+          <div class="multi-add-label">
+            Add Products
+          </div>
+
+          <div class="multi-add-row">
+            <div class="multi-product-select">
+              <app-searchable-select
+                placeholder="Search product..."
+                [options]="productOptions()"
+                [value]="selectedProductForAdd()?.id ?? null"
+                (selected)="
+                  onProductSelectedForMulti($event)">
+              </app-searchable-select>
+            </div>
+
+            <!-- Direction toggle (only for correction) -->
+            @if (showDirectionToggle()) {
+              <div class="direction-toggle">
+                <button class="dir-btn"
+                  [class.active]="
+                    pendingDirection() === 'in'"
+                  (click)="pendingDirection.set('in')">
+                  + In
+                </button>
+                <button class="dir-btn"
+                  [class.active]="
+                    pendingDirection() === 'out'"
+                  (click)="pendingDirection.set('out')">
+                  − Out
+                </button>
+              </div>
+            }
+
+            <div class="multi-qty-input">
+              <input type="number"
+                [ngModel]="pendingQty()"
+                (ngModelChange)="pendingQty.set($event)"
+                min="1"
+                placeholder="Qty"
+                class="qty-field">
+            </div>
+
+            <button class="btn-add-item"
+              (click)="addItemToMulti()"
+              [disabled]="!selectedProductForAdd() ||
+                !pendingQty() ||
+                (pendingQty() ?? 0) <= 0">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="16" height="16"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add
+            </button>
+          </div>
+
+          @if (selectedProductForAdd()) {
+            <div class="selected-product-hint">
+              <span class="hint-name">
+                {{ selectedProductForAdd()!.name }}
+              </span>
+              <span class="hint-stock">
+                Current stock:
+                <strong>
+                  {{ selectedProductForAdd()!.stock }}
+                </strong>
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- ITEMS LIST -->
+        @if (multiItems().length === 0) {
+          <div class="multi-empty">
+            <svg xmlns="http://www.w3.org/2000/svg"
+              width="32" height="32" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <p>
+              No products added yet. Search and add products above.
+            </p>
+          </div>
+        } @else {
+          <div class="multi-items-list">
+            <div class="multi-items-header">
+              <span>Product</span>
+              <span class="center">Current</span>
+              <span class="center">Qty</span>
+              <span class="center">New Stock</span>
+              <span></span>
+            </div>
+
+            @for (item of multiItems();
+              track item.product.id; let i = $index) {
+              @let dir = item.direction;
+              @let newStk = dir === 'in'
+                ? item.product.stock + item.quantity
+                : item.product.stock - item.quantity;
+
+              <div class="multi-item-row"
+                [class.negative]="newStk < 0">
+                <div class="multi-item-product">
+                  <span class="mi-name">
+                    {{ item.product.name }}
+                  </span>
+                  <span class="mi-sku">
+                    {{ item.product.sku }}
+                  </span>
+                </div>
+
+                <div class="multi-item-current center">
+                  {{ item.product.stock }}
+                </div>
+
+                <div class="multi-item-qty center">
+                  <div class="mi-qty-row">
+                    @if (showDirectionToggle()) {
+                      <span class="mi-dir-badge"
+                        [class.in]="dir === 'in'"
+                        [class.out]="dir === 'out'">
+                        {{ dir === 'in' ? '+' : '−' }}
+                      </span>
+                    } @else {
+                      <span class="mi-dir-badge"
+                        [class.in]="
+                          effectiveDirection() === 'in'"
+                        [class.out]="
+                          effectiveDirection() === 'out'">
+                        {{ effectiveDirection() === 'in'
+                          ? '+' : '−' }}
+                      </span>
+                    }
+                    <input type="number"
+                      class="mi-qty-input"
+                      [value]="item.quantity"
+                      min="1"
+                      (input)="updateMultiItemQty(
+                        i, +$any($event.target).value
+                      )">
+                  </div>
+                </div>
+
+                <div class="multi-item-new center"
+                  [class.text-green]="newStk > item.product.stock"
+                  [class.text-red]="newStk < item.product.stock"
+                  [class.text-gold]="newStk === 0">
+                  {{ newStk }}
+                  @if (newStk < 0) {
+                    <span class="neg-warning">!</span>
+                  }
+                </div>
+
+                <div class="multi-item-remove">
+                  <button class="btn-remove-item"
+                    (click)="removeMultiItem(i)">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="14" height="14"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor"
+                      stroke-width="2">
+                      <line x1="18" y1="6"
+                        x2="6" y2="18"/>
+                      <line x1="6" y1="6"
+                        x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Summary row -->
+            <div class="multi-summary-row">
+              <span>
+                {{ multiItems().length }} product{{
+                  multiItems().length > 1 ? 's' : ''
+                }} to adjust
+              </span>
+            </div>
+          </div>
+        }
+
+      } <!-- end @if isMultiMode -->
+
     </div>
 
+    <!-- FOOTER -->
     <div class="modal-footer">
-      <button class="btn-secondary" (click)="cancel()">Cancel</button>
-      <button class="btn-primary" (click)="save()" [disabled]="!isValid() || isSaving()">
+      <button class="btn-cancel" (click)="cancel()"
+        [disabled]="isSaving()">
+        Cancel
+      </button>
+      <button class="btn-save"
+        (click)="save()"
+        [disabled]="isSaving() || (
+          isMultiMode()
+            ? !multiIsValid()
+            : !isValid()
+        )">
         @if (isSaving()) {
-          <app-loading-spinner size="sm" color="#fff"></app-loading-spinner>
           Saving...
+        } @else if (isMultiMode()) {
+          Save {{ multiItems().length }} Adjustment{{
+            multiItems().length > 1 ? 's' : ''
+          }}
         } @else {
           Save Adjustment
         }

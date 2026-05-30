@@ -40,6 +40,11 @@ export const routes: Routes = [
     children: [
       {
         path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full'
+      },
+      {
+        path: 'dashboard',
         loadComponent: () => import('./features/portal/portal-dashboard/portal-dashboard.component').then(m => m.PortalDashboardComponent),
       },
       {

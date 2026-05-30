@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -96,12 +96,61 @@ export class PortalCatalogComponent {
       .some(i => i.productId === productId);
   }
 
+  getQty(productId: string): number {
+    return this.qtyInputs()[productId] || 1;
+  }
+
+  setQty(productId: string, qty: number) {
+    const product = this.filteredProducts()
+      .find(p => p.id === productId);
+    const maxStock = product?.stock || 999;
+    const clamped = Math.max(1,
+      Math.min(qty, maxStock));
+    this.qtyInputs.update(q => ({
+      ...q,
+      [productId]: clamped
+    }));
+  }
+
+  showQtyDropdown = signal<string | null>(null);
+
+  quickQtys = [5, 10, 20, 30, 50, 100];
+
+  toggleQtyDropdown(productId: string) {
+    this.showQtyDropdown.update(current =>
+      current === productId ? null : productId
+    );
+  }
+
+  selectQuickQty(productId: string, qty: number) {
+    this.setQty(productId, qty);
+    this.showQtyDropdown.set(null);
+  }
+
+  hasQuickQtys(product: any): boolean {
+    return this.quickQtys.some(q => q <= product.stock);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.qty-picker-wrap')) {
+      this.showQtyDropdown.set(null);
+    }
+  }
+
   addToCart(product: any) {
     if (product.stock <= 0) return;
-    const qty = this.qtyInputs()[product.id] || 1;
+    const qty = this.getQty(product.id);
     this.portal.addToCart(product, qty);
+    this.showQtyDropdown.set(null);
+    // Reset qty input after adding
+    this.qtyInputs.update(q => ({
+      ...q,
+      [product.id]: 1
+    }));
     this.toast.success(
-      `${product.name} added to cart`
+      `${product.name} ×${qty} added to cart`
     );
   }
 

@@ -13,6 +13,7 @@
     <nav class="navbar-links">
       <a routerLink="/portal/dashboard"
         routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: false }"
         class="nav-link">
         Dashboard
       </a>
@@ -102,6 +103,8 @@
             </div>
             <div class="dropdown-body">
               <a routerLink="/portal/dashboard"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: false }"
                 class="dropdown-item"
                 (click)="showAccountMenu.set(false)">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -193,6 +196,7 @@
       <nav class="mobile-menu">
         <a routerLink="/portal/dashboard"
           routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: false }"
           class="mobile-link"
           (click)="closeMobileMenu()">
           Dashboard
