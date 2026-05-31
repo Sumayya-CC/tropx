@@ -430,8 +430,8 @@ export class OrderFormComponent {
           customerName: customer.businessName,
           customerPhone: customer.phone ?? null,
           customerEmail: customer.email || '',
-          serviceAreaId: customer.serviceAreaId ?? null,
-          serviceAreaName: this.getServiceAreaName(customer) || null,
+          serviceAreaId: customer.serviceAreaId || null,
+          serviceAreaName: this.resolveServiceAreaName(customer),
           items,
           subtotalCents: this.subtotalCents(),
           taxRatePercent: this.taxRatePercent(),
@@ -655,6 +655,16 @@ export class OrderFormComponent {
     if (customer.serviceAreaCustom) {
       return customer.serviceAreaCustom;
     }
+    if (customer.serviceAreaId) {
+      const sa = this.allServiceAreas().find(
+        s => s.id === customer.serviceAreaId
+      );
+      return sa?.name || '';
+    }
+    return '';
+  }
+
+  private resolveServiceAreaName(customer: Customer): string {
     if (customer.serviceAreaId) {
       const sa = this.allServiceAreas().find(
         s => s.id === customer.serviceAreaId

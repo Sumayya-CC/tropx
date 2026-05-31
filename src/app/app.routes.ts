@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 import { PortalAuthGuard } from './core/guards/portal-auth.guard';
+import { AdminProfileComponent } from './features/admin/profile/admin-profile.component';
 
 export const routes: Routes = [
   // ── Public ──────────────────────────────────────────────────────────────
@@ -74,6 +75,10 @@ export const routes: Routes = [
       {
         path: 'returns',
         loadComponent: () => import('./features/portal/portal-returns/portal-returns.component').then(m => m.PortalReturnsComponent),
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('./features/portal/portal-profile/portal-profile.component').then(m => m.PortalProfileComponent),
       },
       {
         path: '**',
@@ -280,6 +285,11 @@ export const routes: Routes = [
           import('./features/admin/settings/admin-settings.component').then(
             m => m.AdminSettingsComponent
           ),
+      },
+      {
+        path: 'profile',
+        component: AdminProfileComponent,
+        data: { title: 'My Profile' }
       },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],

@@ -1,0 +1,432 @@
+<div class="portal-profile">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <h1>My Profile</h1>
+      <p>Your business and account details</p>
+    </div>
+    @if (!isEditMode()) {
+      <button class="btn-edit-profile"
+        (click)="enterEditMode()">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="16" height="16"
+          viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2
+            2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1
+            3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit Profile
+      </button>
+    }
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading profile...</p>
+    </div>
+  } @else {
+
+    <div class="profile-layout">
+
+      <!-- LEFT COLUMN -->
+      <div class="profile-main">
+
+        <!-- Business Information -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h2>Business Information</h2>
+          </div>
+          <div class="card-body">
+
+            @if (!isEditMode()) {
+              <!-- READ MODE -->
+              <div class="read-grid">
+                <div class="read-item">
+                  <span class="read-label">
+                    Business Name
+                  </span>
+                  <span class="read-value">
+                    {{ businessName() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">
+                    Owner Name
+                  </span>
+                  <span class="read-value">
+                    {{ ownerName() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">
+                    Phone Number
+                  </span>
+                  <span class="read-value">
+                    {{ phone() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">
+                    Email Address
+                  </span>
+                  <span class="read-value">
+                    {{ customerEmail() }}
+                  </span>
+                </div>
+              </div>
+            } @else {
+              <!-- EDIT MODE -->
+              <div class="form-row two-col">
+                <div class="form-group"
+                  [class.has-error]="
+                    errors()['businessName']">
+                  <label>
+                    Business Name
+                    <span class="required">*</span>
+                  </label>
+                  <input type="text"
+                    [value]="businessName()"
+                    (input)="businessName.set(
+                      $any($event.target).value);
+                      markDirty()"
+                    placeholder="Your business name">
+                  @if (errors()['businessName']) {
+                    <span class="error-msg">
+                      {{ errors()['businessName'] }}
+                    </span>
+                  }
+                </div>
+                <div class="form-group"
+                  [class.has-error]="
+                    errors()['ownerName']">
+                  <label>
+                    Owner Name
+                    <span class="required">*</span>
+                  </label>
+                  <input type="text"
+                    [value]="ownerName()"
+                    (input)="ownerName.set(
+                      $any($event.target).value);
+                      markDirty()"
+                    placeholder="Your full name">
+                  @if (errors()['ownerName']) {
+                    <span class="error-msg">
+                      {{ errors()['ownerName'] }}
+                    </span>
+                  }
+                </div>
+              </div>
+              <div class="form-row two-col">
+                <div class="form-group">
+                  <label>Phone Number</label>
+                  <input type="tel"
+                    [value]="phone()"
+                    (input)="phone.set(
+                      $any($event.target).value);
+                      markDirty()"
+                    placeholder="e.g. 519-555-0100">
+                </div>
+                <div class="form-group">
+                  <label>
+                    Email Address
+                    <span class="lock-icon">🔒</span>
+                  </label>
+                  <input type="email"
+                    [value]="customerEmail()"
+                    disabled
+                    class="input-disabled">
+                  <span class="hint">
+                    Contact support to change email
+                  </span>
+                </div>
+              </div>
+            }
+
+          </div>
+        </div>
+
+        <!-- Delivery Address -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h2>Delivery Address</h2>
+          </div>
+          <div class="card-body">
+
+            @if (!isEditMode()) {
+              <!-- READ MODE -->
+              <div class="read-grid">
+                <div class="read-item full-width">
+                  <span class="read-label">
+                    Street Address
+                  </span>
+                  <span class="read-value">
+                    {{ street() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">City</span>
+                  <span class="read-value">
+                    {{ city() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">
+                    Province
+                  </span>
+                  <span class="read-value">
+                    {{ provinceName() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">
+                    Postal Code
+                  </span>
+                  <span class="read-value mono">
+                    {{ postalCode() || '—' }}
+                  </span>
+                </div>
+                <div class="read-item">
+                  <span class="read-label">
+                    Country
+                  </span>
+                  <span class="read-value">
+                    Canada
+                  </span>
+                </div>
+              </div>
+            } @else {
+              <!-- EDIT MODE -->
+              <div class="form-group"
+                [class.has-error]="
+                  errors()['street']">
+                <label>
+                  Street Address
+                  <span class="required">*</span>
+                </label>
+                <input type="text"
+                  [value]="street()"
+                  (input)="street.set(
+                    $any($event.target).value);
+                    markDirty()"
+                  placeholder="123 Main Street">
+                @if (errors()['street']) {
+                  <span class="error-msg">
+                    {{ errors()['street'] }}
+                  </span>
+                }
+              </div>
+              <div class="form-row two-col">
+                <div class="form-group"
+                  [class.has-error]="
+                    errors()['city']">
+                  <label>
+                    City
+                    <span class="required">*</span>
+                  </label>
+                  <input type="text"
+                    [value]="city()"
+                    (input)="city.set(
+                      $any($event.target).value);
+                      markDirty()"
+                    placeholder="Kitchener">
+                  @if (errors()['city']) {
+                    <span class="error-msg">
+                      {{ errors()['city'] }}
+                    </span>
+                  }
+                </div>
+                <div class="form-group"
+                  [class.has-error]="
+                    errors()['province']">
+                  <label>
+                    Province
+                    <span class="required">*</span>
+                  </label>
+                  <select
+                    [value]="province()"
+                    (change)="province.set(
+                      $any($event.target).value);
+                      markDirty()">
+                    <option value="" disabled>
+                      Select province...
+                    </option>
+                    @for (p of canadianProvinces;
+                      track p.code) {
+                      <option [value]="p.code">
+                        {{ p.name }}
+                      </option>
+                    }
+                  </select>
+                  @if (errors()['province']) {
+                    <span class="error-msg">
+                      {{ errors()['province'] }}
+                    </span>
+                  }
+                </div>
+              </div>
+              <div class="form-row two-col">
+                <div class="form-group"
+                  [class.has-error]="
+                    errors()['postalCode']">
+                  <label>
+                    Postal Code
+                    <span class="required">*</span>
+                  </label>
+                  <input type="text"
+                    [value]="postalCode()"
+                    (input)="postalCode.set(
+                      $any($event.target).value);
+                      markDirty()"
+                    placeholder="K1A 0A9"
+                    maxlength="7"
+                    style="text-transform: uppercase">
+                  @if (errors()['postalCode']) {
+                    <span class="error-msg">
+                      {{ errors()['postalCode'] }}
+                    </span>
+                  }
+                </div>
+                <div class="form-group">
+                  <label>Country</label>
+                  <input type="text"
+                    value="Canada"
+                    disabled
+                    class="input-disabled">
+                </div>
+              </div>
+            }
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="profile-sidebar">
+
+        <!-- Logo -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h2>Business Logo</h2>
+          </div>
+          <div class="card-body logo-card-body">
+            <div class="logo-preview">
+              @if (isUploadingLogo()) {
+                <div class="logo-uploading">
+                  <div class="spinner sm"></div>
+                  <span>Uploading...</span>
+                </div>
+              } @else if (logoUrl()) {
+                <img [src]="logoUrl()!"
+                  alt="Business logo"
+                  class="logo-img">
+              } @else {
+                <div class="logo-placeholder">
+                  <span class="logo-initial">
+                    {{ getInitial() }}
+                  </span>
+                </div>
+              }
+            </div>
+
+            <!-- Always show upload controls
+                 (logo can be changed anytime) -->
+            <div class="logo-actions">
+              <label class="btn-upload-logo">
+                <input type="file"
+                  accept="image/*"
+                  class="file-input-hidden"
+                  (change)="onLogoSelected($event)">
+                @if (logoUrl()) {
+                  Change Logo
+                } @else {
+                  Upload Logo
+                }
+              </label>
+              @if (logoUrl()) {
+                <button class="btn-remove-logo"
+                  (click)="removeLogo()">
+                  Remove
+                </button>
+              }
+            </div>
+            <p class="logo-hint">
+              JPG, PNG or WebP. Max 2MB.
+            </p>
+          </div>
+        </div>
+
+        <!-- Account Info -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h2>Account Information</h2>
+          </div>
+          <div class="account-info-rows">
+            <div class="account-info-row">
+              <span class="ai-label">
+                Member Since
+              </span>
+              <span class="ai-value">
+                {{ customerSince() }}
+              </span>
+            </div>
+            <div class="account-info-row">
+              <span class="ai-label">Status</span>
+              <span class="ai-value">
+                <span class="status-badge"
+                  [class]="'status-' +
+                    customerStatus()">
+                  {{ customerStatus() | titlecase }}
+                  @if (customerStatus() ===
+                       'active') { ✓ }
+                </span>
+              </span>
+            </div>
+            <div class="account-info-row">
+              <span class="ai-label">Email</span>
+              <span class="ai-value email-val">
+                {{ customerEmail() }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SAVE / CANCEL BAR (edit mode only) -->
+    @if (isEditMode()) {
+      <div class="save-bar">
+        <span class="save-bar-msg">
+          @if (isDirty()) {
+            You have unsaved changes
+          } @else {
+            Edit mode — make your changes above
+          }
+        </span>
+        <div class="save-bar-actions">
+          <button class="btn-cancel-save"
+            (click)="exitEditMode()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save"
+            (click)="save()"
+            [disabled]="isSaving() || !isDirty()">
+            @if (isSaving()) {
+              <div class="btn-spinner"></div>
+              Saving...
+            } @else {
+              Save Changes
+            }
+          </button>
+        </div>
+      </div>
+    }
+
+  }
+</div>

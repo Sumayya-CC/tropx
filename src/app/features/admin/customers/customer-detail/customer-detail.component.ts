@@ -105,17 +105,15 @@ export class CustomerDetailComponent {
   }
 
   private resolveServiceArea(customer: Customer) {
-    if (customer.serviceAreaCustom) {
-      this.serviceAreaName.set(customer.serviceAreaCustom);
-      return;
-    }
     if (customer.serviceAreaId) {
       this.firestore.getDocument<ServiceArea>(`serviceAreas/${customer.serviceAreaId}`).subscribe({
         next: (sa) => {
-          this.serviceAreaName.set(sa ? sa.name : 'Unknown');
+          this.serviceAreaName.set(sa ? sa.name : 'Unknown Area');
         },
-        error: () => this.serviceAreaName.set('Unknown')
+        error: () => this.serviceAreaName.set('Unknown Area')
       });
+    } else if (customer.serviceAreaCustom) {
+      this.serviceAreaName.set(customer.serviceAreaCustom + ' (legacy)');
     } else {
       this.serviceAreaName.set('None');
     }

@@ -1,8 +1,9 @@
-import { Component, inject, signal, HostListener } from '@angular/core';
+import { Component, inject, signal, HostListener, computed } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { PortalService } from '../../../core/services/portal.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../shared/services/toast.service';
 
 @Component({
   selector: 'app-portal-navbar',
@@ -15,6 +16,38 @@ export class PortalNavbarComponent {
   protected readonly portal = inject(PortalService);
   protected readonly auth = inject(AuthService);
   protected readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+
+  logoUrl = computed(() =>
+    this.portal.customerDoc()?.logoUrl || null
+  );
+
+  showPasswordResetConfirm = signal(false);
+  isSendingReset = signal(false);
+
+  openPasswordReset() {
+    this.showAccountMenu.set(false);
+    this.showPasswordResetConfirm.set(true);
+  }
+
+  async confirmPasswordReset() {
+    const email = this.portal.customerProfile()?.email;
+    if (!email) return;
+
+    this.isSendingReset.set(true);
+    try {
+      await this.auth.sendPasswordResetEmail(email);
+      this.showPasswordResetConfirm.set(false);
+      this.toast.success(
+        `Password reset email sent to ${email}`
+      );
+    } catch (err) {
+      console.error('Password reset error:', err);
+      this.toast.error('Failed to send reset email');
+    } finally {
+      this.isSendingReset.set(false);
+    }
+  }
 
   mobileMenuOpen = signal(false);
   showAccountMenu = signal(false);

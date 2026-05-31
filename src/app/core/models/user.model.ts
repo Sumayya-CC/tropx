@@ -14,6 +14,8 @@ export interface AppUser {
   status: UserStatus;
   // Links auth account to specific retail profile when role is customer
   linkedCustomerId?: string;
+  serviceAreaId?: string;
+  avatarUrl?: string;
   tenantId: number;
   createdAt: Date;
   lastLoginAt: Date;

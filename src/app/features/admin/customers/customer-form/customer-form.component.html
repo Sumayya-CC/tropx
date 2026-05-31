@@ -199,22 +199,12 @@
         <h2 class="card-title">Service Area</h2>
 
         <div class="form-group">
-          <label for="serviceAreaSelection">Service Area</label>
-          <select id="serviceAreaSelection" formControlName="serviceAreaSelection">
-            <option value="">Select service area</option>
-            @for (area of serviceAreas(); track area.id) {
-            <option [value]="area.id">{{ area.name }}</option>
-            }
-            <option value="other">Other (specify below)</option>
-          </select>
+          <label>Service Area</label>
+          <app-service-area-select
+            [selected]="selectedAreaId()"
+            (selectedChange)="onServiceAreaChanged($event)">
+          </app-service-area-select>
         </div>
-
-        @if (showCustomArea()) {
-        <div class="form-group">
-          <label for="serviceAreaCustom">Custom Service Area</label>
-          <input type="text" id="serviceAreaCustom" formControlName="serviceAreaCustom" placeholder="Enter area name">
-        </div>
-        }
       </div>
 
       <!-- Account Status -->

@@ -85,24 +85,14 @@
             }
             
             <div class="form-group">
-              <label>Service Area</label>
-              <div class="toggle-group">
-                <label class="toggle-label">
-                  <input type="checkbox" [ngModel]="useCustomArea()" (ngModelChange)="useCustomArea.set($event)">
-                  Use Custom Text
-                </label>
-              </div>
-
-              @if (useCustomArea()) {
-                <input type="text" class="form-control" [ngModel]="customAreaText()" (ngModelChange)="customAreaText.set($event)" placeholder="Enter custom service area">
-              } @else {
-                <app-searchable-select
-                  [options]="serviceAreas()"
-                  [value]="selectedAreaId()"
-                  (selected)="onAreaSelect($event)"
-                  placeholder="Select a service area"
-                ></app-searchable-select>
-              }
+              <label>
+                Service Area
+                <span class="required">*</span>
+              </label>
+              <app-service-area-select
+                [selected]="selectedAreaId()"
+                (selectedChange)="onServiceAreaChanged($event)">
+              </app-service-area-select>
             </div>
 
             <div class="form-group">

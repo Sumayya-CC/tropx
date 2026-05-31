@@ -8,6 +8,7 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
 import { Customer } from '../../../../core/models/customer.model';
 import { where, serverTimestamp } from '@angular/fire/firestore';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
+import { ServiceAreaSelectComponent } from '../../../../shared/components/service-area-select/service-area-select.component';
 
 interface ServiceArea {
   id: string;
@@ -19,7 +20,7 @@ interface ServiceArea {
 @Component({
   selector: 'app-customer-form',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingSpinnerComponent],
+  imports: [ReactiveFormsModule, RouterLink, LoadingSpinnerComponent, ServiceAreaSelectComponent],
   templateUrl: './customer-form.component.html',
   styleUrl: './customer-form.component.scss'
 })
@@ -41,7 +42,7 @@ export class CustomerFormComponent implements OnInit {
   logoFile = signal<File | null>(null);
   logoPreviewUrl = signal<string | null>(null);
 
-  serviceAreas = signal<ServiceArea[]>([]);
+  selectedAreaId = signal<string | null>(null);
 
   businessTypes = [
     'Convenience Store',
@@ -85,15 +86,11 @@ export class CustomerFormComponent implements OnInit {
       postalCode: ['', [Validators.required, Validators.pattern(/^[a-zA-Z]\d[a-zA-Z] ?\d[a-zA-Z]\d$/)]],
       country: [{ value: 'Canada', disabled: true }]
     }),
-    serviceAreaSelection: [''],
-    serviceAreaCustom: [''],
     status: ['active', [Validators.required]],
     notes: ['']
   });
 
   ngOnInit() {
-    this.loadServiceAreas();
-    
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEditMode.set(true);
@@ -102,17 +99,8 @@ export class CustomerFormComponent implements OnInit {
     }
   }
 
-  private loadServiceAreas() {
-    this.firestore.getCollection<ServiceArea>(
-      'serviceAreas',
-      where('tenantId', '==', 1)
-    ).subscribe({
-      next: (allAreas) => {
-        const active = allAreas.filter(a => a.active === true && a.isDeleted !== true);
-        this.serviceAreas.set(active);
-      },
-      error: (err) => console.error('Failed to load service areas', err)
-    });
+  onServiceAreaChanged(area: { id: string; name: string } | null) {
+    this.selectedAreaId.set(area ? area.id : null);
   }
 
   private loadCustomer(id: string) {
@@ -126,13 +114,7 @@ export class CustomerFormComponent implements OnInit {
         }
         
         this.customer.set(data);
-        
-        let saSelection = '';
-        if (data.serviceAreaCustom) {
-          saSelection = 'other';
-        } else if (data.serviceAreaId) {
-          saSelection = data.serviceAreaId;
-        }
+        this.selectedAreaId.set(data.serviceAreaId || null);
 
         this.form.patchValue({
           businessName: data.businessName,
@@ -148,8 +130,6 @@ export class CustomerFormComponent implements OnInit {
             postalCode: data.address.postalCode,
             country: 'Canada'
           },
-          serviceAreaSelection: saSelection,
-          serviceAreaCustom: data.serviceAreaCustom || '',
           status: data.status,
           notes: data.notes || ''
         });
@@ -171,10 +151,6 @@ export class CustomerFormComponent implements OnInit {
   isInvalid(path: string): boolean {
     const control = this.form.get(path);
     return !!(control && control.invalid && (control.dirty || control.touched));
-  }
-
-  showCustomArea(): boolean {
-    return this.form.get('serviceAreaSelection')?.value === 'other';
   }
 
   showCustomBusinessType(): boolean {
@@ -237,14 +213,8 @@ export class CustomerFormComponent implements OnInit {
         return;
       }
 
-      let serviceAreaId = null;
-      let serviceAreaCustom = null;
-
-      if (val.serviceAreaSelection === 'other') {
-        serviceAreaCustom = val.serviceAreaCustom;
-      } else if (val.serviceAreaSelection) {
-        serviceAreaId = val.serviceAreaSelection;
-      }
+      const serviceAreaId = this.selectedAreaId();
+      const serviceAreaCustom = null;
 
       let finalLogoUrl = this.customer()?.logoUrl || null;
 

@@ -96,14 +96,17 @@ export class AdminCustomersComponent {
   }
 
   getServiceAreaName(customer: Customer): string {
-    if (customer.serviceAreaCustom) {
-      return customer.serviceAreaCustom;
-    }
     if (customer.serviceAreaId) {
-      const sa = this.serviceAreas().find(s => s.id === customer.serviceAreaId);
-      return sa ? sa.name : 'Unknown';
+      const sa = this.serviceAreas()
+        .find(s => s.id === customer.serviceAreaId);
+      return sa ? sa.name : 'Unknown Area';
     }
-    return 'None';
+    // Fallback for legacy data only
+    if (customer.serviceAreaCustom) {
+      return customer.serviceAreaCustom +
+        ' (legacy)';
+    }
+    return '—';
   }
 
   getInitials(name: string): string {

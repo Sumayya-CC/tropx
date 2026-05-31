@@ -103,6 +103,13 @@ export class AuthService {
     return sendPasswordResetEmail(this._auth, email);
   }
 
+  async sendPasswordResetEmail(email: string) {
+    const { sendPasswordResetEmail } =
+      await import('@angular/fire/auth');
+    const auth = this._auth;
+    await sendPasswordResetEmail(auth, email);
+  }
+
   getActionBy(): ActionBy | null {
     const profile = this._currentProfile();
     if (!profile) return null;

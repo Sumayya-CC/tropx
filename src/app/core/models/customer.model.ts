@@ -30,7 +30,8 @@ export interface Customer {
   // Manual coordinates avoid expensive auto-geocoding for future route planning
   coordinates?: Coordinates;
   serviceAreaId?: string;
-  // Custom text avoids polluting serviceArea collection with one-off entries
+  /** @deprecated Use serviceAreaId instead.
+   *  Kept for backward compatibility only. */
   serviceAreaCustom?: string;
   status: CustomerStatus;
   source: CustomerSource;

@@ -401,3 +401,163 @@ $nav-bg-scrolled: rgba(10,45,74,0.98);
 .mobile-only {
   @media (min-width: 769px) { display: none !important; }
 }
+
+.avatar-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+/* Password reset modal */
+.pw-reset-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.pw-reset-modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+
+.pw-reset-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--cream);
+
+  h3 {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    font-size: 0.8125rem;
+    color: var(--gray);
+    margin: 0;
+    line-height: 1.5;
+  }
+}
+
+.pw-reset-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(10,45,74,0.08);
+  color: var(--navy-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pw-reset-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  color: var(--gray);
+  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(231,34,46,0.08);
+    color: var(--red);
+  }
+}
+
+.pw-reset-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.pw-reset-email-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background: var(--cream);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+
+  svg { color: var(--navy); flex-shrink: 0; }
+}
+
+.pw-reset-email {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--navy-deep);
+}
+
+.pw-reset-note {
+  font-size: 0.8125rem;
+  color: var(--gray);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.pw-reset-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--cream);
+}
+
+.pw-btn-cancel {
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: var(--navy);
+    color: var(--navy);
+  }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.pw-btn-send {
+  padding: 0.625rem 1.5rem;
+  background: var(--navy-deep);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--navy);
+  }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}

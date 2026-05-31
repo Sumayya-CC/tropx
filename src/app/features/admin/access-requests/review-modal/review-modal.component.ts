@@ -11,7 +11,7 @@ import { FirestoreService } from '../../../../core/services/firestore.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { StatusBadgeComponent } from '../../../../shared/components/status-badge/status-badge.component';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../../../shared/components/searchable-select/searchable-select.component';
+import { ServiceAreaSelectComponent } from '../../../../shared/components/service-area-select/service-area-select.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 
 @Component({
@@ -22,7 +22,7 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
     FormsModule, 
     RouterLink, 
     StatusBadgeComponent, 
-    SearchableSelectComponent, 
+    ServiceAreaSelectComponent, 
     LoadingSpinnerComponent
   ],
   templateUrl: './review-modal.component.html',
@@ -40,10 +40,8 @@ export class ReviewModalComponent implements OnInit {
   isSaving = signal(false);
   
   // Approve form state
-  serviceAreas = signal<SearchableSelectOption[]>([]);
-  useCustomArea = signal(false);
   selectedAreaId = signal<string | null>(null);
-  customAreaText = signal<string>('');
+  selectedAreaName = signal<string>('');
   customerStatus = signal<'active' | 'pending'>('active');
   approveNotes = signal<string>('');
 
@@ -57,12 +55,11 @@ export class ReviewModalComponent implements OnInit {
   isLinkedCustomerDeleted = signal(false);
 
   async ngOnInit() {
-    this.loadServiceAreas();
     await this.checkForDuplicateEmail();
     
     if (this.request.status === 'approved' && this.request.linkedCustomerId) {
       this._firestore
-        .getDocument<any>(`customers/${this.request.linkedCustomerId}`)
+         .getDocument<any>(`customers/${this.request.linkedCustomerId}`)
         .subscribe(customer => {
           this.linkedCustomer.set(customer);
           this.isLinkedCustomerDeleted.set(customer?.isDeleted === true);
@@ -71,18 +68,7 @@ export class ReviewModalComponent implements OnInit {
 
     if (this.request.serviceAreaId) {
       this.selectedAreaId.set(this.request.serviceAreaId);
-    } else if (this.request.serviceAreaCustom) {
-      this.useCustomArea.set(true);
-      this.customAreaText.set(this.request.serviceAreaCustom);
     }
-  }
-
-  loadServiceAreas() {
-    this._firestore.getCollection<{id: string, name: string}>('serviceAreas')
-      .subscribe(data => {
-        const opts = data.map(sa => ({ value: sa.id, label: sa.name }));
-        this.serviceAreas.set(opts);
-      });
   }
 
   async checkForDuplicateEmail() {
@@ -106,20 +92,21 @@ export class ReviewModalComponent implements OnInit {
     }
   }
 
-  onAreaSelect(opt: SearchableSelectOption) {
-    this.selectedAreaId.set(opt.value);
+  onServiceAreaChanged(area: { id: string; name: string } | null) {
+    if (area) {
+      this.selectedAreaId.set(area.id);
+      this.selectedAreaName.set(area.name);
+    } else {
+      this.selectedAreaId.set(null);
+      this.selectedAreaName.set('');
+    }
   }
 
   async approve() {
     if (this.isSaving()) return;
 
-    if (!this.useCustomArea() && !this.selectedAreaId()) {
-      this._toast.error('Please select a service area or enter a custom one.');
-      return;
-    }
-
-    if (this.useCustomArea() && !this.customAreaText().trim()) {
-      this._toast.error('Please enter a custom service area.');
+    if (!this.selectedAreaId()) {
+      this._toast.error('Please select a service area.');
       return;
     }
 
@@ -160,8 +147,8 @@ export class ReviewModalComponent implements OnInit {
         businessType: this.request.businessType || null,
         businessTypeCustom: this.request.businessTypeCustom ?? null,
         address: this.request.address,
-        serviceAreaId: !this.useCustomArea() ? (this.selectedAreaId() ?? null) : null,
-        serviceAreaCustom: this.useCustomArea() ? (this.customAreaText().trim() || null) : null,
+        serviceAreaId: this.selectedAreaId(),
+        serviceAreaCustom: null,
         message: this.request.message ?? null,
         logoUrl: null,
         notes: this.approveNotes().trim() || null,

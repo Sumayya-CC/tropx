@@ -4,6 +4,8 @@ import { AuthService } from '../../../core/services/auth.service';
 import { filter } from 'rxjs/operators';
 import { SettingsService } from '../../../core/services/settings.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ToastService } from '../../../shared/services/toast.service';
+
 
 interface NavItem {
   label: string;
@@ -147,16 +149,277 @@ interface NavSection {
             <h1 class="page-title">{{ pageTitle() }}</h1>
           </div>
           <div class="header-right">
-            <button class="bell-btn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-            </button>
+            <div class="notification-wrapper">
+              <button class="bell-btn"
+                [class.has-notifications]="
+                  totalNotificationCount() > 0"
+                (click)="toggleNotifications();
+                  $event.stopPropagation()">
+                <svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" class="icon">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3
+                    9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                @if (totalNotificationCount() > 0) {
+                  <span class="bell-badge">
+                    {{ totalNotificationCount() > 99
+                      ? '99+' : totalNotificationCount() }}
+                  </span>
+                }
+              </button>
+
+              @if (showNotifications()) {
+                <div class="notifications-panel"
+                  (click)="$event.stopPropagation()">
+
+                  <div class="notif-header">
+                    <span class="notif-title">
+                      Notifications
+                    </span>
+                    @if (totalNotificationCount() > 0) {
+                      <span class="notif-count-badge">
+                        {{ totalNotificationCount() }}
+                      </span>
+                    }
+                  </div>
+
+                  @if (totalNotificationCount() === 0) {
+                    <div class="notif-empty">
+                      <svg xmlns="http://www.w3.org/2000/svg"
+                        width="28" height="28"
+                        viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3
+                          9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                      </svg>
+                      <p>All caught up!</p>
+                    </div>
+                  } @else {
+                    <div class="notif-body">
+
+                      <!-- Overdue Invoices -->
+                      @if (overdueOrders() > 0) {
+                        <div class="notif-section">
+                          <div class="notif-section-header">
+                            <span class="notif-dot red"></span>
+                            <span class="notif-section-label">
+                              Overdue Invoices
+                            </span>
+                            <span class="notif-section-count">
+                              {{ overdueOrders() }}
+                            </span>
+                          </div>
+                          @for (order of overdueOrdersList();
+                            track order.id) {
+                            <a [routerLink]="[
+                              '/admin/orders', order.id]"
+                              class="notif-item"
+                              (click)="showNotifications
+                                .set(false)">
+                              <div class="notif-item-main">
+                                <span class="notif-item-title">
+                                  {{ order.orderNumber }}
+                                </span>
+                                <span class="notif-item-sub">
+                                  {{ order.customerName }}
+                                </span>
+                              </div>
+                              <span class="notif-item-value red">
+                                \${{ ((order.balanceCents || 0) / 100).toFixed(2) }}
+                              </span>
+                            </a>
+                          }
+                          @if (overdueOrders() > 5) {
+                            <a routerLink="/admin/orders"
+                              class="notif-see-all"
+                              (click)="showNotifications
+                                .set(false)">
+                              View all {{ overdueOrders() }}
+                              overdue →
+                            </a>
+                          }
+                        </div>
+                      }
+
+                      <!-- Pending Returns -->
+                      @if (pendingReturns() > 0) {
+                        <div class="notif-section">
+                          <div class="notif-section-header">
+                            <span class="notif-dot gold"></span>
+                            <span class="notif-section-label">
+                              Pending Returns
+                            </span>
+                            <span class="notif-section-count">
+                              {{ pendingReturns() }}
+                            </span>
+                          </div>
+                          @for (ret of pendingReturnsList();
+                            track ret.id) {
+                            <a routerLink="/admin/returns"
+                              class="notif-item"
+                              (click)="showNotifications
+                                .set(false)">
+                              <div class="notif-item-main">
+                                <span class="notif-item-title">
+                                  {{ ret.returnNumber }}
+                                </span>
+                                <span class="notif-item-sub">
+                                  {{ ret.customerName }}
+                                </span>
+                              </div>
+                              <span class="notif-item-value">
+                                \${{ ((ret.amountCents || 0) / 100).toFixed(2) }}
+                              </span>
+                            </a>
+                          }
+                          @if (pendingReturns() > 5) {
+                            <a routerLink="/admin/returns"
+                              class="notif-see-all"
+                              (click)="showNotifications
+                                .set(false)">
+                              View all {{ pendingReturns() }}
+                              returns →
+                            </a>
+                          }
+                        </div>
+                      }
+
+                      <!-- Low Stock -->
+                      @if (lowStock() > 0) {
+                        <div class="notif-section">
+                          <div class="notif-section-header">
+                            <span class="notif-dot red"></span>
+                            <span class="notif-section-label">
+                              Low Stock
+                            </span>
+                            <span class="notif-section-count">
+                              {{ lowStock() }}
+                            </span>
+                          </div>
+                          @for (product of lowStockList();
+                            track product.id) {
+                            <a [routerLink]="[
+                              '/admin/products', product.id]"
+                              class="notif-item"
+                              (click)="showNotifications
+                                .set(false)">
+                              <div class="notif-item-main">
+                                <span class="notif-item-title">
+                                  {{ product.name }}
+                                </span>
+                                <span class="notif-item-sub">
+                                  {{ product.sku }}
+                                </span>
+                              </div>
+                              <span class="notif-item-value"
+                                [class.red]="product.stock === 0"
+                                [class.gold]="product.stock > 0">
+                                {{ product.stock === 0
+                                  ? 'Out'
+                                  : product.stock + ' left' }}
+                              </span>
+                            </a>
+                          }
+                          @if (lowStock() > 5) {
+                            <a routerLink="/admin/products"
+                              class="notif-see-all"
+                              (click)="showNotifications
+                                .set(false)">
+                              View all {{ lowStock() }}
+                              products →
+                            </a>
+                          }
+                        </div>
+                      }
+
+                      <!-- Pending Access Requests -->
+                      @if (pendingAccessRequests() > 0) {
+                        <div class="notif-section">
+                          <div class="notif-section-header">
+                            <span class="notif-dot navy"></span>
+                            <span class="notif-section-label">
+                              Access Requests
+                            </span>
+                            <span class="notif-section-count">
+                              {{ pendingAccessRequests() }}
+                            </span>
+                          </div>
+                          @for (req of
+                            pendingAccessRequestsList();
+                            track req.id) {
+                            <a routerLink="/admin/access-requests"
+                              class="notif-item"
+                              (click)="showNotifications
+                                .set(false)">
+                              <div class="notif-item-main">
+                                <span class="notif-item-title">
+                                  {{ req.businessName ||
+                                     req.ownerName }}
+                                </span>
+                                <span class="notif-item-sub">
+                                  {{ req.email }}
+                                </span>
+                              </div>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14" height="14"
+                                viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                class="notif-arrow">
+                                <polyline
+                                  points="9 18 15 12 9 6"/>
+                              </svg>
+                            </a>
+                          }
+                          @if (pendingAccessRequests() > 3) {
+                            <a routerLink="/admin/access-requests"
+                              class="notif-see-all"
+                              (click)="showNotifications
+                                .set(false)">
+                              View all
+                              {{ pendingAccessRequests() }}
+                              requests →
+                            </a>
+                          }
+                        </div>
+                      }
+
+                    </div>
+                  }
+
+                  <div class="notif-footer">
+                    <a routerLink="/admin/dashboard"
+                      class="notif-footer-link"
+                      (click)="showNotifications.set(false)">
+                      View Dashboard →
+                    </a>
+                  </div>
+
+                </div>
+              }
+            </div>
             <div class="divider"></div>
             <div class="user-menu" (click)="toggleDropdown()">
               <div class="avatar-small">{{ initials() }}</div>
               <span class="mobile-name">{{ userProfile()?.firstName }}</span>
               @if (dropdownOpen()) {
                 <div class="dropdown-menu">
-                  <a class="dropdown-item">My Profile</a>
+                  <a routerLink="/admin/profile"
+                     class="dropdown-item"
+                     (click)="dropdownOpen.set(false)">
+                    My Profile
+                  </a>
+                  <button class="dropdown-item"
+                          (click)="openPasswordReset()"
+                          [disabled]="isSendingReset()">
+                    Change Password
+                  </button>
                   @if (authService.isAdmin()) {
                     <a routerLink="/admin/settings" class="dropdown-item">Settings</a>
                   }
@@ -173,6 +436,84 @@ interface NavSection {
         </main>
       </div>
     </div>
+
+    @if (showPasswordModal()) {
+      <div class="pw-modal-overlay"
+        (click)="showPasswordModal.set(false)">
+        <div class="pw-modal"
+          (click)="$event.stopPropagation()">
+
+          <div class="pw-modal-header">
+            <div class="pw-modal-icon">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="24" height="24"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18"
+                  height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div class="pw-modal-header-text">
+              <h3>Change Password</h3>
+              <p>
+                A reset link will be sent to your
+                email address.
+              </p>
+            </div>
+            <button class="pw-modal-close"
+              (click)="showPasswordModal.set(false)">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="18" height="18"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="pw-modal-body">
+            <div class="pw-email-row">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="16" height="16"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12
+                  c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6
+                  c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <span class="pw-email">
+                {{ userProfile()?.email }}
+              </span>
+            </div>
+            <p class="pw-note">
+              The link expires in 1 hour. Check your
+              spam folder if you don't see it.
+            </p>
+          </div>
+
+          <div class="pw-modal-footer">
+            <button class="pw-btn-cancel"
+              (click)="showPasswordModal.set(false)"
+              [disabled]="isSendingReset()">
+              Cancel
+            </button>
+            <button class="pw-btn-send"
+              (click)="confirmPasswordReset()"
+              [disabled]="isSendingReset()">
+              @if (isSendingReset()) {
+                Sending...
+              } @else {
+                Send Reset Email
+              }
+            </button>
+          </div>
+
+        </div>
+      </div>
+    }
   `,
   styleUrl: './admin-shell.component.scss'
 })
@@ -180,6 +521,68 @@ export class AdminShellComponent implements OnInit {
   authService = inject(AuthService);
   router = inject(Router);
   settingsService = inject(SettingsService);
+  private readonly toast = inject(ToastService);
+
+  isSendingReset = signal(false);
+  showPasswordModal = signal(false);
+  showNotifications = signal(false);
+
+  toggleNotifications() {
+    this.showNotifications.update(v => !v);
+    if (this.showNotifications()) {
+      this.dropdownOpen.set(false);
+    }
+  }
+
+  totalNotificationCount = computed(() =>
+    this.overdueOrders() +
+    this.pendingReturns() +
+    this.lowStock() +
+    this.pendingAccessRequests()
+  );
+
+  overdueOrdersList = computed(() =>
+    this.notificationService.overdueOrdersList?.()
+    ?? []
+  );
+
+  pendingReturnsList = computed(() =>
+    this.notificationService.pendingReturnsList?.()
+    ?? []
+  );
+
+  lowStockList = computed(() =>
+    this.notificationService.lowStockList?.()
+    ?? []
+  );
+
+  pendingAccessRequestsList = computed(() =>
+    this.notificationService.pendingAccessRequestsList?.()
+    ?? []
+  );
+
+  openPasswordReset() {
+    this.dropdownOpen.set(false);
+    this.showPasswordModal.set(true);
+  }
+
+  async confirmPasswordReset() {
+    const email = this.userProfile()?.email || '';
+    if (!email) return;
+
+    this.isSendingReset.set(true);
+    try {
+      await this.authService.sendPasswordResetEmail(email);
+      this.showPasswordModal.set(false);
+      this.toast.success(`Password reset email sent to ${email}`);
+    } catch (err) {
+      console.error('Password reset error:', err);
+      this.toast.error('Failed to send reset email');
+    } finally {
+      this.isSendingReset.set(false);
+    }
+  }
+
 
   businessSettings = computed(() => this.settingsService.business());
 
@@ -284,6 +687,9 @@ export class AdminShellComponent implements OnInit {
     const target = event.target as HTMLElement;
     if (!target.closest('.user-menu')) {
       this.dropdownOpen.set(false);
+    }
+    if (!target.closest('.notification-wrapper')) {
+      this.showNotifications.set(false);
     }
   }
 

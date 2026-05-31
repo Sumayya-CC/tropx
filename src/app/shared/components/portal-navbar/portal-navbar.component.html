@@ -75,8 +75,14 @@
             !showAccountMenu()
           )">
           <div class="account-avatar">
-            {{ portal.businessName()
-              .charAt(0).toUpperCase() }}
+            @if (logoUrl()) {
+              <img [src]="logoUrl()!"
+                alt="Logo"
+                class="avatar-logo-img">
+            } @else {
+              {{ portal.businessName()
+                .charAt(0).toUpperCase() }}
+            }
           </div>
           <span class="account-name">
             {{ portal.businessName() }}
@@ -149,6 +155,36 @@
                   </span>
                 }
               </a>
+              <div class="dropdown-divider"></div>
+              <a routerLink="/portal/profile"
+                class="dropdown-item"
+                (click)="showAccountMenu.set(false)">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                My Profile
+              </a>
+              <button class="dropdown-item"
+                (click)="openPasswordReset()"
+                [disabled]="isSendingReset()">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                  width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11"
+                    rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                @if (isSendingReset()) {
+                  Sending Reset Email...
+                } @else {
+                  Change Password
+                }
+              </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item sign-out"
                 (click)="signOut()">
@@ -230,6 +266,12 @@
             </span>
           }
         </a>
+        <a routerLink="/portal/profile"
+          routerLinkActive="active"
+          class="mobile-link"
+          (click)="closeMobileMenu()">
+          My Profile
+        </a>
         <div class="mobile-divider"></div>
         <div class="mobile-account-info">
           <span class="mobile-business">
@@ -247,3 +289,84 @@
     </div>
   }
 </header>
+
+@if (showPasswordResetConfirm()) {
+  <div class="pw-reset-overlay"
+    (click)="showPasswordResetConfirm.set(false)">
+    <div class="pw-reset-modal"
+      (click)="$event.stopPropagation()">
+
+      <div class="pw-reset-header">
+        <div class="pw-reset-icon">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="28" height="28"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18"
+              height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div>
+          <h3>Change Password</h3>
+          <p>
+            We'll send a password reset link to
+            your email address.
+          </p>
+        </div>
+        <button class="pw-reset-close"
+          (click)="showPasswordResetConfirm
+            .set(false)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="18" height="18"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="pw-reset-body">
+        <div class="pw-reset-email-row">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16"
+            viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12
+              c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6
+              c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          <span class="pw-reset-email">
+            {{ portal.customerProfile()?.email }}
+          </span>
+        </div>
+        <p class="pw-reset-note">
+          Check your inbox after clicking send.
+          The link expires in 1 hour.
+        </p>
+      </div>
+
+      <div class="pw-reset-footer">
+        <button class="pw-btn-cancel"
+          (click)="showPasswordResetConfirm
+            .set(false)"
+          [disabled]="isSendingReset()">
+          Cancel
+        </button>
+        <button class="pw-btn-send"
+          (click)="confirmPasswordReset()"
+          [disabled]="isSendingReset()">
+          @if (isSendingReset()) {
+            Sending...
+          } @else {
+            Send Reset Email
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+

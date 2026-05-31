@@ -19,6 +19,10 @@ export class PortalService {
     this.auth.currentProfile()?.linkedCustomerId ?? null
   );
 
+  linkedCustomerId = computed(() =>
+    this.auth.currentProfile()?.linkedCustomerId ?? null
+  );
+
   customerProfile = computed(() =>
     this.auth.currentProfile()
   );
@@ -325,6 +329,11 @@ export class PortalService {
       throw new Error('Cart is empty');
     }
 
+    // Load customer doc
+    const customerDocRef = doc(this.firestore, `customers/${customerId}`);
+    const customerDocSnap = await getDoc(customerDocRef);
+    const customerDoc = customerDocSnap.exists() ? customerDocSnap.data() as any : {};
+
     // Get next order number
     const ordering = settingsService.ordering();
     const prefix = ordering.orderPrefix || 'TRX';
@@ -370,6 +379,8 @@ export class PortalService {
         `${profile.firstName} ${profile.lastName}`.trim(),
       customerEmail: profile.email || '',
       customerPhone: profile.phone || '',
+      serviceAreaId: customerDoc.serviceAreaId || null,
+      serviceAreaName: customerDoc.serviceAreaName || customerDoc.serviceAreaCustom || '',
       status: 'confirmed',
       source: 'customer_portal',
       deliveryType,
