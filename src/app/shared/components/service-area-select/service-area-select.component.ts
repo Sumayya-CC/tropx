@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, input, output, effect, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, input, output, ElementRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -12,9 +12,10 @@ import { where, serverTimestamp } from '@angular/fire/firestore';
   templateUrl: './service-area-select.component.html',
   styleUrl: './service-area-select.component.scss'
 })
-export class ServiceAreaSelectComponent {
+export class ServiceAreaSelectComponent implements OnDestroy {
   private readonly firestoreService = inject(FirestoreService);
   private readonly toast = inject(ToastService);
+  private readonly elementRef = inject(ElementRef);
 
   // Inputs
   selected = input<string | null>(null);
@@ -30,6 +31,8 @@ export class ServiceAreaSelectComponent {
   newAreaName = signal('');
   isSaving = signal(false);
 
+  private documentClickListener: ((event: MouseEvent) => void) | null = null;
+
   selectedArea = computed(() => {
     const id = this.selected();
     if (!id) return null;
@@ -44,6 +47,10 @@ export class ServiceAreaSelectComponent {
 
   constructor() {
     this.loadServiceAreas();
+  }
+
+  ngOnDestroy() {
+    this.removeOutsideClickListener();
   }
 
   loadServiceAreas() {
@@ -68,13 +75,24 @@ export class ServiceAreaSelectComponent {
     });
   }
 
-  @HostListener('document:click', ['$event'])
-  onOutsideClick(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.sa-select-wrap')) {
-      this.showDropdown.set(false);
-      this.showAddForm.set(false);
-      this.searchQuery.set('');
+  private addOutsideClickListener() {
+    if (this.documentClickListener) return;
+    this.documentClickListener = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!this.elementRef.nativeElement.contains(target)) {
+        this.showDropdown.set(false);
+        this.showAddForm.set(false);
+        this.searchQuery.set('');
+        this.removeOutsideClickListener();
+      }
+    };
+    document.addEventListener('click', this.documentClickListener, true);
+  }
+
+  private removeOutsideClickListener() {
+    if (this.documentClickListener) {
+      document.removeEventListener('click', this.documentClickListener, true);
+      this.documentClickListener = null;
     }
   }
 
@@ -82,12 +100,15 @@ export class ServiceAreaSelectComponent {
     this.showDropdown.set(true);
     this.showAddForm.set(false);
     this.searchQuery.set('');
+    // Register listener on the next event loop turn to avoid closing instantly
+    setTimeout(() => this.addOutsideClickListener());
   }
 
   selectArea(area: { id: string; name: string }) {
     this.selectedChange.emit(area);
     this.showDropdown.set(false);
     this.searchQuery.set('');
+    this.removeOutsideClickListener();
   }
 
   clearSelection() {
