@@ -230,6 +230,7 @@ export class PortalService {
           customerId: id,
           items: this.cartItems(),
           lastUpdatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
           tenantId: 1,
         }
       );
@@ -302,6 +303,7 @@ export class PortalService {
           customerId: id,
           items: [],
           lastUpdatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
           tenantId: 1,
           cleared: true,
         }
@@ -472,6 +474,14 @@ export class PortalService {
     );
 
     await this.clearCart();
+    await this.firestoreService.updateDocument(
+      `portalCarts/${customerId}`,
+      {
+        abandonedEmailSent24h: false,
+        abandonedEmailSent72h: false,
+        abandonedEmailSent7d: false,
+      }
+    );
     return orderId;
   }
 

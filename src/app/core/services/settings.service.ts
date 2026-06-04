@@ -53,6 +53,10 @@ export interface NotificationSettings {
   customerReturnApproved: boolean;
   customerReturnRejected: boolean;
   customerPaymentReceipt: boolean;
+  // Abandoned cart notifications
+  abandonedCart24h: boolean;
+  abandonedCart72h: boolean;
+  abandonedCart7d: boolean;
 }
 
 export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
@@ -67,6 +71,9 @@ export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   customerReturnApproved: true,
   customerReturnRejected: true,
   customerPaymentReceipt: true,
+  abandonedCart24h: true,
+  abandonedCart72h: true,
+  abandonedCart7d: false,
 };
 
 export const DEFAULT_BUSINESS: BusinessSettings = {

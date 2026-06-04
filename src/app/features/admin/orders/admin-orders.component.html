@@ -64,6 +64,22 @@
       </select>
     </div>
     <div class="filter-group">
+      <label>Source</label>
+      <select
+        [value]="sourceFilter()"
+        (change)="sourceFilter.set(
+          $any($event.target).value
+        )">
+        <option value="all">All Sources</option>
+        <option value="admin_created">
+          Admin Created
+        </option>
+        <option value="customer_portal">
+          Customer Portal
+        </option>
+      </select>
+    </div>
+    <div class="filter-group">
       <label>Service Area</label>
       <div class="area-filter">
         <div class="area-trigger" (click)="toggleAreaFilter()">
@@ -102,6 +118,11 @@
           </div>
         }
       </div>
+    </div>
+    <div class="filter-group filter-group-export">
+      <button class="btn-export-trigger" (click)="showExportModal.set(true)">
+        <span>📥</span> Export CSV
+      </button>
     </div>
   </div>
 
@@ -146,7 +167,37 @@
         } @else {
           @for (order of filteredOrders(); track order.id) {
             <tr (click)="viewOrder(order.id)">
-              <td class="order-number">{{ order.orderNumber }}</td>
+              <td class="order-number-cell">
+                <span class="order-num-text">
+                  {{ order.orderNumber }}
+                </span>
+                @if (order.source === 'customer_portal') {
+                  <span class="source-badge portal">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="10" height="10"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="7" height="7"/>
+                      <rect x="14" y="3" width="7" height="7"/>
+                      <rect x="14" y="14" width="7" height="7"/>
+                      <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    Portal
+                  </span>
+                } @else {
+                  <span class="source-badge admin">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="10" height="10"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8
+                        a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Admin
+                  </span>
+                }
+              </td>
               <td>
                 <div class="customer-info">
                   <span class="name">{{ order.customerName }}</span>
@@ -180,3 +231,129 @@
     </table>
   </div>
 </div>
+
+@if (showExportModal()) {
+  <div class="modal-backdrop" (click)="showExportModal.set(false)"></div>
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>Export Orders</h3>
+      <button class="btn-close" (click)="showExportModal.set(false)">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="export-info-block">
+        <div class="export-count-row">
+          <span class="export-count-num">
+            {{ exportPreviewCount() }}
+          </span>
+          <span class="export-count-label">
+            orders will be exported
+          </span>
+        </div>
+
+        <!-- Show active filters summary -->
+        <div class="export-active-filters">
+          <span class="eaf-label">
+            Based on current filters:
+          </span>
+          <div class="eaf-tags">
+            @if (statusFilter() !== 'all') {
+              <span class="eaf-tag">
+                Status: {{ statusFilter() }}
+              </span>
+            }
+            @if (paymentFilter() !== 'all') {
+              <span class="eaf-tag">
+                Payment: {{ paymentFilter() }}
+              </span>
+            }
+            @if (dateFilter() !== 'all') {
+              <span class="eaf-tag">
+                Date: {{ dateFilter() }}
+              </span>
+            }
+            @if (selectedServiceAreas().length > 0) {
+              <span class="eaf-tag">
+                {{ selectedServiceAreas().length }}
+                area{{
+                  selectedServiceAreas().length > 1
+                    ? 's' : ''
+                }}
+              </span>
+            }
+            @if (searchQuery()) {
+              <span class="eaf-tag">
+                Search: "{{ searchQuery() }}"
+              </span>
+            }
+            @if (exportSourceFilter() !== 'all') {
+              <span class="eaf-tag">
+                Source:
+                {{ exportSourceFilter() === 'customer_portal'
+                  ? 'Portal' : 'Admin' }}
+              </span>
+            }
+            @if (statusFilter() === 'all' &&
+                 paymentFilter() === 'all' &&
+                 dateFilter() === 'all' &&
+                 selectedServiceAreas().length === 0 &&
+                 !searchQuery()) {
+              <span class="eaf-tag eaf-tag-all">
+                All orders
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="export-form-group">
+        <label>Refine Start Date</label>
+        <input type="date" [ngModel]="exportFromDate()" (ngModelChange)="exportFromDate.set($event)">
+      </div>
+
+      <div class="export-form-group">
+        <label>Refine End Date</label>
+        <input type="date" [ngModel]="exportToDate()" (ngModelChange)="exportToDate.set($event)">
+      </div>
+
+      <div class="export-form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [ngModel]="exportIncludeCancelled()" (ngModelChange)="exportIncludeCancelled.set($event)">
+          <span>Include cancelled orders</span>
+        </label>
+      </div>
+
+      <div class="export-field">
+        <label>Order Source</label>
+        <div class="export-source-pills">
+          <button class="source-pill"
+            [class.active]="
+              exportSourceFilter() === 'all'"
+            (click)="exportSourceFilter.set('all')">
+            All Orders
+          </button>
+          <button class="source-pill"
+            [class.active]="
+              exportSourceFilter() === 'admin_created'"
+            (click)="exportSourceFilter.set(
+              'admin_created'
+            )">
+            Admin Created
+          </button>
+          <button class="source-pill"
+            [class.active]="
+              exportSourceFilter() ===
+              'customer_portal'"
+            (click)="exportSourceFilter.set(
+              'customer_portal'
+            )">
+            Customer Portal
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="showExportModal.set(false)">Cancel</button>
+      <button class="btn-primary" (click)="exportOrders()" [disabled]="exportPreviewCount() === 0">Export CSV</button>
+    </div>
+  </div>
+}

@@ -907,6 +907,36 @@
               </span>
             </div>
           </div>
+          <div class="view-item">
+            <div class="view-label">Abandoned Cart (24h)</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications().abandonedCart24h"
+                [class.no]="!settings.notifications().abandonedCart24h">
+                {{ settings.notifications().abandonedCart24h ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Abandoned Cart (72h)</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications().abandonedCart72h"
+                [class.no]="!settings.notifications().abandonedCart72h">
+                {{ settings.notifications().abandonedCart72h ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Abandoned Cart (7d)</div>
+            <div class="view-value">
+              <span class="bool-badge"
+                [class.yes]="settings.notifications().abandonedCart7d"
+                [class.no]="!settings.notifications().abandonedCart7d">
+                {{ settings.notifications().abandonedCart7d ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     } @else {
@@ -1130,6 +1160,64 @@
                 <span class="slider"></span>
               </label>
             </div>
+            
+            <div class="notif-row">
+              <div class="notif-info">
+                <span class="notif-label">
+                  Abandoned Cart — 24 Hours
+                </span>
+                <span class="notif-hint">
+                  Email customer when cart is inactive
+                  for 24 hours
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="settings.notifications()
+                    .abandonedCart24h"
+                  (change)="updateNotification(
+                    'abandonedCart24h', $event)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="notif-row">
+              <div class="notif-info">
+                <span class="notif-label">
+                  Abandoned Cart — 72 Hours
+                </span>
+                <span class="notif-hint">
+                  Follow-up email at 72 hours
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="settings.notifications()
+                    .abandonedCart72h"
+                  (change)="updateNotification(
+                    'abandonedCart72h', $event)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="notif-row">
+              <div class="notif-info">
+                <span class="notif-label">
+                  Abandoned Cart — 7 Days
+                </span>
+                <span class="notif-hint">
+                  Final reminder email at 7 days
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="settings.notifications()
+                    .abandonedCart7d"
+                  (change)="updateNotification(
+                    'abandonedCart7d', $event)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </div>
         <div class="edit-actions">
@@ -1149,4 +1237,43 @@
     }
   </div>
 
+  <!-- Data Export Card -->
+  <div class="settings-card export-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2 class="card-title">Data Export</h2>
+        <p class="card-subtitle">Export system records as CSV spreadsheet files</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="export-desc">
+        Select a collection below to generate and download a CSV file containing all active (non-deleted) records. Value formats, dates, and text quotes are formatted automatically.
+      </p>
+      <div class="export-actions-grid">
+        <button class="btn-export" (click)="exportToCsv('orders')" [disabled]="exporting() !== null">
+          <span class="icon">📊</span>
+          <span class="label">Export Orders</span>
+          @if (exporting() === 'orders') {
+            <span class="spinner"></span>
+          }
+        </button>
+        <button class="btn-export" (click)="exportToCsv('payments')" [disabled]="exporting() !== null">
+          <span class="icon">💳</span>
+          <span class="label">Export Payments</span>
+          @if (exporting() === 'payments') {
+            <span class="spinner"></span>
+          }
+        </button>
+        <button class="btn-export" (click)="exportToCsv('customers')" [disabled]="exporting() !== null">
+          <span class="icon">👥</span>
+          <span class="label">Export Customers</span>
+          @if (exporting() === 'customers') {
+            <span class="spinner"></span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>
+

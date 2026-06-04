@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import {defineSecret} from "firebase-functions/params";
 import {Resend} from "resend";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -2673,3 +2674,796 @@ function paymentReceiptEmailHtml(
 </body>
 </html>`;
 }
+
+export const checkAbandonedCarts =
+  onSchedule({
+    schedule: "every 60 minutes",
+    region: "northamerica-northeast2",
+    timeoutSeconds: 300,
+    secrets: [resendApiKey, fromEmail],
+  }, async () => {
+    const now = admin.firestore.Timestamp.now();
+    const nowMs = now.toMillis();
+
+    const HOUR = 60 * 60 * 1000;
+    const thresholds = [
+      {
+        key: "abandonedCart24h",
+        field: "abandonedEmailSent24h",
+        ms: 24 * HOUR,
+        subject: (name: string) =>
+          `You left something behind, ${name}`,
+        headline: "Your cart is waiting",
+        subtext: "You left some items in your " +
+        "cart. Complete your order whenever " +
+        "you're ready.",
+      },
+      {
+        key: "abandonedCart72h",
+        field: "abandonedEmailSent72h",
+        ms: 72 * HOUR,
+        subject: (name: string) =>
+          `Still thinking it over, ${name}?`,
+        headline: "Still thinking it over?",
+        subtext: "Your cart is still saved. " +
+        "Place your order when ready and " +
+        "we'll get it to you fast.",
+      },
+      {
+        key: "abandonedCart7d",
+        field: "abandonedEmailSent7d",
+        ms: 7 * 24 * HOUR,
+        subject: (name: string) =>
+          `Your cart is still saved, ${name}`,
+        headline: "Your cart is still here",
+        subtext: "It's been a week since you " +
+        "added items to your cart. " +
+        "Complete your order today.",
+      },
+    ];
+
+    // Load notification settings
+    const settingsDoc = await db
+      .doc("settings/notifications")
+      .get();
+    const notifSettings =
+    settingsDoc.data() || {};
+
+    // Load all carts with items
+    const cartsSnap = await db
+      .collection("portalCarts")
+      .get();
+
+    const resend = new Resend(resendApiKey.value());
+
+    for (const cartDoc of cartsSnap.docs) {
+      const cart = cartDoc.data();
+      const items = cart.items || [];
+
+      // Skip empty carts
+      if (!items.length) continue;
+
+      // Get last updated time
+      const updatedAt = cart.updatedAt?.toMillis ?
+        cart.updatedAt.toMillis() :
+        cart.updatedAt;
+      if (!updatedAt) continue;
+
+      const ageMs = nowMs - updatedAt;
+
+      // Get customer info
+      const customerId = cartDoc.id;
+      const customerSnap = await db
+        .doc(`customers/${customerId}`)
+        .get();
+      if (!customerSnap.exists) continue;
+
+      const customer = customerSnap.data();
+      if (!customer) continue;
+      const email = customer.email;
+      const firstName = customer.ownerName
+        ?.split(" ")[0] || "there";
+
+      if (!email) continue;
+
+      // Get linked user for portal access
+      const userSnap = await db
+        .collection("userProfiles")
+        .where("linkedCustomerId", "==", customerId)
+        .limit(1)
+        .get();
+      if (userSnap.empty) continue;
+
+      for (const threshold of thresholds) {
+      // Check if setting enabled
+        if (!notifSettings[threshold.key]) continue;
+
+        // Check if already sent
+        if (cart[threshold.field]) continue;
+
+        // Check if cart is old enough
+        if (ageMs < threshold.ms) continue;
+
+        // Check if newer threshold was already
+        // handled (don't send 24h after 72h sent)
+        // by checking the age falls in the right
+        // window (within 2x the threshold)
+        if (ageMs > threshold.ms * 3) continue;
+
+        // Build items HTML
+        const itemsHtml = items.map((item: any) =>
+          `<tr>
+          <td style="padding:10px 16px;
+            border-bottom:1px solid #f0f0f0;
+            font-size:14px;color:#1c1c1c;">
+            ${item.productName}
+          </td>
+          <td style="padding:10px 16px;
+            border-bottom:1px solid #f0f0f0;
+            text-align:center;font-size:14px;
+            color:#1c1c1c;">
+            ×${item.quantity}
+          </td>
+          <td style="padding:10px 16px;
+            border-bottom:1px solid #f0f0f0;
+            text-align:right;font-size:14px;
+            font-weight:600;color:#0a2d4a;">
+            $${((item.priceCents *
+              item.quantity) / 100)
+    .toFixed(2)}
+          </td>
+        </tr>`
+        ).join("");
+
+        const subtotalCents = items.reduce(
+          (sum: number, i: any) =>
+            sum + (i.priceCents * i.quantity), 0
+        );
+
+        const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+    content="width=device-width,
+    initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;
+  background:#f4f5f7;
+  font-family:-apple-system,BlinkMacSystemFont,
+  'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;
+    padding:32px 16px;">
+
+    <!-- Header -->
+    <div style="background:#0a2d4a;
+      border-radius:12px 12px 0 0;
+      padding:28px 32px;text-align:center;">
+      <div style="font-size:1.5rem;
+        font-weight:800;color:white;
+        letter-spacing:-0.02em;">
+        Tropx Wholesale
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div style="background:white;
+      padding:32px;
+      border:1px solid #e8eaed;
+      border-top:none;">
+
+      <h2 style="font-size:1.25rem;
+        font-weight:700;color:#0a2d4a;
+        margin:0 0 8px;">
+        ${threshold.headline}
+      </h2>
+      <p style="font-size:0.9375rem;
+        color:#6b7280;margin:0 0 24px;
+        line-height:1.6;">
+        Hi ${firstName}, ${threshold.subtext}
+      </p>
+
+      <!-- Cart items -->
+      <table style="width:100%;
+        border-collapse:collapse;
+        border:1px solid #f0f0f0;
+        border-radius:8px;overflow:hidden;
+        margin-bottom:24px;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:10px 16px;
+              text-align:left;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:#6b7280;
+              border-bottom:
+                1px solid #f0f0f0;">
+              Product
+            </th>
+            <th style="padding:10px 16px;
+              text-align:center;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:#6b7280;
+              border-bottom:
+                1px solid #f0f0f0;">
+              Qty
+            </th>
+            <th style="padding:10px 16px;
+              text-align:right;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:#6b7280;
+              border-bottom:
+                1px solid #f0f0f0;">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>${itemsHtml}</tbody>
+        <tfoot>
+          <tr style="background:#f8fafc;">
+            <td colspan="2"
+              style="padding:12px 16px;
+              font-weight:700;
+              font-size:0.9375rem;
+              color:#0a2d4a;">
+              Subtotal
+            </td>
+            <td style="padding:12px 16px;
+              text-align:right;
+              font-weight:800;
+              font-size:1rem;
+              color:#0a2d4a;">
+              $${(subtotalCents / 100)
+    .toFixed(2)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- CTA -->
+      <div style="text-align:center;
+        margin-bottom:24px;">
+        <a href="https://tropxwholesale.ca/portal/cart"
+          style="display:inline-block;
+          background:#0a2d4a;color:white;
+          text-decoration:none;
+          padding:14px 32px;
+          border-radius:10px;
+          font-weight:700;
+          font-size:1rem;">
+          Complete Your Order →
+        </a>
+      </div>
+
+      <p style="font-size:0.8125rem;
+        color:#9ca3af;text-align:center;
+        margin:0;line-height:1.6;">
+        Questions? Reply to this email or
+        contact us at info@tropxwholesale.ca
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:20px 32px;
+      text-align:center;">
+      <p style="font-size:0.75rem;
+        color:#9ca3af;margin:0;">
+        © Tropx Enterprises Inc. ·
+        Kitchener, Ontario, Canada
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+        // Send email via Resend
+        await resend.emails.send({
+          from: "Tropx Wholesale " +
+          "<noreply@tropxwholesale.ca>",
+          to: email,
+          subject: threshold.subject(firstName),
+          html: emailHtml,
+        });
+
+        // Mark as sent on cart doc
+        await db
+          .doc(`portalCarts/${customerId}`)
+          .update({
+            [threshold.field]: true,
+            [`${threshold.field}SentAt`]:
+            admin.firestore.FieldValue
+              .serverTimestamp(),
+          });
+
+        console.log(
+          "Abandoned cart email sent: " +
+        `${threshold.key} → ${email}`
+        );
+
+        // Only send one threshold per run
+        // per customer to avoid flooding
+        break;
+      }
+    }
+  });
+
+export const onPortalOrderConfirmation =
+  onDocumentCreated(
+    {
+      document: "orders/{orderId}",
+      database: "tropx-dev",
+      region: "northamerica-northeast2",
+      secrets: [resendApiKey, fromEmail],
+    },
+    async (event) => {
+      const order = event.data?.data();
+      if (!order) return;
+
+      // Only fire for portal orders
+      if (order.source !== "customer_portal") {
+        return;
+      }
+
+      // Check notification setting
+      const isEnabled = await isNotificationEnabled(
+        "customerOrderConfirmed"
+      );
+      if (!isEnabled) return;
+
+      const customerEmail = order.customerEmail;
+      if (!customerEmail) return;
+
+      const firstName = order.customerName
+        ?.split(" ")[0] || "there";
+
+      // Build invoice HTML inline in email
+      // (same structure as generateInvoiceHtml
+      // in order-detail.component.ts)
+
+      const formatCurrency = (cents: number) =>
+        "$" + (cents / 100).toFixed(2);
+
+      const formatDate = (ts: any) => {
+        if (!ts) return "—";
+        const d = ts.toDate ?
+          ts.toDate() : new Date(ts);
+        return d.toLocaleDateString("en-CA", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      };
+
+      // Load business settings
+      const settingsDoc = await admin
+        .firestore()
+        .doc("settings/business")
+        .get();
+      const business = settingsDoc.data() || {};
+
+      const invoiceSettingsDoc = await admin
+        .firestore()
+        .doc("settings/invoice")
+        .get();
+      const invoiceSettings =
+        invoiceSettingsDoc.data() || {};
+
+      const companyName =
+        business.tradingName || "Tropx Wholesale";
+      const etransferEmail =
+        invoiceSettings.etransferEmail ||
+        "tropxenterprises@gmail.com";
+      const paymentTermsDays =
+        invoiceSettings.paymentTermsDays || 30;
+      const hstNumber =
+        business.hstNumber || "793273830 RT 0001";
+      const logoUrl = business.logoUrl || "";
+
+      const dueDate = (() => {
+        if (!order.confirmedAt) return "—";
+        const d = order.confirmedAt.toDate ?
+          order.confirmedAt.toDate() :
+          new Date(order.confirmedAt);
+        const due = new Date(d);
+        due.setDate(
+          due.getDate() + paymentTermsDays
+        );
+        return due.toLocaleDateString("en-CA", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      })();
+
+      const itemRows = (order.items || [])
+        .map((item: any) => `
+          <tr>
+            <td style="padding:10px 12px;
+              border-bottom:1px solid #f0f0f0;
+              font-size:14px;">
+              <div style="font-weight:600;
+                color:#1c1c1c;">
+                ${item.productName}
+              </div>
+              <div style="font-size:12px;
+                color:#8a94a6;
+                font-family:monospace;">
+                ${item.productSku}
+              </div>
+            </td>
+            <td style="padding:10px 12px;
+              border-bottom:1px solid #f0f0f0;
+              text-align:center;font-size:14px;">
+              ${item.quantity}
+            </td>
+            <td style="padding:10px 12px;
+              border-bottom:1px solid #f0f0f0;
+              text-align:right;font-size:14px;">
+              ${formatCurrency(item.unitPriceCents)}
+            </td>
+            <td style="padding:10px 12px;
+              border-bottom:1px solid #f0f0f0;
+              text-align:right;font-size:14px;
+              font-weight:600;color:#0a2d4a;">
+              ${formatCurrency(item.lineTotalCents)}
+            </td>
+          </tr>
+        `).join("");
+
+      const portalOrderUrl =
+        "https://tropxwholesale.ca/portal/orders/" +
+        event.params.orderId;
+
+      const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+    content="width=device-width,
+    initial-scale=1.0">
+  <title>Order Confirmation</title>
+</head>
+<body style="margin:0;padding:0;
+  background:#f4f5f7;
+  font-family:-apple-system,
+  BlinkMacSystemFont,'Segoe UI',
+  Arial,sans-serif;">
+  <div style="max-width:680px;
+    margin:0 auto;padding:32px 16px;">
+
+    <!-- Header -->
+    <div style="background:#0a2d4a;
+      border-radius:12px 12px 0 0;
+      padding:28px 32px;">
+      <div style="display:flex;
+        justify-content:space-between;
+        align-items:center;">
+        <div>
+          ${logoUrl ?
+    `<img src="${logoUrl}"
+              alt="${companyName}"
+              style="height:40px;
+              object-fit:contain;">` :
+    `<div style="font-size:1.5rem;
+              font-weight:800;color:white;">
+              ${companyName}
+            </div>`
+}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.75rem;
+            color:rgba(255,255,255,0.6);
+            text-transform:uppercase;
+            letter-spacing:0.08em;">
+            Order Confirmation
+          </div>
+          <div style="font-size:1.25rem;
+            font-weight:800;color:white;
+            font-family:monospace;">
+            ${order.orderNumber}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation banner -->
+    <div style="background:#1a7c4a;
+      padding:16px 32px;
+      display:flex;align-items:center;
+      gap:12px;">
+      <div style="width:28px;height:28px;
+        border-radius:50%;
+        background:rgba(255,255,255,0.2);
+        display:flex;align-items:center;
+        justify-content:center;
+        flex-shrink:0;">
+        <span style="color:white;
+          font-size:16px;">✓</span>
+      </div>
+      <div>
+        <div style="font-weight:700;
+          color:white;font-size:0.9375rem;">
+          Order Confirmed!
+        </div>
+        <div style="font-size:0.8125rem;
+          color:rgba(255,255,255,0.8);">
+          Hi ${firstName}, your order has been
+          received and is being processed.
+        </div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div style="background:white;
+      padding:32px;
+      border:1px solid #e8eaed;
+      border-top:none;">
+
+      <!-- Order meta -->
+      <div style="display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:24px;margin-bottom:28px;">
+        <div>
+          <div style="font-size:0.7rem;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:0.1em;
+            color:#8a94a6;margin-bottom:4px;">
+            Order Date
+          </div>
+          <div style="font-size:0.9rem;
+            font-weight:600;color:#1c1c1c;">
+            ${formatDate(order.confirmedAt)}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:0.1em;
+            color:#8a94a6;margin-bottom:4px;">
+            Payment Due
+          </div>
+          <div style="font-size:0.9rem;
+            font-weight:600;color:#1c1c1c;">
+            ${dueDate}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:0.1em;
+            color:#8a94a6;margin-bottom:4px;">
+            Delivery Method
+          </div>
+          <div style="font-size:0.9rem;
+            font-weight:600;color:#1c1c1c;">
+            ${order.deliveryType === "pickup" ?
+    "📦 Pickup" : "🚚 Delivery"}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:0.1em;
+            color:#8a94a6;margin-bottom:4px;">
+            HST Number
+          </div>
+          <div style="font-size:0.9rem;
+            font-weight:600;color:#1c1c1c;">
+            ${hstNumber}
+          </div>
+        </div>
+      </div>
+
+      <!-- Items table -->
+      <table style="width:100%;
+        border-collapse:collapse;
+        margin-bottom:0;">
+        <thead>
+          <tr style="background:#0a2d4a;">
+            <th style="padding:10px 12px;
+              text-align:left;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:white;">
+              Product
+            </th>
+            <th style="padding:10px 12px;
+              text-align:center;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:white;">
+              Qty
+            </th>
+            <th style="padding:10px 12px;
+              text-align:right;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:white;">
+              Unit Price
+            </th>
+            <th style="padding:10px 12px;
+              text-align:right;font-size:12px;
+              font-weight:700;
+              text-transform:uppercase;
+              letter-spacing:0.05em;
+              color:white;">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+
+      <!-- Totals -->
+      <div style="border:1px solid #f0f0f0;
+        border-top:none;
+        margin-bottom:24px;">
+        <div style="display:flex;
+          justify-content:space-between;
+          padding:8px 12px;font-size:14px;
+          color:#444;
+          border-bottom:1px solid #f0f0f0;">
+          <span>Subtotal</span>
+          <span>
+            ${formatCurrency(order.subtotalCents)}
+          </span>
+        </div>
+        ${order.discountCents > 0 ? `
+          <div style="display:flex;
+            justify-content:space-between;
+            padding:8px 12px;font-size:14px;
+            color:#e7222e;
+            border-bottom:1px solid #f0f0f0;">
+            <span>Discount</span>
+            <span>
+              -${formatCurrency(
+    order.discountCents
+  )}
+            </span>
+          </div>
+        ` : ""}
+        <div style="display:flex;
+          justify-content:space-between;
+          padding:8px 12px;font-size:14px;
+          color:#444;
+          border-bottom:1px solid #f0f0f0;">
+          <span>HST (${order.taxRatePercent}%)</span>
+          <span>
+            ${formatCurrency(order.taxCents)}
+          </span>
+        </div>
+        <div style="display:flex;
+          justify-content:space-between;
+          padding:14px 12px;
+          background:#0a2d4a;
+          font-size:1rem;font-weight:700;
+          color:white;">
+          <span>Total</span>
+          <span>
+            ${formatCurrency(order.totalCents)}
+          </span>
+        </div>
+      </div>
+
+      <!-- Payment instructions -->
+      <div style="background:#f0f7ff;
+        border-left:4px solid #16588e;
+        border-radius:0 8px 8px 0;
+        padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:0.75rem;
+          font-weight:700;
+          text-transform:uppercase;
+          letter-spacing:0.08em;
+          color:#16588e;margin-bottom:8px;">
+          Payment Instructions
+        </div>
+        <div style="font-size:0.875rem;
+          color:#0a2d4a;margin-bottom:4px;">
+          💳 E-Transfer to:
+          <strong>${etransferEmail}</strong>
+        </div>
+        <div style="font-size:0.875rem;
+          color:#0a2d4a;margin-bottom:8px;">
+          💵 Cash on delivery accepted
+        </div>
+        <div style="font-size:0.75rem;
+          color:#6b7280;">
+          Please reference order number
+          <strong>${order.orderNumber}</strong>
+          in your payment.
+          Payment due within
+          ${paymentTermsDays} days.
+        </div>
+      </div>
+
+      ${order.customerNotes ? `
+        <div style="background:#f8fafc;
+          border-radius:8px;padding:16px;
+          margin-bottom:24px;">
+          <div style="font-size:0.7rem;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:0.1em;
+            color:#8a94a6;margin-bottom:8px;">
+            Your Notes
+          </div>
+          <div style="font-size:0.875rem;
+            color:#444;">
+            ${order.customerNotes}
+          </div>
+        </div>
+      ` : ""}
+
+      <!-- View order CTA -->
+      <div style="text-align:center;">
+        <a href="${portalOrderUrl}"
+          style="display:inline-block;
+          background:#0a2d4a;color:white;
+          text-decoration:none;
+          padding:14px 32px;
+          border-radius:10px;
+          font-weight:700;font-size:1rem;">
+          View Order Details →
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:20px 32px;
+      text-align:center;
+      border:1px solid #e8eaed;
+      border-top:none;
+      background:#f8fafc;
+      border-radius:0 0 12px 12px;">
+      <p style="font-size:0.75rem;
+        color:#9ca3af;margin:0 0 4px;">
+        © Tropx Enterprises Inc. ·
+        Kitchener, Ontario, Canada
+      </p>
+      <p style="font-size:0.75rem;
+        color:#9ca3af;margin:0;">
+        <a href="https://tropxwholesale.ca"
+          style="color:#16588e;
+          text-decoration:none;">
+          tropxwholesale.ca
+        </a>
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+      const resend = new Resend(resendApiKey.value());
+
+      await resend.emails.send({
+        from: `${companyName} ` +
+          "<noreply@tropxwholesale.ca>",
+        to: customerEmail,
+        subject:
+          `Order Confirmed — ${order.orderNumber}`,
+        html: emailHtml,
+      });
+
+      console.log(
+        "Portal order confirmation sent: " +
+        `${order.orderNumber} → ${customerEmail}`
+      );
+    }
+  );

@@ -64,6 +64,85 @@ export class AdminCustomersComponent {
     };
   });
 
+  // Export State
+  showExportModal = signal(false);
+  exportIncludeSuspended = signal(true);
+
+  exportPreviewCount = computed(() => {
+    let list = [...this.filteredCustomers()];
+    if (!this.exportIncludeSuspended()) {
+      list = list.filter(
+        c => c.status !== 'suspended'
+      );
+    }
+    return list.length;
+  });
+
+  exportCustomers() {
+    let list = [...this.filteredCustomers()];
+
+    if (!this.exportIncludeSuspended()) {
+      list = list.filter(
+        c => c.status !== 'suspended'
+      );
+    }
+
+    const headers = [
+      'Customer ID', 'Business Name', 'Owner Name', 'Email',
+      'Phone', 'City', 'Province', 'Service Area', 'Total Ordered', 'Total Owing', 'Status'
+    ];
+
+    const rows = list.map(c => [
+      c.id,
+      c.businessName,
+      c.ownerName,
+      c.email,
+      c.phone,
+      c.address?.city || '',
+      c.address?.province || '',
+      this.getServiceAreaName(c),
+      this.formatCurrency(c.totalOrderedCents || 0),
+      this.formatCurrency(c.totalOwingCents || 0),
+      c.status
+    ]);
+
+    const csvContent = this.generateCsvContent(headers, rows);
+    this.downloadCsv(`customers_export_${Date.now()}.csv`, csvContent);
+    this.showExportModal.set(false);
+  }
+
+  private generateCsvContent(headers: string[], rows: any[][]): string {
+    const csvRows = [
+      headers.map(h => this.escapeCsv(h)).join(','),
+      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
+    ];
+    return csvRows.join('\r\n');
+  }
+
+  private escapeCsv(val: any): string {
+    if (val === null || val === undefined) return '';
+    let str = String(val);
+    str = str.replace(/"/g, '""');
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str}"`;
+    }
+    return str;
+  }
+
+  private downloadCsv(filename: string, csvContent: string) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
   constructor() {
     this.loadData();
   }

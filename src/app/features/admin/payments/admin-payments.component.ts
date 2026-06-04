@@ -177,6 +177,135 @@ export class AdminPaymentsComponent {
     return list.sort((a, b) => (b.receivedDate || '').localeCompare(a.receivedDate || ''));
   });
 
+  // Export State
+  showExportModal = signal(false);
+  exportFromDate = signal('');
+  exportToDate = signal('');
+
+  exportPreviewCount = computed(() => {
+    let list = [...this.filteredPayments()];
+
+    if (this.exportFromDate()) {
+      const from = new Date(
+        this.exportFromDate() + 'T00:00:00'
+      );
+      list = list.filter((p: any) => {
+        const d = new Date(
+          p.receivedDate + 'T00:00:00'
+        );
+        return d >= from;
+      });
+    }
+    if (this.exportToDate()) {
+      const to = new Date(
+        this.exportToDate() + 'T23:59:59'
+      );
+      list = list.filter((p: any) => {
+        const d = new Date(
+          p.receivedDate + 'T00:00:00'
+        );
+        return d <= to;
+      });
+    }
+    return list.length;
+  });
+
+  exportPayments() {
+    let list = [...this.filteredPayments()];
+
+    if (this.exportFromDate()) {
+      const from = new Date(
+        this.exportFromDate() + 'T00:00:00'
+      );
+      list = list.filter((p: any) => {
+        const d = new Date(
+          p.receivedDate + 'T00:00:00'
+        );
+        return d >= from;
+      });
+    }
+    if (this.exportToDate()) {
+      const to = new Date(
+        this.exportToDate() + 'T23:59:59'
+      );
+      list = list.filter((p: any) => {
+        const d = new Date(
+          p.receivedDate + 'T00:00:00'
+        );
+        return d <= to;
+      });
+    }
+
+    const headers = [
+      'Payment ID', 'Payment Number', 'Order Number', 'Customer Name',
+      'Method', 'Reference Number', 'Amount', 'Date Received', 'Recorded At', 'Voided', 'Void Reason'
+    ];
+
+    const rows = list.map(p => [
+      p.id,
+      p.paymentNumber,
+      p.orderNumber,
+      p.customerName,
+      p.method,
+      p.referenceNumber || '',
+      this.formatCurrency(p.amountCents),
+      p.receivedDate,
+      this.formatDate(p.recordedAt),
+      p.isDeleted ? 'Yes' : 'No',
+      p.voidReason || ''
+    ]);
+
+    const csvContent = this.generateCsvContent(headers, rows);
+    this.downloadCsv(`payments_export_${Date.now()}.csv`, csvContent);
+    this.showExportModal.set(false);
+  }
+
+  private generateCsvContent(headers: string[], rows: any[][]): string {
+    const csvRows = [
+      headers.map(h => this.escapeCsv(h)).join(','),
+      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
+    ];
+    return csvRows.join('\r\n');
+  }
+
+  private escapeCsv(val: any): string {
+    if (val === null || val === undefined) return '';
+    let str = String(val);
+    str = str.replace(/"/g, '""');
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str}"`;
+    }
+    return str;
+  }
+
+  private formatDate(ts: any): string {
+    if (!ts) return '';
+    let date: Date;
+    if (ts.toDate) {
+      date = ts.toDate();
+    } else if (ts.seconds) {
+      date = new Date(ts.seconds * 1000);
+    } else {
+      date = new Date(ts);
+    }
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().replace('T', ' ').substring(0, 19);
+  }
+
+  private downloadCsv(filename: string, csvContent: string) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
   formatCurrency(cents: number): string {
     return centsToDisplay(cents);
   }

@@ -37,6 +37,9 @@
     <option value="suspended">Suspended</option>
     <option value="rejected">Rejected</option>
   </select>
+  <button class="btn-export-trigger" (click)="showExportModal.set(true)">
+    <span>📥</span> Export CSV
+  </button>
 </div>
 
 @if (isLoading()) {
@@ -132,4 +135,60 @@
       </div>
     </div>
   }
+}
+
+@if (showExportModal()) {
+  <div class="modal-backdrop" (click)="showExportModal.set(false)"></div>
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>Export Customers</h3>
+      <button class="btn-close" (click)="showExportModal.set(false)">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="export-info-block">
+        <div class="export-count-row">
+          <span class="export-count-num">
+            {{ exportPreviewCount() }}
+          </span>
+          <span class="export-count-label">
+            customers will be exported
+          </span>
+        </div>
+        <div class="export-active-filters">
+          <span class="eaf-label">
+            Based on current filters:
+          </span>
+          <div class="eaf-tags">
+            @if (statusFilter() !== 'all') {
+              <span class="eaf-tag">
+                Status: {{ statusFilter() }}
+              </span>
+            }
+            @if (searchQuery()) {
+              <span class="eaf-tag">
+                Search: "{{ searchQuery() }}"
+              </span>
+            }
+            @if (statusFilter() === 'all' &&
+                 !searchQuery()) {
+              <span class="eaf-tag eaf-tag-all">
+                All customers
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="export-form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [ngModel]="exportIncludeSuspended()" (ngModelChange)="exportIncludeSuspended.set($event)">
+          <span>Include suspended customers</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="showExportModal.set(false)">Cancel</button>
+      <button class="btn-primary" (click)="exportCustomers()" [disabled]="exportPreviewCount() === 0">Export CSV</button>
+    </div>
+  </div>
 }

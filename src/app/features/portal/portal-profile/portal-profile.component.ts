@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { PortalService } from '../../../core/services/portal.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -11,7 +11,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 @Component({
   selector: 'app-portal-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './portal-profile.component.html',
   styleUrl: './portal-profile.component.scss'
 })

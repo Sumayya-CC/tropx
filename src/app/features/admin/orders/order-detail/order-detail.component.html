@@ -24,7 +24,37 @@
         <div class="detail-section">
           <div class="order-header-card">
             <div class="header-info">
-              <span class="order-number">{{ order()?.orderNumber }}</span>
+              <div class="order-number-row">
+                <span class="order-number">
+                  {{ order()?.orderNumber }}
+                </span>
+                @if (order()?.source === 'customer_portal') {
+                  <span class="order-source-badge portal">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="12" height="12"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="7" height="7"/>
+                      <rect x="14" y="3" width="7" height="7"/>
+                      <rect x="14" y="14" width="7" height="7"/>
+                      <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    Customer Portal Order
+                  </span>
+                } @else {
+                  <span class="order-source-badge admin">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                      width="12" height="12"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8
+                        a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Admin Created Order
+                  </span>
+                }
+              </div>
               <span class="created-at">
                 Placed on {{ order()?.createdAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}
                 by {{ order()?.createdBy?.firstName }} {{ order()?.createdBy?.lastName }}
@@ -63,6 +93,20 @@
             <div class="info-item">
               <label>Delivery Method</label>
               <span class="capitalize">{{ order()?.deliveryType }}</span>
+            </div>
+            <div class="info-item">
+              <label>Order Source</label>
+              <span>
+                @if (order()?.source === 'customer_portal') {
+                  <span class="source-tag portal-tag">
+                    Customer placed online
+                  </span>
+                } @else {
+                  <span class="source-tag admin-tag">
+                    Created by staff
+                  </span>
+                }
+              </span>
             </div>
           </div>
         </div>

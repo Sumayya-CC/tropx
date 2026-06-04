@@ -576,4 +576,51 @@
     font-weight: 600;
     &:hover { text-decoration: underline; }
   }
+
+  .order-number-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .order-source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    &.portal {
+      background: rgba(22,88,142,0.08);
+      color: var(--navy);
+      border: 1px solid rgba(22,88,142,0.15);
+    }
+
+    &.admin {
+      background: rgba(201,149,42,0.08);
+      color: #92400e;
+      border: 1px solid rgba(201,149,42,0.2);
+    }
+  }
+
+  .source-tag {
+    display: inline-flex;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .portal-tag {
+    background: rgba(22,88,142,0.08);
+    color: var(--navy);
+  }
+
+  .admin-tag {
+    background: rgba(201,149,42,0.08);
+    color: #92400e;
+  }
 }
