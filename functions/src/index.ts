@@ -5,8 +5,23 @@ import {Resend} from "resend";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 
 admin.initializeApp();
+
+// Database name resolves based on which
+// Firebase project this is deployed to.
+// GCLOUD_PROJECT is automatically set by
+// Cloud Functions at runtime — no manual
+// config needed per environment.
+const PROJECT_ID = process.env.GCLOUD_PROJECT || "";
+const DATABASE_ID = PROJECT_ID === "tropx-wholesale-prod" ?
+  "tropx-prod" : "tropx-dev";
+
 const db = admin.firestore();
-db.settings({databaseId: "tropx-dev"});
+db.settings({databaseId: DATABASE_ID});
+
+console.log(
+  "Cloud Functions initialized — project: " +
+  `${PROJECT_ID}, database: ${DATABASE_ID}`
+);
 
 async function getAdminEmail(): Promise<string> {
   try {
@@ -44,7 +59,7 @@ const fromEmail = defineSecret("FROM_EMAIL");
 export const onAccessRequestApproved = onDocumentCreated(
   {
     document: "accessRequestApprovals/{approvalId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -131,7 +146,7 @@ export const onAccessRequestApproved = onDocumentCreated(
 export const onCustomerDeleted = onDocumentUpdated(
   {
     document: "customers/{customerId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [],
   },
@@ -168,7 +183,7 @@ export const onCustomerDeleted = onDocumentUpdated(
 export const sendPasswordResetEmail = onDocumentCreated(
   {
     document: "passwordResetRequests/{requestId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -218,7 +233,7 @@ export const sendPasswordResetEmail = onDocumentCreated(
 export const onContactInquiry = onDocumentCreated(
   {
     document: "contactInquiries/{inquiryId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -255,7 +270,7 @@ export const onContactInquiry = onDocumentCreated(
 export const onEmployeeInvitation = onDocumentCreated(
   {
     document: "employeeInvitations/{id}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -335,7 +350,7 @@ export const onEmployeeInvitation = onDocumentCreated(
 export const onAuthAction = onDocumentCreated(
   {
     document: "authActions/{id}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [],
   },
@@ -365,7 +380,7 @@ export const onAuthAction = onDocumentCreated(
 export const onInvoiceRequest = onDocumentCreated(
   {
     document: "invoiceRequests/{id}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -419,7 +434,7 @@ export const onInvoiceRequest = onDocumentCreated(
 export const onOrderNotification = onDocumentCreated(
   {
     document: "orders/{orderId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -505,7 +520,7 @@ export const onOrderNotification = onDocumentCreated(
 export const onAccessRequestNotification = onDocumentCreated(
   {
     document: "accessRequests/{requestId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -562,7 +577,7 @@ export const onAccessRequestNotification = onDocumentCreated(
 export const onReturnNotification = onDocumentCreated(
   {
     document: "returns/{returnId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -655,7 +670,7 @@ export const onReturnNotification = onDocumentCreated(
 export const onLowStockAlert = onDocumentCreated(
   {
     document: "stockAdjustments/{adjustmentId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -749,7 +764,7 @@ export const onLowStockAlert = onDocumentCreated(
 export const onOrderStatusChanged = onDocumentUpdated(
   {
     document: "orders/{orderId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -905,7 +920,7 @@ export const onOrderStatusChanged = onDocumentUpdated(
 export const onReturnStatusChanged = onDocumentUpdated(
   {
     document: "returns/{returnId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -1019,7 +1034,7 @@ export const onReturnStatusChanged = onDocumentUpdated(
 export const onPaymentReceipt = onDocumentCreated(
   {
     document: "payments/{paymentId}",
-    database: "tropx-dev",
+    database: DATABASE_ID,
     region: "northamerica-northeast2",
     secrets: [resendApiKey, fromEmail],
   },
@@ -2678,7 +2693,7 @@ function paymentReceiptEmailHtml(
 export const checkAbandonedCarts =
   onSchedule({
     schedule: "every 60 minutes",
-    region: "northamerica-northeast2",
+    region: "northamerica-northeast1",
     timeoutSeconds: 300,
     secrets: [resendApiKey, fromEmail],
   }, async () => {
@@ -2965,8 +2980,7 @@ export const checkAbandonedCarts =
 
         // Send email via Resend
         await resend.emails.send({
-          from: "Tropx Wholesale " +
-          "<noreply@tropxwholesale.ca>",
+          from: `Tropx Wholesale <${fromEmail.value()}>`,
           to: email,
           subject: threshold.subject(firstName),
           html: emailHtml,
@@ -2998,7 +3012,7 @@ export const onPortalOrderConfirmation =
   onDocumentCreated(
     {
       document: "orders/{orderId}",
-      database: "tropx-dev",
+      database: DATABASE_ID,
       region: "northamerica-northeast2",
       secrets: [resendApiKey, fromEmail],
     },
@@ -3453,8 +3467,7 @@ export const onPortalOrderConfirmation =
       const resend = new Resend(resendApiKey.value());
 
       await resend.emails.send({
-        from: `${companyName} ` +
-          "<noreply@tropxwholesale.ca>",
+        from: `${companyName} <${fromEmail.value()}>`,
         to: customerEmail,
         subject:
           `Order Confirmed — ${order.orderNumber}`,

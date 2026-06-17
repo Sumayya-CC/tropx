@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "tropx-wholesale-dev"
+    "default": "tropx-wholesale-dev",
+    "dev": "tropx-wholesale-dev",
+    "prod": "tropx-wholesale-prod"
   }
 }

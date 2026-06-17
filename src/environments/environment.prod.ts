@@ -2,14 +2,14 @@ export const environment = {
   production: true,
   useEmulator: false,
   firebase: {
-    projectId: 'tropx-wholesale-dev',
-    appId: '1:542964163707:web:7a62a125d3ea344329eede',
-    storageBucket: 'tropx-wholesale-dev.firebasestorage.app',
-    apiKey: 'AIzaSyDxMpydGo1LzShOH8hr7Tg8sKEpE5o4wac',
-    authDomain: 'tropx-wholesale-dev.firebaseapp.com',
-    messagingSenderId: '542964163707'
+    projectId: 'tropx-wholesale-prod',
+    appId: '1:735499758886:web:ff7e3dbbdf5668a0b265e7',
+    storageBucket: 'tropx-wholesale-prod.firebasestorage.app',
+    apiKey: 'AIzaSyD78ERYinKWMK61WRQ4OPoTRezuRLNPiWM',
+    authDomain: 'tropx-wholesale-prod.firebaseapp.com',
+    messagingSenderId: '735499758886'
   },
-  databaseName: 'tropx-dev',
+  databaseName: 'tropx-prod',
   emulator: {
     host: 'localhost',
     ports: {
