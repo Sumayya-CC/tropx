@@ -14,6 +14,8 @@ import { Return } from '../../../../core/models/return.model';
 import { where, orderBy, limit, serverTimestamp } from '@angular/fire/firestore';
 import { toSignal } from '@angular/core/rxjs-interop';
 
+import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+
 interface ServiceArea {
   id: string;
   name: string;
@@ -24,7 +26,7 @@ interface ServiceArea {
 @Component({
   selector: 'app-customer-detail',
   standalone: true,
-  imports: [RouterLink, StatusBadgeComponent, LoadingSpinnerComponent, DatePipe],
+  imports: [RouterLink, StatusBadgeComponent, LoadingSpinnerComponent, DatePipe, FullNamePipe, OwnerFullNamePipe],
   templateUrl: './customer-detail.component.html',
   styleUrl: './customer-detail.component.scss'
 })

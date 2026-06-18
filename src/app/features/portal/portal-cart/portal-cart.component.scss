@@ -613,3 +613,77 @@
   margin: 0;
   line-height: 1.5;
 }
+
+.closure-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  color: var(--red);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.min-order-banner {
+  background: #fffaf0;
+  border: 1px solid #fbd38d;
+  border-radius: 12px;
+  padding: 0.875rem 1.125rem;
+  color: #dd6b20;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
+.backorder-notice {
+  font-size: 0.8125rem;
+  color: #dd6b20;
+  font-weight: 600;
+  margin-top: 0.25rem;
+  background: #fffaf0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.pickup-address-display {
+  margin-top: 0.875rem;
+  padding: 0.875rem;
+  background: var(--cream);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+
+  strong {
+    color: var(--navy-deep);
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--charcoal);
+    line-height: 1.4;
+  }
+}
+
+.delivery-estimate {
+  font-size: 0.8125rem;
+  color: var(--navy);
+  font-weight: 600;
+  margin: 0.5rem 0 0;
+}
+
+.payment-method-line {
+  font-size: 0.8125rem;
+  color: var(--charcoal);
+}

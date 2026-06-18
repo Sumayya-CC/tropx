@@ -22,6 +22,8 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 
 type DatePreset = 'today' | 'week' | 'month' | 'days30' | 'months3' | 'months6' | 'year' | 'custom';
 
+import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
@@ -30,7 +32,8 @@ type DatePreset = 'today' | 'week' | 'month' | 'days30' | 'months3' | 'months6' 
     FormsModule,
     RouterModule,
     StatusBadgeComponent,
-    LoadingSpinnerComponent
+    LoadingSpinnerComponent,
+    OwnerFullNamePipe
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'

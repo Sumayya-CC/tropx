@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -23,6 +23,17 @@ export class PortalCartComponent {
   notes = signal('');
   isPlacingOrder = signal(false);
 
+  constructor() {
+    effect(() => {
+      const opts = this.deliveryOptionsAvailable();
+      if (opts === 'pickup_only') {
+        this.deliveryType.set('pickup');
+      } else if (opts === 'delivery_only') {
+        this.deliveryType.set('delivery');
+      }
+    }, { allowSignalWrites: true });
+  }
+
   taxRatePercent = computed(() =>
     this.settingsService.ordering().defaultTaxRatePercent || 13
   );
@@ -37,6 +48,102 @@ export class PortalCartComponent {
   totalCents = computed(() =>
     this.portal.cartSubtotalCents() + this.taxCents()
   );
+
+  orderingSettings = computed(() =>
+    this.settingsService.ordering()
+  );
+
+  closureActive = computed(() =>
+    this.orderingSettings().closureActive
+  );
+
+  deliveryOptionsAvailable = computed(() =>
+    this.orderingSettings().deliveryOptions
+  );
+
+  selectedDeliveryType = this.deliveryType;
+
+  minimumOrderMet = computed(() => {
+    const settings = this.orderingSettings();
+    if (!settings.minimumOrderEnabled) return true;
+
+    const items = this.portal.cartItems();
+    const minVal = settings.minimumOrderValue ?? 0;
+
+    if (settings.minimumOrderScope === 'cart') {
+      if (settings.minimumOrderType === 'quantity') {
+        const totalQty = items.reduce(
+          (sum, i) => sum + i.quantity, 0
+        );
+        return totalQty >= minVal;
+      } else {
+        const totalCents = items.reduce(
+          (sum, i) =>
+            sum + (i.priceCents * i.quantity), 0
+        );
+        return totalCents >= minVal;
+      }
+    } else {
+      // per_product — every line item must meet
+      // the minimum individually
+      return items.every(i => {
+        if (settings.minimumOrderType === 'quantity') {
+          return i.quantity >= minVal;
+        } else {
+          return (i.priceCents * i.quantity) >= minVal;
+        }
+      });
+    }
+  });
+
+  minimumOrderMessage = computed(() => {
+    const settings = this.orderingSettings();
+    if (!settings.minimumOrderEnabled) return '';
+    if (this.minimumOrderMet()) return '';
+
+    const minVal = settings.minimumOrderValue ?? 0;
+    const value = settings.minimumOrderType ===
+      'quantity' ? minVal :
+      (minVal / 100).toFixed(2);
+
+    if (settings.minimumOrderScope === 'cart') {
+      return settings.minimumOrderType === 'quantity'
+        ? `Minimum order is ${value} units total.`
+        : `Minimum order is $${value}.`;
+    } else {
+      return settings.minimumOrderType === 'quantity'
+        ? `Each product requires a minimum of ${value} units.`
+        : `Each product requires a minimum order of $${value}.`;
+    }
+  });
+
+  isBackordered(item: any): boolean {
+    return item.quantity > (item.stock ?? 0);
+  }
+
+  hasAnyBackorderedItems = computed(() => {
+    const settings = this.orderingSettings();
+    if (!settings.allowBackorder) return false;
+    return this.portal.cartItems().some(i =>
+      this.isBackordered(i)
+    );
+  });
+
+  canPlaceOrder = computed(() => {
+    if (this.portal.cartItems().length === 0) return false;
+    if (this.closureActive()) return false;
+    if (!this.minimumOrderMet()) return false;
+
+    const settings = this.orderingSettings();
+    if (!settings.allowBackorder) {
+      // Hard block if any item exceeds stock
+      const hasOverstock = this.portal.cartItems().some(
+        i => i.quantity > (i.stock ?? 0)
+      );
+      if (hasOverstock) return false;
+    }
+    return true;
+  });
 
   async placeOrder() {
     if (this.portal.cartItems().length === 0) return;

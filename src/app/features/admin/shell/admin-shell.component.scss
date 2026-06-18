@@ -1023,3 +1023,30 @@
   &:hover { color: var(--navy-deep); }
 }
 
+.closure-banner {
+  background-color: var(--red);
+  color: white;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: relative;
+  z-index: 20;
+
+  a {
+    color: white;
+    text-decoration: underline;
+    font-weight: 700;
+    margin-left: 0.25rem;
+    
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+

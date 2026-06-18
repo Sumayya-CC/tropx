@@ -105,19 +105,28 @@ const PROVINCES = [
               </div>
 
               <!-- Row 2 -->
-              <div class="form-row">
+              <div class="form-row three-cols">
                 <div class="form-group">
-                  <label for="ownerName">Owner / Contact Name</label>
+                  <label for="ownerFirstName">First Name</label>
                   <input 
-                    id="ownerName" 
+                    id="ownerFirstName" 
                     type="text" 
-                    formControlName="ownerName" 
-                    placeholder="Full name"
-                    [class.error]="isInvalid('ownerName')"
+                    formControlName="ownerFirstName" 
+                    placeholder="First name"
+                    [class.error]="isInvalid('ownerFirstName')"
                   />
-                  @if (isInvalid('ownerName')) {
-                    <span class="error-text">Contact name is required</span>
+                  @if (isInvalid('ownerFirstName')) {
+                    <span class="error-text">First name is required</span>
                   }
+                </div>
+                <div class="form-group">
+                  <label for="ownerLastName">Last Name</label>
+                  <input 
+                    id="ownerLastName" 
+                    type="text" 
+                    formControlName="ownerLastName" 
+                    placeholder="Last name"
+                  />
                 </div>
                 <div class="form-group">
                   <label for="phone">Phone Number</label>
@@ -272,7 +281,8 @@ export class RequestAccessComponent {
   accessForm = this.fb.group({
     businessName: ['', Validators.required],
     businessType: ['', Validators.required],
-    ownerName: ['', Validators.required],
+    ownerFirstName: ['', Validators.required],
+    ownerLastName: [''],
     phone: ['', [Validators.required, Validators.pattern(/\d{10,}/)]],
     email: ['', [Validators.required, Validators.email]],
     street: ['', Validators.required],
@@ -339,7 +349,8 @@ export class RequestAccessComponent {
       const data = {
         businessName: val.businessName,
         businessType: val.businessType,
-        ownerName: val.ownerName,
+        ownerFirstName: (val.ownerFirstName || '').trim(),
+        ownerLastName: (val.ownerLastName || '').trim() || null,
         phone: val.phone,
         email: val.email,
         address: {

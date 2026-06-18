@@ -14,6 +14,8 @@ import { StatusBadgeComponent } from '../../../../shared/components/status-badge
 import { ServiceAreaSelectComponent } from '../../../../shared/components/service-area-select/service-area-select.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 
+import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-review-modal',
   standalone: true,
@@ -23,7 +25,9 @@ import { LoadingSpinnerComponent } from '../../../../shared/components/loading-s
     RouterLink, 
     StatusBadgeComponent, 
     ServiceAreaSelectComponent, 
-    LoadingSpinnerComponent
+    LoadingSpinnerComponent,
+    FullNamePipe,
+    OwnerFullNamePipe
   ],
   templateUrl: './review-modal.component.html',
   styleUrl: './review-modal.component.scss'
@@ -141,7 +145,8 @@ export class ReviewModalComponent implements OnInit {
     try {
       const customerData: any = {
         businessName: this.request.businessName,
-        ownerName: this.request.ownerName,
+        ownerFirstName: this.request.ownerFirstName,
+        ownerLastName: this.request.ownerLastName ?? null,
         email: this.request.email,
         phone: this.request.phone,
         businessType: this.request.businessType || null,
@@ -186,7 +191,8 @@ export class ReviewModalComponent implements OnInit {
 
       await this._firestore.addDocument('accessRequestApprovals', {
         email: this.request.email,
-        ownerName: this.request.ownerName,
+        ownerFirstName: this.request.ownerFirstName,
+        ownerLastName: this.request.ownerLastName ?? null,
         businessName: this.request.businessName,
         requestId: this.request.id,
         customerId: newCustomerId,

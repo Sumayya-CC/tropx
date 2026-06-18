@@ -308,8 +308,7 @@
       <div class="sp-section">
         <div class="sp-label">Recorded By</div>
         <div class="sp-value">
-          {{ selectedPayment()?.recordedBy?.firstName }}
-          {{ selectedPayment()?.recordedBy?.lastName || '' }}
+          {{ selectedPayment()?.recordedBy | fullName }}
         </div>
       </div>
 
@@ -331,8 +330,7 @@
           <div class="sp-value" style="color:var(--red)">{{ selectedPayment()?.voidReason }}</div>
           <div class="sp-label" style="margin-top:0.5rem">Voided By</div>
           <div class="sp-value">
-            {{ selectedPayment()?.deletedBy?.firstName }}
-            {{ selectedPayment()?.deletedBy?.lastName || '' }}
+            {{ selectedPayment()?.deletedBy | fullName }}
           </div>
         </div>
       }

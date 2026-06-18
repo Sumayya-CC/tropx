@@ -7,11 +7,12 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { ReviewModalComponent } from './review-modal/review-modal.component';
 import { where } from '@angular/fire/firestore';
+import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
 
 @Component({
   selector: 'app-admin-access-requests',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageHeaderComponent, StatusBadgeComponent, ReviewModalComponent],
+  imports: [CommonModule, FormsModule, PageHeaderComponent, StatusBadgeComponent, ReviewModalComponent, OwnerFullNamePipe],
   templateUrl: './admin-access-requests.component.html',
   styleUrl: './admin-access-requests.component.scss'
 })
@@ -93,7 +94,8 @@ export class AdminAccessRequestsComponent implements OnInit {
     if (search) {
       filtered = filtered.filter(r => 
         r.businessName.toLowerCase().includes(search) ||
-        r.ownerName.toLowerCase().includes(search) ||
+        r.ownerFirstName.toLowerCase().includes(search) ||
+        (r.ownerLastName || '').toLowerCase().includes(search) ||
         r.email.toLowerCase().includes(search)
       );
     }

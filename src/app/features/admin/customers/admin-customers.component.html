@@ -94,7 +94,7 @@
                     <div class="business-info">
                       <div class="business-name">{{ customer.businessName }}</div>
                       <div class="owner-name">
-                        {{ customer.ownerName }}
+                        {{ customer | ownerFullName }}
                         @if (customer.businessType) {
                           <span class="dot">•</span> {{ customer.businessType === 'Other' && customer.businessTypeCustom ? customer.businessTypeCustom : customer.businessType }}
                         }

@@ -573,3 +573,63 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.radio-pills {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+
+  .radio-pill {
+    position: relative;
+    cursor: pointer;
+
+    input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    span {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: white;
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--charcoal);
+      transition: all 0.2s;
+    }
+
+    input:checked + span {
+      background: var(--navy-deep);
+      border-color: var(--navy-deep);
+      color: white;
+    }
+
+    &:hover span {
+      border-color: var(--navy);
+    }
+  }
+}
+
+.pickup-address-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: var(--cream);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+
+  .addr-row {
+    display: flex;
+    gap: 0.75rem;
+
+    input {
+      flex: 1;
+    }
+  }
+}

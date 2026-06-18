@@ -42,7 +42,8 @@ export class PortalProfileComponent {
 
   // Form fields
   businessName = signal('');
-  ownerName = signal('');
+  ownerFirstName = signal('');
+  ownerLastName = signal('');
   phone = signal('');
   street = signal('');
   city = signal('');
@@ -73,6 +74,12 @@ export class PortalProfileComponent {
     this.portal.customerProfile()?.email || ''
   );
 
+  ownerFullName = computed(() => {
+    return [this.ownerFirstName(), this.ownerLastName()]
+      .filter(Boolean)
+      .join(' ');
+  });
+
   provinceName = computed(() => {
     const code = this.province();
     const prov = this.canadianProvinces.find(p => p.code === code);
@@ -100,7 +107,8 @@ export class PortalProfileComponent {
       const doc = this.portal.customerDoc();
       if (doc && !this.formLoaded()) {
         this.businessName.set(doc.businessName || '');
-        this.ownerName.set(doc.ownerName || '');
+        this.ownerFirstName.set(doc.ownerFirstName || '');
+        this.ownerLastName.set(doc.ownerLastName || '');
         this.phone.set(doc.phone || '');
         this.street.set(doc.address?.street || '');
         this.city.set(doc.address?.city || '');
@@ -138,8 +146,8 @@ export class PortalProfileComponent {
     if (!this.businessName().trim()) {
       errs['businessName'] = 'Business name is required';
     }
-    if (!this.ownerName().trim()) {
-      errs['ownerName'] = 'Owner name is required';
+    if (!this.ownerFirstName().trim()) {
+      errs['ownerFirstName'] = 'First name is required';
     }
     if (!this.street().trim()) {
       errs['street'] = 'Street address is required';
@@ -175,7 +183,8 @@ export class PortalProfileComponent {
         `customers/${customerId}`,
         {
           businessName: this.businessName().trim(),
-          ownerName: this.ownerName().trim(),
+          ownerFirstName: this.ownerFirstName().trim(),
+          ownerLastName: this.ownerLastName().trim() || null,
           phone: this.phone().trim(),
           address: {
             street: this.street().trim(),
@@ -203,7 +212,8 @@ export class PortalProfileComponent {
     const doc = this.portal.customerDoc();
     if (doc) {
       this.businessName.set(doc.businessName || '');
-      this.ownerName.set(doc.ownerName || '');
+      this.ownerFirstName.set(doc.ownerFirstName || '');
+      this.ownerLastName.set(doc.ownerLastName || '');
       this.phone.set(doc.phone || '');
       this.street.set(doc.address?.street || '');
       this.city.set(doc.address?.city || '');

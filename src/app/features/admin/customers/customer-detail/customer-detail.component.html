@@ -14,7 +14,7 @@
       </a>
       <div class="title-group">
         <h1>{{ cust.businessName }}</h1>
-        <p class="subtitle">{{ cust.ownerName }} • {{ $any(cust).businessType || 'Wholesale Buyer' }}</p>
+        <p class="subtitle">{{ cust | ownerFullName }} • {{ $any(cust).businessType || 'Wholesale Buyer' }}</p>
       </div>
     </div>
     
@@ -271,7 +271,7 @@
           <div class="detail-item">
             <span class="label">Created by</span>
             <span class="value">
-              {{ cust.createdBy ? cust.createdBy.firstName + ' ' + cust.createdBy.lastName : '—' }}
+              {{ cust.createdBy | fullName }}
             </span>
           </div>
           <div class="detail-item">

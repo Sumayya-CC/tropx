@@ -52,7 +52,7 @@
             </div>
             <div class="customer-detail">
               <label>Owner / Contact</label>
-              <span>{{ selectedCustomer()?.ownerName }} ({{ selectedCustomer()?.phone }})</span>
+              <span>{{ selectedCustomer() | ownerFullName }} ({{ selectedCustomer()?.phone }})</span>
             </div>
             <div class="customer-detail">
               <label>Location / Area</label>

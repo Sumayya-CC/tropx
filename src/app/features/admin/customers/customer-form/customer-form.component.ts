@@ -76,7 +76,8 @@ export class CustomerFormComponent implements OnInit {
     businessName: ['', [Validators.required]],
     businessType: ['', [Validators.required]],
     businessTypeCustom: [''],
-    ownerName: ['', [Validators.required]],
+    ownerFirstName: ['', [Validators.required]],
+    ownerLastName: [''],
     email: ['', [Validators.required, Validators.email]],
     phone: ['', [Validators.required, Validators.minLength(10)]],
     address: this.fb.group({
@@ -120,7 +121,8 @@ export class CustomerFormComponent implements OnInit {
           businessName: data.businessName,
           businessType: data.businessType || '',
           businessTypeCustom: data.businessTypeCustom || '',
-          ownerName: data.ownerName,
+          ownerFirstName: data.ownerFirstName,
+          ownerLastName: data.ownerLastName || '',
           email: data.email,
           phone: data.phone,
           address: {
@@ -233,7 +235,8 @@ export class CustomerFormComponent implements OnInit {
           businessType: val.businessType,
           businessTypeCustom: val.businessType === 'Other' ? val.businessTypeCustom : null,
           logoUrl: finalLogoUrl,
-          ownerName: val.ownerName,
+          ownerFirstName: val.ownerFirstName,
+          ownerLastName: val.ownerLastName || null,
           email: val.email,
           phone: val.phone,
           address: {
@@ -258,7 +261,8 @@ export class CustomerFormComponent implements OnInit {
           businessName: val.businessName,
           businessType: val.businessType,
           businessTypeCustom: val.businessType === 'Other' ? val.businessTypeCustom : null,
-          ownerName: val.ownerName,
+          ownerFirstName: val.ownerFirstName,
+          ownerLastName: val.ownerLastName || null,
           email: val.email,
           phone: val.phone,
           address: {

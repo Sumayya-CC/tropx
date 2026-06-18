@@ -10,6 +10,8 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
 import { StockAdjustmentModalComponent } from './stock-adjustment-modal/stock-adjustment-modal.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
+import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-stock-adjustments',
   standalone: true,
@@ -19,7 +21,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     LoadingSpinnerComponent, 
     StatusBadgeComponent, 
     StockAdjustmentModalComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    FullNamePipe
   ],
   templateUrl: './admin-stock-adjustments.component.html',
   styleUrl: './admin-stock-adjustments.component.scss'

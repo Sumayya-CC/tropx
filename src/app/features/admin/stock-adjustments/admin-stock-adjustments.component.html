@@ -125,7 +125,7 @@
               <span class="reason-text" [title]="a.notes">{{ a.reason }}</span>
             </td>
             <td>
-              <span class="user-name">{{ a.adjustedBy.firstName }} {{ a.adjustedBy.lastName }}</span>
+              <span class="user-name">{{ a.adjustedBy | fullName }}</span>
             </td>
           </tr>
         }
@@ -154,7 +154,7 @@
             </div>
             <div class="detail-item">
               <label>Adjusted By</label>
-              <span>{{ selectedAdjustment()?.adjustedBy?.firstName }} {{ selectedAdjustment()?.adjustedBy?.lastName }}</span>
+              <span>{{ selectedAdjustment()?.adjustedBy | fullName }}</span>
             </div>
             <div class="detail-item full">
               <label>Product</label>

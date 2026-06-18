@@ -710,6 +710,674 @@
     }
   </div>
 
+  <!-- ── DELIVERY OPTIONS CARD ───────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Delivery Options</h2>
+        <p>Configure delivery methods, pickup addresses, and estimate rules</p>
+      </div>
+      @if (!editingDelivery()) {
+        <button class="btn-edit" (click)="editingDelivery.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+    @if (!editingDelivery()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Delivery Options</div>
+            <div class="view-value">
+              @if (settings.ordering().deliveryOptions === 'delivery_only') { Delivery Only }
+              @else if (settings.ordering().deliveryOptions === 'pickup_only') { Pickup Only }
+              @else { Both (Delivery & Pickup) }
+            </div>
+          </div>
+          @if (settings.ordering().deliveryOptions !== 'delivery_only') {
+            <div class="view-item">
+              <div class="view-label">Pickup Address Mode</div>
+              <div class="view-value">
+                @if (settings.ordering().pickupAddressMode === 'custom') {
+                  Custom: 
+                  {{ settings.ordering().pickupCustomAddress?.street }},
+                  {{ settings.ordering().pickupCustomAddress?.city }},
+                  {{ settings.ordering().pickupCustomAddress?.province }}
+                  {{ settings.ordering().pickupCustomAddress?.postalCode }}
+                } @else {
+                  Same as Business Address
+                }
+              </div>
+            </div>
+          }
+          <div class="view-item">
+            <div class="view-label">Delivery Estimate Text</div>
+            <div class="view-value">
+              {{
+                (settings.ordering().deliveryEstimateText || 'Delivered within {days} business days')
+                  .replace('{days}', (settings.ordering().deliveryEstimateDays ?? 2).toString())
+              }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Estimated Delivery Days</div>
+            <div class="view-value">
+              {{ settings.ordering().deliveryEstimateDays ?? 2 }} days
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <h3>Delivery Methods & Estimates</h3>
+          <div class="form-group">
+            <label>What delivery options can customers choose?</label>
+            <div class="radio-pills">
+              <label class="radio-pill">
+                <input type="radio" name="deliveryOptions"
+                  value="delivery_only"
+                  [checked]="deliveryOptions() === 'delivery_only'"
+                  (change)="deliveryOptions.set('delivery_only')">
+                <span>Delivery Only</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="deliveryOptions"
+                  value="pickup_only"
+                  [checked]="deliveryOptions() === 'pickup_only'"
+                  (change)="deliveryOptions.set('pickup_only')">
+                <span>Pickup Only</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="deliveryOptions"
+                  value="both"
+                  [checked]="deliveryOptions() === 'both'"
+                  [checked]="deliveryOptions() === 'both'"
+                  (change)="deliveryOptions.set('both')">
+                <span>Both</span>
+              </label>
+            </div>
+          </div>
+
+          @if (deliveryOptions() !== 'delivery_only') {
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Pickup Address</label>
+              <div class="radio-pills">
+                <label class="radio-pill">
+                  <input type="radio" name="pickupAddressMode"
+                    value="same_as_business"
+                    [checked]="pickupAddressMode() === 'same_as_business'"
+                    (change)="pickupAddressMode.set('same_as_business')">
+                  <span>Same as Business Address</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="pickupAddressMode"
+                    value="custom"
+                    [checked]="pickupAddressMode() === 'custom'"
+                    (change)="pickupAddressMode.set('custom')">
+                  <span>Custom Address</span>
+                </label>
+              </div>
+
+              @if (pickupAddressMode() === 'custom') {
+                <div class="pickup-address-fields">
+                  <input type="text"
+                    placeholder="Street"
+                    [value]="pickupStreet()"
+                    (input)="pickupStreet.set($any($event.target).value)">
+                  <div class="addr-row">
+                    <input type="text"
+                      placeholder="City"
+                      [value]="pickupCity()"
+                      (input)="pickupCity.set($any($event.target).value)">
+                    <input type="text"
+                      placeholder="Province"
+                      [value]="pickupProvince()"
+                      (input)="pickupProvince.set($any($event.target).value)">
+                    <input type="text"
+                      placeholder="Postal Code"
+                      [value]="pickupPostalCode()"
+                      (input)="pickupPostalCode.set($any($event.target).value)">
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Delivery Estimate Text</label>
+            <input type="text"
+              placeholder="Delivered within {days} business days"
+              [value]="deliveryEstimateText()"
+              (input)="deliveryEstimateText.set($any($event.target).value)">
+            <span class="hint">
+              Use {{ '{days}' }} as a placeholder — it will be replaced with the number below.
+            </span>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Estimated Delivery Days</label>
+            <input type="number" min="0"
+              [value]="deliveryEstimateDays()"
+              (input)="deliveryEstimateDays.set(+$any($event.target).value)">
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelDelivery()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveDelivery()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Delivery Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── PAYMENT METHODS CARD ────────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Payment Methods Shown to Customers</h2>
+        <p>Select which payment options are displayed to customers at checkout</p>
+      </div>
+      @if (!editingPaymentMethods()) {
+        <button class="btn-edit" (click)="editingPaymentMethods.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+    @if (!editingPaymentMethods()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-section">
+          <div class="view-label">Enabled Payment Methods</div>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+            @if (settings.ordering().paymentMethodsShown?.cashOnDelivery ?? true) {
+              <span class="bool-badge yes">Cash on Delivery</span>
+            }
+            @if (settings.ordering().paymentMethodsShown?.eTransfer ?? true) {
+              <span class="bool-badge yes">E-Transfer</span>
+            }
+            @if (settings.ordering().paymentMethodsShown?.cheque ?? false) {
+              <span class="bool-badge yes">Cheque</span>
+            }
+            @if (!(settings.ordering().paymentMethodsShown?.cashOnDelivery ?? true) &&
+                 !(settings.ordering().paymentMethodsShown?.eTransfer ?? true) &&
+                 !(settings.ordering().paymentMethodsShown?.cheque ?? false)) {
+              <span class="bool-badge no">None</span>
+            }
+          </div>
+        </div>
+      </div>
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <h3>Payment Methods</h3>
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Cash on Delivery</span>
+                <span class="toggle-desc">Show cash payment option at checkout</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="paymentCashOnDelivery()"
+                  (change)="paymentCashOnDelivery.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">E-Transfer</span>
+                <span class="toggle-desc">Show Interac e-Transfer payment option at checkout</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="paymentETransfer()"
+                  (change)="paymentETransfer.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Cheque</span>
+                <span class="toggle-desc">Show cheque payment option at checkout</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="paymentCheque()"
+                  (change)="paymentCheque.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelPaymentMethods()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="savePaymentMethods()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Payment Methods }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── CARD 3: STOCK & BACKORDERS ────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Stock Visibility & Backorders</h2>
+        <p>Control stock display and backordering rules for the portal</p>
+      </div>
+      @if (!editingStockBackorder()) {
+        <button class="btn-edit" (click)="editingStockBackorder.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+    @if (!editingStockBackorder()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Low Stock Visibility</div>
+            <div class="view-value">
+              @if (settings.ordering().lowStockVisibility === 'none') { Hidden }
+              @else if (settings.ordering().lowStockVisibility === 'exact') { Exact Count }
+              @else { Vague ("Low Stock") }
+            </div>
+          </div>
+          @if (settings.ordering().lowStockVisibility !== 'none') {
+            <div class="view-item">
+              <div class="view-label">Low Stock Threshold</div>
+              <div class="view-value">
+                {{ settings.ordering().lowStockCustomerThreshold ?? 5 }} units
+              </div>
+            </div>
+          }
+          <div class="view-item">
+            <div class="view-label">Backorders</div>
+            <div class="view-value">
+              @if (settings.ordering().allowBackorder) {
+                Allowed
+                @if (settings.ordering().showBackorderMessage) {
+                  (with checkout warning message)
+                }
+              } @else {
+                Not Allowed (Hard Blocked)
+              }
+            </div>
+          </div>
+          @if (settings.ordering().allowBackorder && settings.ordering().showBackorderMessage) {
+            <div class="view-item">
+              <div class="view-label">Backorder Message</div>
+              <div class="view-value">
+                {{ settings.ordering().backorderMessage }}
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <h3>Stock & Backorder Settings</h3>
+          <div class="form-group">
+            <label>Low Stock Visibility to Customers</label>
+            <div class="radio-pills">
+              <label class="radio-pill">
+                <input type="radio" name="lowStockVisibility"
+                  value="none"
+                  [checked]="lowStockVisibility() === 'none'"
+                  (change)="lowStockVisibility.set('none')">
+                <span>Don't Show</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="lowStockVisibility"
+                  value="vague"
+                  [checked]="lowStockVisibility() === 'vague'"
+                  (change)="lowStockVisibility.set('vague')">
+                <span>Vague ("Low Stock")</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="lowStockVisibility"
+                  value="exact"
+                  [checked]="lowStockVisibility() === 'exact'"
+                  (change)="lowStockVisibility.set('exact')">
+                <span>Exact Count ("3 left")</span>
+              </label>
+            </div>
+          </div>
+
+          @if (lowStockVisibility() !== 'none') {
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Show Low Stock Indicator When Stock Is At Or Below</label>
+              <input type="number" min="0"
+                [value]="lowStockCustomerThreshold()"
+                (input)="lowStockCustomerThreshold.set(+$any($event.target).value)">
+            </div>
+          }
+
+          <div class="toggle-list" style="margin-top: 1.25rem;">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Allow Backorders</span>
+                <span class="toggle-desc">Let customers order more than current stock — you'll fulfill manually</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="allowBackorder()"
+                  (change)="allowBackorder.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            @if (allowBackorder()) {
+              <div class="toggle-item">
+                <div class="toggle-info">
+                  <span class="toggle-title">Show Backorder Message</span>
+                  <span class="toggle-desc">Display custom warning message at checkout when items are backordered</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox"
+                    [checked]="showBackorderMessage()"
+                    (change)="showBackorderMessage.set($any($event.target).checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              @if (showBackorderMessage()) {
+                <div class="form-group" style="margin-top: 0.75rem;">
+                  <label>Backorder Message</label>
+                  <textarea rows="2"
+                    [value]="backorderMessage()"
+                    (input)="backorderMessage.set($any($event.target).value)">
+                  </textarea>
+                </div>
+              }
+            }
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelStockBackorder()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveStockBackorder()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Stock Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── CARD 4: MINIMUM ORDER ──────────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Minimum Order Requirement</h2>
+        <p>Set minimum quantities or amounts required to place an order</p>
+      </div>
+      @if (!editingMinimumOrder()) {
+        <button class="btn-edit" (click)="editingMinimumOrder.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+    @if (!editingMinimumOrder()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Minimum Order Requirement</div>
+            <div class="view-value">
+              @if (settings.ordering().minimumOrderEnabled) {
+                @if (settings.ordering().minimumOrderType === 'quantity') {
+                  Minimum of {{ settings.ordering().minimumOrderValue }} units
+                  {{ settings.ordering().minimumOrderScope === 'cart' ? 'total per order' : 'per product' }}
+                } @else {
+                  Minimum of ${{ ((settings.ordering().minimumOrderValue ?? 0) / 100).toFixed(2) }}
+                  {{ settings.ordering().minimumOrderScope === 'cart' ? 'total per order' : 'per product' }}
+                }
+              } @else {
+                Disabled (No Minimum)
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <h3>Minimum Order Settings</h3>
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Enable Minimum Order</span>
+                <span class="toggle-desc">Enforce restrictions on checkout based on quantity or dollar amount</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="minimumOrderEnabled()"
+                  (change)="minimumOrderEnabled.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          @if (minimumOrderEnabled()) {
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Applies To</label>
+              <div class="radio-pills">
+                <label class="radio-pill">
+                  <input type="radio" name="minScope"
+                    value="cart"
+                    [checked]="minimumOrderScope() === 'cart'"
+                    (change)="minimumOrderScope.set('cart')">
+                  <span>Whole Cart</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="minScope"
+                    value="per_product"
+                    [checked]="minimumOrderScope() === 'per_product'"
+                    (change)="minimumOrderScope.set('per_product')">
+                  <span>Per Product</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Measured By</label>
+              <div class="radio-pills">
+                <label class="radio-pill">
+                  <input type="radio" name="minType"
+                    value="quantity"
+                    [checked]="minimumOrderType() === 'quantity'"
+                    (change)="minimumOrderType.set('quantity')">
+                  <span>Quantity (units)</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="minType"
+                    value="amount"
+                    [checked]="minimumOrderType() === 'amount'"
+                    (change)="minimumOrderType.set('amount')">
+                  <span>Dollar Amount</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>
+                Minimum
+                {{ minimumOrderType() === 'quantity' ? 'Units' : 'Amount ($)' }}
+                {{ minimumOrderScope() === 'cart' ? '(per order)' : '(per product)' }}
+              </label>
+              <div class="input-container" style="position: relative; display: flex; align-items: center;">
+                @if (minimumOrderType() === 'amount') {
+                  <span style="position: absolute; left: 0.75rem; font-weight: 600; color: var(--gray);">$</span>
+                }
+                <input type="number" min="0" [step]="minimumOrderType() === 'amount' ? '0.01' : '1'"
+                  [style.padding-left]="minimumOrderType() === 'amount' ? '1.5rem' : '0.75rem'"
+                  [value]="minimumOrderValue()"
+                  (input)="minimumOrderValue.set(+$any($event.target).value)">
+                @if (minimumOrderType() === 'quantity') {
+                  <span style="margin-left: 0.5rem; font-size: 0.8125rem; font-weight: 600; color: var(--gray);">units</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelMinimumOrder()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveMinimumOrder()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Minimum Order Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── CARD 5: STORE CLOSURE ────────────────────── -->
+  <div class="settings-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Temporary Closure</h2>
+        <p>Temporarily disable online ordering on the portal (e.g. holidays or maintenance)</p>
+      </div>
+      @if (!editingClosure()) {
+        <button class="btn-edit" (click)="editingClosure.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+    @if (!editingClosure()) {
+      <!-- VIEW MODE -->
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Status</div>
+            <div class="view-value">
+              @if (settings.ordering().closureActive) {
+                <span class="bool-badge no" style="background: rgba(231,34,46,0.1); color: var(--red);">Closed</span>
+              } @else {
+                <span class="bool-badge yes">Open</span>
+              }
+            </div>
+          </div>
+          @if (settings.ordering().closureActive) {
+            <div class="view-item">
+              <div class="view-label">Closure Message</div>
+              <div class="view-value">
+                {{ settings.ordering().closureMessage || "We're not accepting new orders right now. Please check back soon." }}
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <!-- EDIT MODE -->
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <h3>Store Closure</h3>
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Closure Active</span>
+                <span class="toggle-desc">When active, customers cannot place new orders on the portal</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="closureActive()"
+                  (change)="closureActive.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            @if (closureActive()) {
+              <div class="form-group" style="margin-top: 1.25rem;">
+                <label>Closure Message</label>
+                <textarea rows="2"
+                  placeholder="We're closed for Canada Day. Orders will resume July 2nd."
+                  [value]="closureMessage()"
+                  (input)="closureMessage.set($any($event.target).value)">
+                </textarea>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelClosure()"
+            [disabled]="isSaving()">
+            Cancel
+          </button>
+          <button class="btn-save-edit"
+            (click)="saveClosure()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Closure Settings }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
   <!-- ── NOTIFICATIONS SETTINGS CARD ───────────────── -->
   <div class="settings-card">
     <div class="card-header">

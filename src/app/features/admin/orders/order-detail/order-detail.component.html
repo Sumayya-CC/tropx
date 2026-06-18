@@ -57,7 +57,7 @@
               </div>
               <span class="created-at">
                 Placed on {{ order()?.createdAt?.toDate() | date:'MMM d, yyyy @ h:mm a' }}
-                by {{ order()?.createdBy?.firstName }} {{ order()?.createdBy?.lastName }}
+                by {{ order()?.createdBy | fullName }}
               </span>
             </div>
             <div class="header-badges">

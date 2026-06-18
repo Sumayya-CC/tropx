@@ -14,11 +14,12 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { where, serverTimestamp, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { SettingsService } from '../../../../core/services/settings.service';
+import { OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
 
 @Component({
   selector: 'app-order-form',
   standalone: true,
-  imports: [CommonModule, SearchableSelectComponent, PageHeaderComponent, LoadingSpinnerComponent, DatePipe, RouterModule],
+  imports: [CommonModule, SearchableSelectComponent, PageHeaderComponent, LoadingSpinnerComponent, DatePipe, RouterModule, OwnerFullNamePipe],
   templateUrl: './order-form.component.html',
   styleUrls: ['./order-form.component.scss']
 })
@@ -241,7 +242,8 @@ export class OrderFormComponent {
       .map(c => ({
         value: c.id,
         label: c.businessName,
-        sublabel: c.ownerName,
+        sublabel: [c.ownerFirstName, c.ownerLastName]
+          .filter(Boolean).join(' '),
         meta: c.phone
       }));
   });

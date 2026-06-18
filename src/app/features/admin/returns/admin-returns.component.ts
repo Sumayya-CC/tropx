@@ -25,6 +25,8 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 
+import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-returns',
   standalone: true,
@@ -34,7 +36,8 @@ import { centsToDisplay } from '../../../shared/utils/currency.utils';
     FormsModule, 
     PageHeaderComponent, 
     LoadingSpinnerComponent, 
-    StatusBadgeComponent
+    StatusBadgeComponent,
+    FullNamePipe
   ],
   templateUrl: './admin-returns.component.html',
   styleUrl: './admin-returns.component.scss'

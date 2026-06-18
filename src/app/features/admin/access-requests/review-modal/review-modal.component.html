@@ -19,7 +19,7 @@
           
           <div class="info-item">
             <span class="label">Owner Name</span>
-            <span class="value">{{ request.ownerName }}</span>
+            <span class="value">{{ request | ownerFullName }}</span>
           </div>
 
           <div class="info-item">
@@ -152,10 +152,9 @@
                 <p class="deleted-date">
                   Deleted on: {{ formatDate(linkedCustomer()?.isDeletedAt) }}
                 </p>
-                @if (linkedCustomer()?.deletedBy?.firstName) {
+                @if (linkedCustomer()?.deletedBy) {
                   <p class="deleted-by">
-                    By: {{ linkedCustomer()?.deletedBy?.firstName }}
-                    {{ linkedCustomer()?.deletedBy?.lastName || '' }}
+                    By: {{ linkedCustomer()?.deletedBy | fullName }}
                   </p>
                 }
               </div>

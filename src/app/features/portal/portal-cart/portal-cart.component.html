@@ -1,5 +1,22 @@
 <div class="portal-cart">
 
+  @if (closureActive()) {
+    <div class="closure-banner">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width="18" height="18"
+        viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>
+        {{ orderingSettings().closureMessage
+          || "We're currently not accepting new orders. Please check back soon." }}
+      </span>
+    </div>
+  }
+
   <!-- HEADER -->
   <div class="page-header">
     <div>
@@ -94,6 +111,11 @@
                     {{ formatCurrency(item.priceCents) }}
                     / unit
                   </span>
+                  @if (isBackordered(item) && orderingSettings().showBackorderMessage) {
+                    <div class="backorder-notice">
+                      {{ orderingSettings().backorderMessage }}
+                    </div>
+                  }
                 </div>
               </div>
 
@@ -192,42 +214,73 @@
               Delivery Method
             </label>
             <div class="delivery-pills">
-              <button class="delivery-pill"
-                [class.active]="
-                  deliveryType() === 'delivery'"
-                (click)="deliveryType.set('delivery')">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                  width="18" height="18"
-                  viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor"
-                  stroke-width="2">
-                  <rect x="1" y="3" width="15"
-                    height="13"/>
-                  <polygon
-                    points="16 8 20 8 23 11 23 16
-                    16 16 16 8"/>
-                  <circle cx="5.5" cy="18.5" r="2.5"/>
-                  <circle cx="18.5" cy="18.5" r="2.5"/>
-                </svg>
-                Delivery
-              </button>
-              <button class="delivery-pill"
-                [class.active]="
-                  deliveryType() === 'pickup'"
-                (click)="deliveryType.set('pickup')">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                  width="18" height="18"
-                  viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor"
-                  stroke-width="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73
-                    l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0
-                    0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2
-                    0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                </svg>
-                Pickup
-              </button>
+              @if (deliveryOptionsAvailable() !== 'pickup_only') {
+                <button class="delivery-pill"
+                  [class.active]="
+                    deliveryType() === 'delivery'"
+                  (click)="deliveryType.set('delivery')">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <rect x="1" y="3" width="15"
+                      height="13"/>
+                    <polygon
+                      points="16 8 20 8 23 11 23 16
+                      16 16 16 8"/>
+                    <circle cx="5.5" cy="18.5" r="2.5"/>
+                    <circle cx="18.5" cy="18.5" r="2.5"/>
+                  </svg>
+                  Delivery
+                </button>
+              }
+              @if (deliveryOptionsAvailable() !== 'delivery_only') {
+                <button class="delivery-pill"
+                  [class.active]="
+                    deliveryType() === 'pickup'"
+                  (click)="deliveryType.set('pickup')">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="18" height="18"
+                    viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73
+                      l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0
+                      0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2
+                      0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  </svg>
+                  Pickup
+                </button>
+              }
             </div>
+
+             @if (deliveryType() === 'delivery') {
+              <p class="delivery-estimate">
+                {{ (orderingSettings().deliveryEstimateText || 'Delivered within {days} business days')
+                  .replace('{days}', (orderingSettings().deliveryEstimateDays ?? 2).toString()) }}
+              </p>
+             }
+
+            @if (deliveryOptionsAvailable() !== 'delivery_only' && selectedDeliveryType() === 'pickup') {
+              <div class="pickup-address-display">
+                <strong>Pickup Address:</strong>
+                @if (orderingSettings().pickupAddressMode === 'custom' && orderingSettings().pickupCustomAddress) {
+                  <p>
+                    {{ orderingSettings().pickupCustomAddress?.street }},
+                    {{ orderingSettings().pickupCustomAddress?.city }},
+                    {{ orderingSettings().pickupCustomAddress?.province }}
+                    {{ orderingSettings().pickupCustomAddress?.postalCode }}
+                  </p>
+                } @else {
+                  <p>
+                    {{ settingsService.business().street }},
+                    {{ settingsService.business().city }},
+                    {{ settingsService.business().province }}
+                  </p>
+                }
+              </div>
+            }
           </div>
 
           <div class="notes-field">
@@ -251,6 +304,11 @@
 
       <!-- RIGHT: Order summary -->
       <div class="order-summary-section">
+        @if (!minimumOrderMet()) {
+          <div class="min-order-banner">
+            {{ minimumOrderMessage() }}
+          </div>
+        }
         <div class="summary-card">
           <div class="summary-header">
             <h3>Order Summary</h3>
@@ -329,7 +387,7 @@
               <div class="pi-title">
                 Payment Information
               </div>
-              @if (settingsService.invoice().etransferEmail) {
+              @if (orderingSettings().paymentMethodsShown?.eTransfer && settingsService.invoice().etransferEmail) {
                 <div class="pi-row">
                   💳 E-Transfer:
                   <strong>
@@ -337,9 +395,14 @@
                   </strong>
                 </div>
               }
-              @if (settingsService.invoice().acceptCash) {
+              @if (orderingSettings().paymentMethodsShown?.cashOnDelivery && settingsService.invoice().acceptCash) {
                 <div class="pi-row">
                   💵 Cash on delivery accepted
+                </div>
+              }
+              @if (orderingSettings().paymentMethodsShown?.cheque) {
+                <div class="payment-method-line">
+                  🧾 Cheque accepted
                 </div>
               }
               <div class="pi-row pi-terms">
@@ -351,8 +414,7 @@
             <!-- Place order button -->
             <button class="btn-place-order"
               (click)="placeOrder()"
-              [disabled]="isPlacingOrder() ||
-                portal.cartItems().length === 0">
+              [disabled]="!canPlaceOrder() || isPlacingOrder()">
               @if (isPlacingOrder()) {
                 <div class="btn-spinner"></div>
                 Placing Order...
@@ -365,7 +427,7 @@
                   <polyline
                     points="20 6 9 17 4 12"/>
                 </svg>
-                Place Order
+                  Place Order
               }
             </button>
 

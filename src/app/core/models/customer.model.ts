@@ -19,7 +19,8 @@ export type CustomerSource = 'access_request' | 'admin_created';
 export interface Customer {
   id: string;
   businessName: string;
-  ownerName: string;
+  ownerFirstName: string;
+  ownerLastName?: string;
   email: string;
   phone: string;
   logoUrl?: string;
@@ -36,6 +37,12 @@ export interface Customer {
   status: CustomerStatus;
   source: CustomerSource;
   linkedUserId?: string;
+
+  // Vendor-neutral external payment processor
+  // customer ID. Stores Stripe cus_xxx today,
+  // or equivalent ID from any payment processor.
+  externalPaymentCustomerId?: string;
+
   linkedRequestId?: string;
   tenantId: number;
   createdAt: Date;

@@ -15,10 +15,12 @@ interface ServiceArea {
   isDeleted: boolean;
 }
 
+import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-customers',
   standalone: true,
-  imports: [FormsModule, RouterLink, StatusBadgeComponent, PageHeaderComponent],
+  imports: [FormsModule, RouterLink, StatusBadgeComponent, PageHeaderComponent, OwnerFullNamePipe],
   templateUrl: './admin-customers.component.html',
   styleUrl: './admin-customers.component.scss'
 })
@@ -41,7 +43,8 @@ export class AdminCustomersComponent {
     if (query) {
       result = result.filter(c => 
         c.businessName.toLowerCase().includes(query) ||
-        c.ownerName.toLowerCase().includes(query) ||
+        c.ownerFirstName.toLowerCase().includes(query) ||
+        (c.ownerLastName || '').toLowerCase().includes(query) ||
         c.email.toLowerCase().includes(query) ||
         c.phone.toLowerCase().includes(query)
       );
@@ -95,7 +98,7 @@ export class AdminCustomersComponent {
     const rows = list.map(c => [
       c.id,
       c.businessName,
-      c.ownerName,
+      [c.ownerFirstName, c.ownerLastName].filter(Boolean).join(' '),
       c.email,
       c.phone,
       c.address?.city || '',

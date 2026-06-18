@@ -88,7 +88,7 @@
               <div class="sub-text">{{ req.businessTypeCustom || req.businessType }}</div>
             </td>
             <td>
-              <div class="main-text">{{ req.ownerName }}</div>
+              <div class="main-text">{{ req | ownerFullName }}</div>
               <div class="sub-text">{{ req.email }}</div>
             </td>
             <td>

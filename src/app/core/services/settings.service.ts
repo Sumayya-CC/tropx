@@ -37,6 +37,34 @@ export interface OrderingSettings {
   paymentPrefix: string;
   returnPrefix: string;
   overdueAfterDays: number;  // default 30
+  defaultTaxRate: number;
+
+  deliveryOptions?: 'delivery_only' | 'pickup_only' | 'both';
+  pickupAddressMode?: 'same_as_business' | 'custom';
+  pickupCustomAddress?: {
+    street: string;
+    city: string;
+    province: string;
+    postalCode: string;
+  } | null;
+  deliveryEstimateDays?: number;
+  deliveryEstimateText?: string;
+  paymentMethodsShown?: {
+    cashOnDelivery: boolean;
+    eTransfer: boolean;
+    cheque: boolean;
+  };
+  lowStockVisibility?: 'none' | 'vague' | 'exact';
+  lowStockCustomerThreshold?: number;
+  allowBackorder?: boolean;
+  showBackorderMessage?: boolean;
+  backorderMessage?: string;
+  minimumOrderEnabled?: boolean;
+  minimumOrderScope?: 'cart' | 'per_product';
+  minimumOrderType?: 'quantity' | 'amount';
+  minimumOrderValue?: number;
+  closureActive?: boolean;
+  closureMessage?: string | null;
 }
 
 export interface NotificationSettings {
@@ -109,6 +137,38 @@ export const DEFAULT_ORDERING: OrderingSettings = {
   paymentPrefix: 'PAY',
   returnPrefix: 'RET',
   overdueAfterDays: 30,
+  defaultTaxRate: 13,
+
+  deliveryOptions: 'both',
+  pickupAddressMode: 'same_as_business',
+  pickupCustomAddress: undefined,
+
+  paymentMethodsShown: {
+    cashOnDelivery: true,
+    eTransfer: true,
+    cheque: false,
+  },
+
+  lowStockVisibility: 'vague',
+  lowStockCustomerThreshold: 5,
+
+  allowBackorder: false,
+  showBackorderMessage: true,
+  backorderMessage: 'This item is currently low '
+    + 'in stock. We may need additional time to '
+    + 'fulfill part of your order.',
+
+  deliveryEstimateDays: 2,
+  deliveryEstimateText: 'Delivered within '
+    + '{days} business days',
+
+  minimumOrderEnabled: false,
+  minimumOrderScope: 'cart',
+  minimumOrderType: 'amount',
+  minimumOrderValue: 0,
+
+  closureActive: false,
+  closureMessage: '',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -155,6 +215,8 @@ export class SettingsService {
     ...DEFAULT_NOTIFICATIONS,
     ...(this._notificationsData() ?? {})
   }));
+
+
 
   async uploadLogo(file: File): Promise<string> {
     const ext = file.name.split('.').pop();

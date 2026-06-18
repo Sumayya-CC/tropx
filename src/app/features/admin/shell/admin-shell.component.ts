@@ -19,10 +19,12 @@ interface NavSection {
   items: NavItem[];
 }
 
+import { FullNamePipe, OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterModule],
+  imports: [RouterOutlet, RouterModule, FullNamePipe, OwnerFullNamePipe],
   template: `
     <div class="admin-layout" [class.collapsed]="isCollapsed()" [class.mobile-open]="isMobileOpen()">
       @if (isMobileOpen()) {
@@ -123,7 +125,7 @@ interface NavSection {
             <div class="avatar">{{ initials() }}</div>
             @if (!isCollapsed()) {
               <div class="user-info">
-                <div class="user-name">{{ userProfile()?.firstName }} {{ userProfile()?.lastName }}</div>
+                <div class="user-name">{{ userProfile() | fullName }}</div>
                 <div class="user-role">{{ userProfile()?.role }}</div>
                 @if (userProfile()?.role === 'sales_rep') {
                   <div class="service-area">Area Assigned</div>
@@ -141,6 +143,12 @@ interface NavSection {
       </aside>
 
       <div class="main-wrapper">
+        @if (closureActive()) {
+          <div class="closure-banner">
+            Store closure is active — customers cannot place orders
+            <a routerLink="/admin/settings">Settings</a>
+          </div>
+        }
         <header class="top-header">
           <div class="header-left">
             <button class="mobile-toggle" (click)="toggleMobile()">
@@ -359,7 +367,7 @@ interface NavSection {
                               <div class="notif-item-main">
                                 <span class="notif-item-title">
                                   {{ req.businessName ||
-                                     req.ownerName }}
+                                     (req | ownerFullName) }}
                                 </span>
                                 <span class="notif-item-sub">
                                   {{ req.email }}
@@ -585,6 +593,7 @@ export class AdminShellComponent implements OnInit {
 
 
   businessSettings = computed(() => this.settingsService.business());
+  closureActive = computed(() => this.settingsService.ordering().closureActive ?? false);
 
   private readonly notificationService = inject(NotificationService);
 

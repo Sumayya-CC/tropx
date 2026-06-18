@@ -167,7 +167,7 @@
               <div class="info-grid-row">
                 <span class="grid-icon">👤</span>
                 <span class="grid-label">Created by</span>
-                <span class="grid-value">{{ product()?.createdBy?.firstName }} {{ product()?.createdBy?.lastName }}</span>
+                <span class="grid-value">{{ product()?.createdBy | fullName }}</span>
               </div>
               <div class="info-grid-row">
                 <span class="grid-icon">🔄</span>

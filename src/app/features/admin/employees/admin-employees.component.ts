@@ -12,6 +12,8 @@ import { where, serverTimestamp } from '@angular/fire/firestore';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
+import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-employees',
   standalone: true,
@@ -20,7 +22,8 @@ import { map } from 'rxjs/operators';
     ReactiveFormsModule,
     PageHeaderComponent,
     StatusBadgeComponent,
-    EmployeeModalComponent
+    EmployeeModalComponent,
+    FullNamePipe
   ],
   templateUrl: './admin-employees.component.html',
   styleUrls: ['./admin-employees.component.scss']

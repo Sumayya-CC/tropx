@@ -18,10 +18,12 @@ import { Return, RETURN_TYPE_LABELS, RETURN_STATUS_LABELS, ReturnType } from '..
 import { CreateReturnModalComponent } from '../../returns/create-return-modal/create-return-modal.component';
 import { SettingsService } from '../../../../core/services/settings.service';
 
+import { FullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-order-detail',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent, LoadingSpinnerComponent, RouterModule, DatePipe, RecordPaymentModalComponent, CreateReturnModalComponent],
+  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent, LoadingSpinnerComponent, RouterModule, DatePipe, RecordPaymentModalComponent, CreateReturnModalComponent, FullNamePipe],
   templateUrl: './order-detail.component.html',
   styleUrls: ['./order-detail.component.scss']
 })

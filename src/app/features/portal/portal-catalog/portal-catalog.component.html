@@ -154,14 +154,14 @@
                 </div>
               }
               <!-- Stock badge overlay -->
-              @if (product.stock <= 0) {
+              @let status = getStockStatus(product);
+              @if (status.class === 'out') {
                 <div class="stock-overlay">
-                  Out of Stock
+                  {{ status.label }}
                 </div>
-              } @else if (product.stock <=
-                (product.lowStockThreshold || 5)) {
+              } @else if (status.class === 'low') {
                 <div class="low-stock-ribbon">
-                  Only {{ product.stock }} left
+                  {{ status.label }}
                 </div>
               }
             </a>

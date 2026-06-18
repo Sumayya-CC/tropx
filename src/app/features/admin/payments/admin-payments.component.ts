@@ -14,10 +14,12 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 
+import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-admin-payments',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, PageHeaderComponent, LoadingSpinnerComponent, DatePipe],
+  imports: [CommonModule, RouterModule, FormsModule, PageHeaderComponent, LoadingSpinnerComponent, DatePipe, FullNamePipe],
   templateUrl: './admin-payments.component.html',
   styleUrl: './admin-payments.component.scss'
 })

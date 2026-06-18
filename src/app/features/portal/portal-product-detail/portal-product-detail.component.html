@@ -35,14 +35,13 @@
           }
 
           <!-- Stock badge -->
-          @if (product().stock <= 0) {
+          @if (stockStatus().class === 'out') {
             <div class="stock-overlay-badge out">
-              Out of Stock
+              {{ stockStatus().label }}
             </div>
-          } @else if (product().stock <=
-            (product().lowStockThreshold || 5)) {
+          } @else if (stockStatus().class === 'low') {
             <div class="stock-overlay-badge low">
-              Only {{ product().stock }} left
+              {{ stockStatus().label }}
             </div>
           }
         </div>

@@ -5,7 +5,8 @@ export type AccessRequestStatus = 'pending' | 'approved' | 'rejected';
 export interface AccessRequest {
   id: string;
   businessName: string;
-  ownerName: string;
+  ownerFirstName: string;
+  ownerLastName?: string;
   email: string;
   phone: string;
   businessType: string;

@@ -7,6 +7,7 @@ import { where } from '@angular/fire/firestore';
 import { PortalService } from '../../../core/services/portal.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-portal-catalog',
@@ -17,6 +18,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 })
 export class PortalCatalogComponent {
   protected readonly portal = inject(PortalService);
+  protected readonly settingsService = inject(SettingsService);
   private readonly firestore = inject(FirestoreService);
   private readonly toast = inject(ToastService);
 
@@ -176,12 +178,19 @@ export class PortalCatalogComponent {
     if (product.stock <= 0) {
       return { label: 'Out of Stock', class: 'out' };
     }
-    if (product.stock <= (product.lowStockThreshold || 5)) {
-      return {
-        label: `Only ${product.stock} left`,
-        class: 'low'
-      };
+
+    const settings = this.settingsService.ordering();
+    const threshold = settings.lowStockCustomerThreshold ?? 5;
+    const isLowStock = product.stock <= threshold;
+
+    if (isLowStock && settings.lowStockVisibility !== 'none') {
+      if (settings.lowStockVisibility === 'vague') {
+        return { label: 'Low Stock', class: 'low' };
+      } else {
+        return { label: `Only ${product.stock} left`, class: 'low' };
+      }
     }
+
     return { label: 'In Stock', class: 'in' };
   }
 

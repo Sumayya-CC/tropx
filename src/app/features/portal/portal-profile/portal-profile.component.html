@@ -58,7 +58,7 @@
                     Owner Name
                   </span>
                   <span class="read-value">
-                    {{ ownerName() || '—' }}
+                    {{ ownerFullName() || '—' }}
                   </span>
                 </div>
                 <div class="read-item">
@@ -100,24 +100,35 @@
                     </span>
                   }
                 </div>
+              </div>
+              <div class="form-row two-col">
                 <div class="form-group"
                   [class.has-error]="
-                    errors()['ownerName']">
+                    errors()['ownerFirstName']">
                   <label>
-                    Owner Name
+                    First Name
                     <span class="required">*</span>
                   </label>
                   <input type="text"
-                    [value]="ownerName()"
-                    (input)="ownerName.set(
+                    [value]="ownerFirstName()"
+                    (input)="ownerFirstName.set(
                       $any($event.target).value);
                       markDirty()"
-                    placeholder="Your full name">
-                  @if (errors()['ownerName']) {
+                    placeholder="First name">
+                  @if (errors()['ownerFirstName']) {
                     <span class="error-msg">
-                      {{ errors()['ownerName'] }}
+                      {{ errors()['ownerFirstName'] }}
                     </span>
                   }
+                </div>
+                <div class="form-group">
+                  <label>Last Name</label>
+                  <input type="text"
+                    [value]="ownerLastName()"
+                    (input)="ownerLastName.set(
+                      $any($event.target).value);
+                      markDirty()"
+                    placeholder="Last name">
                 </div>
               </div>
               <div class="form-row two-col">

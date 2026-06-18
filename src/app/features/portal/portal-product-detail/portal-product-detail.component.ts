@@ -4,6 +4,7 @@ import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { PortalService } from '../../../core/services/portal.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
+import { SettingsService } from '../../../core/services/settings.service';
 import { where } from '@angular/fire/firestore';
 
 @Component({
@@ -15,6 +16,7 @@ import { where } from '@angular/fire/firestore';
 })
 export class PortalProductDetailComponent implements OnInit {
   protected readonly portal = inject(PortalService);
+  protected readonly settingsService = inject(SettingsService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
@@ -55,12 +57,29 @@ export class PortalProductDetailComponent implements OnInit {
     if (p.stock <= 0) {
       return { label: 'Out of Stock', class: 'out' };
     }
-    if (p.stock <= (p.lowStockThreshold || 5)) {
+
+    const settings = this.settingsService.ordering();
+    const threshold = settings.lowStockCustomerThreshold ?? 5;
+    const isLowStock = p.stock <= threshold;
+
+    if (isLowStock && settings.lowStockVisibility !== 'none') {
+      if (settings.lowStockVisibility === 'vague') {
+        return { label: 'Low Stock', class: 'low' };
+      } else {
+        return {
+          label: `Only ${p.stock} units left`,
+          class: 'low'
+        };
+      }
+    }
+
+    if (settings.lowStockVisibility === 'none') {
       return {
-        label: `Only ${p.stock} units left`,
-        class: 'low'
+        label: 'In Stock',
+        class: 'in'
       };
     }
+
     return {
       label: `In Stock (${p.stock} available)`,
       class: 'in'

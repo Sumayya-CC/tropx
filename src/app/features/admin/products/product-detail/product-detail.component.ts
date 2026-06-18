@@ -14,10 +14,12 @@ import { StockAdjustmentModalComponent } from '../../stock-adjustments/stock-adj
 interface Category { id: string; name: string; }
 interface Brand { id: string; name: string; }
 
+import { FullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+
 @Component({
   selector: 'app-product-detail',
   standalone: true,
-  imports: [RouterLink, StatusBadgeComponent, HasPermissionDirective, DatePipe, StockAdjustmentModalComponent],
+  imports: [RouterLink, StatusBadgeComponent, HasPermissionDirective, DatePipe, StockAdjustmentModalComponent, FullNamePipe],
   templateUrl: './product-detail.component.html',
   styleUrl: './product-detail.component.scss'
 })

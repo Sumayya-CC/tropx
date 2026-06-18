@@ -146,7 +146,7 @@
                   {{ getInitials(employee) }}
                 </div>
                 <div class="employee-info">
-                  <span class="name">{{ getFullName(employee) }}</span>
+                  <span class="name">{{ employee | fullName }}</span>
                   <span class="email">{{ employee.email }}</span>
                 </div>
               </div>

@@ -365,7 +365,7 @@
         <div class="sp-section info-box success-box">
           <div class="sp-label">Approval Details</div>
           <div class="sp-value mt-1">
-            Approved by: {{ ret.processedBy?.firstName }} {{ ret.processedBy?.lastName }}<br>
+            Approved by: {{ ret.processedBy | fullName }}<br>
             Date: {{ getFormattedDate(ret.processedAt) }}
           </div>
 
@@ -385,7 +385,7 @@
         <div class="sp-section info-box error-box">
           <div class="sp-label">Rejection Details</div>
           <div class="sp-value mt-1">
-            Rejected by: {{ ret.processedBy?.firstName }} {{ ret.processedBy?.lastName }}<br>
+            Rejected by: {{ ret.processedBy | fullName }}<br>
             Date: {{ getFormattedDate(ret.processedAt) }}<br>
             <p class="rejection-reason-text mt-2">
               <strong>Reason:</strong> {{ ret.rejectionReason }}
