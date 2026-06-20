@@ -47,6 +47,18 @@ export class PortalOrderDetailComponent {
     return o.status === 'confirmed';
   });
 
+  invoiceDownloadEnabled = computed(() =>
+    this.settingsService.invoice()
+      .portalInvoiceDownloadEnabled ?? true
+  );
+
+  invoiceDownloadNote = computed(() =>
+    this.settingsService.invoice()
+      .portalInvoiceDownloadNote ||
+    'Invoice will be sent by email once ' +
+    'your order is delivered.'
+  );
+
   // Return form
   returnItems = signal<{
     productId: string;

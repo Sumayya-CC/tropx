@@ -117,15 +117,20 @@ export class PortalCartComponent {
     }
   });
 
+  getEffectiveOutOfStockBehavior(item: any): 'hide' | 'show_disabled' | 'allow_backorder' {
+    if (item.outOfStockBehaviorOverride != null) {
+      return item.outOfStockBehaviorOverride;
+    }
+    return this.orderingSettings().outOfStockBehavior || 'show_disabled';
+  }
+
   isBackordered(item: any): boolean {
     return item.quantity > (item.stock ?? 0);
   }
 
   hasAnyBackorderedItems = computed(() => {
-    const settings = this.orderingSettings();
-    if (!settings.allowBackorder) return false;
     return this.portal.cartItems().some(i =>
-      this.isBackordered(i)
+      this.isBackordered(i) && this.getEffectiveOutOfStockBehavior(i) === 'allow_backorder'
     );
   });
 
@@ -134,14 +139,12 @@ export class PortalCartComponent {
     if (this.closureActive()) return false;
     if (!this.minimumOrderMet()) return false;
 
-    const settings = this.orderingSettings();
-    if (!settings.allowBackorder) {
-      // Hard block if any item exceeds stock
-      const hasOverstock = this.portal.cartItems().some(
-        i => i.quantity > (i.stock ?? 0)
-      );
-      if (hasOverstock) return false;
-    }
+    // Hard block if any item is backordered but backorder is not allowed for that item
+    const hasInvalidBackorder = this.portal.cartItems().some(i =>
+      this.isBackordered(i) && this.getEffectiveOutOfStockBehavior(i) !== 'allow_backorder'
+    );
+    if (hasInvalidBackorder) return false;
+
     return true;
   });
 

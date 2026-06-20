@@ -97,10 +97,22 @@
         <div class="product-divider"></div>
 
         <!-- Cart section -->
-        @if (product().stock <= 0) {
-          <button class="btn-out-of-stock" disabled>
-            Out of Stock
-          </button>
+        @if (product().stock <= 0 && getEffectiveOutOfStockBehavior(product()) !== 'allow_backorder') {
+          @if (getEffectiveOutOfStockBehavior(product()) === 'show_disabled') {
+            @if (submittedNotifications()[product().id]) {
+              <button class="btn-notify-detail requested" disabled>
+                ✓ Restock Notification Requested
+              </button>
+            } @else {
+              <button class="btn-notify-detail" (click)="requestStockNotification(product())">
+                🔔 Notify Me When Available
+              </button>
+            }
+          } @else {
+            <button class="btn-out-of-stock" disabled>
+              Out of Stock
+            </button>
+          }
         } @else if (isInCart()) {
           <!-- Already in cart — show update controls -->
           <div class="in-cart-section">
@@ -135,7 +147,7 @@
                 </span>
                 <button class="qty-btn"
                   (click)="updateCartQty(cartQty()+1)"
-                  [disabled]="cartQty() >=
+                  [disabled]="getEffectiveOutOfStockBehavior(product()) !== 'allow_backorder' && cartQty() >=
                     product().stock">
                   <svg xmlns="http://www.w3.org/2000/svg"
                     width="18" height="18"
@@ -210,7 +222,7 @@
                 </span>
                 <button class="qty-btn"
                   (click)="incrementQty()"
-                  [disabled]="quantity() >=
+                  [disabled]="getEffectiveOutOfStockBehavior(product()) !== 'allow_backorder' && quantity() >=
                     product().stock">
                   <svg xmlns="http://www.w3.org/2000/svg"
                     width="18" height="18"

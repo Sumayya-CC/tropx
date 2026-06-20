@@ -184,6 +184,28 @@ declare var window: any;
             <input type="number" [(ngModel)]="lowStockThreshold" placeholder="10" min="0">
             <span class="helper-text">Alert when stock falls below this number</span>
           </div>
+          <div class="form-group">
+            <label for="outOfStockBehaviorOverride">
+              Out of Stock Behavior
+            </label>
+            <select id="outOfStockBehaviorOverride" [(ngModel)]="outOfStockBehaviorOverride">
+              <option [ngValue]="null">
+                Inherit Global Default
+              </option>
+              <option value="hide">
+                Hide When Out of Stock
+              </option>
+              <option value="show_disabled">
+                Show as Out of Stock (No Backorder)
+              </option>
+              <option value="allow_backorder">
+                Always Allow Backorder
+              </option>
+            </select>
+            <span class="helper-text">
+              Use this to override the store-wide setting for this specific product — useful for discontinued items you want to always hide, or items you always want to allow backorders for.
+            </span>
+          </div>
         </div>
 
         <!-- Image -->
@@ -286,6 +308,7 @@ export class ProductFormComponent implements OnDestroy {
   stock = signal<number>(0);
   lowStockThreshold = signal<number>(10);
   active = signal(true);
+  outOfStockBehaviorOverride = signal<'hide' | 'show_disabled' | 'allow_backorder' | null>(null);
 
   // Validation state
   skuError = signal(false);
@@ -369,6 +392,7 @@ export class ProductFormComponent implements OnDestroy {
       this.stock.set(product.stock);
       this.lowStockThreshold.set(product.lowStockThreshold);
       this.active.set(product.active);
+      this.outOfStockBehaviorOverride.set(product.outOfStockBehaviorOverride ?? null);
       this.existingImageUrl.set(product.imageUrl || null);
       this.previewImageUrl.set(product.imageUrl || null);
     });
@@ -539,6 +563,7 @@ export class ProductFormComponent implements OnDestroy {
         currencyCode: 'CAD',
         lowStockThreshold: this.lowStockThreshold(),
         active: this.active(),
+        outOfStockBehaviorOverride: this.outOfStockBehaviorOverride(),
         tenantId: 1,
         isDeleted: false,
         updatedAt: serverTimestamp() as any,

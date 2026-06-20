@@ -7,12 +7,14 @@ import { where } from '@angular/fire/firestore';
 import { doc, getDoc, serverTimestamp, Firestore } from '@angular/fire/firestore';
 import { FirestoreService } from './firestore.service';
 import { AuthService } from './auth.service';
+import { SettingsService } from './settings.service';
 
 @Injectable({ providedIn: 'root' })
 export class PortalService {
   private readonly firestoreService = inject(FirestoreService);
   private readonly auth = inject(AuthService);
   private readonly firestore = inject(Firestore);
+  private readonly settingsService = inject(SettingsService);
 
   // Customer identity from auth profile
   customerId = computed(() =>
@@ -190,6 +192,7 @@ export class PortalService {
     quantity: number;
     stock: number;
     imageUrl?: string;
+    outOfStockBehaviorOverride?: 'hide' | 'show_disabled' | 'allow_backorder' | null;
   }[]>([]);
 
   cartCount = computed(() =>
@@ -203,6 +206,13 @@ export class PortalService {
   );
 
   private cartLoaded = signal(false);
+
+  getEffectiveOutOfStockBehavior(product: any): 'hide' | 'show_disabled' | 'allow_backorder' {
+    if (product.outOfStockBehaviorOverride != null) {
+      return product.outOfStockBehaviorOverride;
+    }
+    return this.settingsService.ordering().outOfStockBehavior || 'show_disabled';
+  }
 
   async loadCart() {
     const id = this.customerId();
@@ -240,6 +250,9 @@ export class PortalService {
   }
 
   addToCart(product: any, quantity = 1) {
+    const behavior = this.getEffectiveOutOfStockBehavior(product);
+    const allowBackorder = behavior === 'allow_backorder';
+
     this.cartItems.update(items => {
       const existing = items.find(
         i => i.productId === product.id
@@ -248,10 +261,9 @@ export class PortalService {
         return items.map(i =>
           i.productId === product.id
             ? { ...i,
-                quantity: Math.min(
-                  i.quantity + quantity,
-                  product.stock
-                )
+                quantity: allowBackorder
+                  ? i.quantity + quantity
+                  : Math.min(i.quantity + quantity, product.stock || 0)
               }
             : i
         );
@@ -261,9 +273,12 @@ export class PortalService {
         productName: product.name,
         productSku: product.sku,
         priceCents: product.priceCents,
-        quantity: Math.min(quantity, product.stock),
+        quantity: allowBackorder
+          ? quantity
+          : Math.min(quantity, product.stock || 0),
         stock: product.stock,
         imageUrl: product.imageUrl || null,
+        outOfStockBehaviorOverride: product.outOfStockBehaviorOverride ?? null,
       }];
     });
     this.saveCart();
@@ -282,13 +297,19 @@ export class PortalService {
       return;
     }
     this.cartItems.update(items =>
-      items.map(i =>
-        i.productId === productId
-          ? { ...i,
-              quantity: Math.min(quantity, i.stock)
-            }
-          : i
-      )
+      items.map(i => {
+        if (i.productId === productId) {
+          const behavior = this.getEffectiveOutOfStockBehavior(i);
+          const allowBackorder = behavior === 'allow_backorder';
+          return {
+            ...i,
+            quantity: allowBackorder
+              ? quantity
+              : Math.min(quantity, i.stock || 0)
+          };
+        }
+        return i;
+      })
     );
     this.saveCart();
   }

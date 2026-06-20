@@ -42,9 +42,27 @@ export class PortalCatalogComponent {
   // Quantity inputs per product (for cart stepper)
   qtyInputs = signal<Record<string, number>>({});
 
+  submittedNotifications = signal<Record<string, boolean>>({});
+
+  getEffectiveOutOfStockBehavior(product: any): 'hide' | 'show_disabled' | 'allow_backorder' {
+    if (product.outOfStockBehaviorOverride != null) {
+      return product.outOfStockBehaviorOverride;
+    }
+    return this.settingsService.ordering().outOfStockBehavior || 'show_disabled';
+  }
+
   filteredProducts = computed(() => {
     let list = this.portal.allProducts()
       .filter(p => !p.isDeleted && p.active);
+
+    // Filter out hidden out-of-stock items
+    list = list.filter(p => {
+      if (p.stock <= 0) {
+        const behavior = this.getEffectiveOutOfStockBehavior(p);
+        return behavior !== 'hide';
+      }
+      return true;
+    });
 
     // Search
     const q = this.searchQuery().toLowerCase().trim();
@@ -105,9 +123,12 @@ export class PortalCatalogComponent {
   setQty(productId: string, qty: number) {
     const product = this.filteredProducts()
       .find(p => p.id === productId);
-    const maxStock = product?.stock || 999;
-    const clamped = Math.max(1,
-      Math.min(qty, maxStock));
+    if (!product) return;
+    const behavior = this.getEffectiveOutOfStockBehavior(product);
+    const allowBackorder = behavior === 'allow_backorder';
+    const clamped = allowBackorder
+      ? Math.max(1, qty)
+      : Math.max(1, Math.min(qty, product.stock || 0));
     this.qtyInputs.update(q => ({
       ...q,
       [productId]: clamped
@@ -130,6 +151,8 @@ export class PortalCatalogComponent {
   }
 
   hasQuickQtys(product: any): boolean {
+    const behavior = this.getEffectiveOutOfStockBehavior(product);
+    if (behavior === 'allow_backorder') return true;
     return this.quickQtys.some(q => q <= product.stock);
   }
 
@@ -142,7 +165,8 @@ export class PortalCatalogComponent {
   }
 
   addToCart(product: any) {
-    if (product.stock <= 0) return;
+    const behavior = this.getEffectiveOutOfStockBehavior(product);
+    if (product.stock <= 0 && behavior !== 'allow_backorder') return;
     const qty = this.getQty(product.id);
     this.portal.addToCart(product, qty);
     this.showQtyDropdown.set(null);
@@ -158,8 +182,43 @@ export class PortalCatalogComponent {
 
   increment(product: any) {
     const current = this.getCartQty(product.id);
-    if (current >= product.stock) return;
+    const behavior = this.getEffectiveOutOfStockBehavior(product);
+    const allowBackorder = behavior === 'allow_backorder';
+    if (!allowBackorder && current >= product.stock) return;
     this.portal.updateCartQty(product.id, current + 1);
+  }
+
+  async requestStockNotification(product: any) {
+    const customerId = this.portal.customerId();
+    const profile = this.portal.customerProfile();
+    if (!customerId || !profile) {
+      this.toast.error('You must be logged in to request notification.');
+      return;
+    }
+
+    try {
+      const docData = {
+        customerId,
+        customerName: `${profile.firstName} ${profile.lastName}`.trim() || 'Customer',
+        customerEmail: profile.email,
+        productId: product.id,
+        productName: product.name,
+        productSku: product.sku,
+        createdAt: new Date(),
+        status: 'pending' as const,
+        notifiedAt: null,
+      };
+
+      await this.firestore.addDocument('stockNotificationRequests', docData);
+      this.submittedNotifications.update(prev => ({
+        ...prev,
+        [product.id]: true
+      }));
+      this.toast.success('We will notify you when this item is restocked.');
+    } catch (e) {
+      console.error(e);
+      this.toast.error('Failed to submit notification request.');
+    }
   }
 
   decrement(product: any) {

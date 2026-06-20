@@ -27,6 +27,10 @@ export interface Product {
   imageUrl: string;
   stock: number;
   lowStockThreshold: number;
+  // Overrides the global outOfStockBehavior
+  // setting for this specific product. null/
+  // undefined means inherit the global default.
+  outOfStockBehaviorOverride?: 'hide' | 'show_disabled' | 'allow_backorder' | null;
   // Inactive products hidden from customer catalog but editable by staff
   active: boolean;
   tenantId: number;

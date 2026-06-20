@@ -26,6 +26,15 @@ export class PortalProductDetailComponent implements OnInit {
   product = signal<any>(null);
   isLoading = signal(true);
   quantity = signal(1);
+  submittedNotifications = signal<Record<string, boolean>>({});
+
+  getEffectiveOutOfStockBehavior(product: any): 'hide' | 'show_disabled' | 'allow_backorder' {
+    if (!product) return 'show_disabled';
+    if (product.outOfStockBehaviorOverride != null) {
+      return product.outOfStockBehaviorOverride;
+    }
+    return this.settingsService.ordering().outOfStockBehavior || 'show_disabled';
+  }
 
   // Related products (same category)
   relatedProducts = computed(() => {
@@ -35,7 +44,7 @@ export class PortalProductDetailComponent implements OnInit {
       .filter((x: any) =>
         x.id !== p.id &&
         x.categoryId === p.categoryId &&
-        x.stock > 0
+        (x.stock > 0 || this.getEffectiveOutOfStockBehavior(x) !== 'hide')
       )
       .slice(0, 4);
   });
@@ -54,7 +63,12 @@ export class PortalProductDetailComponent implements OnInit {
   stockStatus = computed(() => {
     const p = this.product();
     if (!p) return { label: '', class: '' };
+    
+    const behavior = this.getEffectiveOutOfStockBehavior(p);
     if (p.stock <= 0) {
+      if (behavior === 'allow_backorder') {
+        return { label: 'Backorder Available', class: 'in' };
+      }
       return { label: 'Out of Stock', class: 'out' };
     }
 
@@ -128,8 +142,8 @@ export class PortalProductDetailComponent implements OnInit {
   incrementQty() {
     const p = this.product();
     if (!p) return;
-    const max = p.stock;
-    if (this.quantity() < max) {
+    const behavior = this.getEffectiveOutOfStockBehavior(p);
+    if (behavior === 'allow_backorder' || this.quantity() < p.stock) {
       this.quantity.update(q => q + 1);
     }
   }
@@ -142,11 +156,46 @@ export class PortalProductDetailComponent implements OnInit {
 
   addToCart() {
     const p = this.product();
-    if (!p || p.stock <= 0) return;
+    if (!p) return;
+    const behavior = this.getEffectiveOutOfStockBehavior(p);
+    if (p.stock <= 0 && behavior !== 'allow_backorder') return;
     this.portal.addToCart(p, this.quantity());
     this.toast.success(
       `${p.name} added to cart`
     );
+  }
+
+  async requestStockNotification(product: any) {
+    const customerId = this.portal.customerId();
+    const profile = this.portal.customerProfile();
+    if (!customerId || !profile) {
+      this.toast.error('You must be logged in to request notification.');
+      return;
+    }
+
+    try {
+      const docData = {
+        customerId,
+        customerName: `${profile.firstName} ${profile.lastName}`.trim() || 'Customer',
+        customerEmail: profile.email,
+        productId: product.id,
+        productName: product.name,
+        productSku: product.sku,
+        createdAt: new Date(),
+        status: 'pending' as const,
+        notifiedAt: null,
+      };
+
+      await this.firestoreService.addDocument('stockNotificationRequests', docData);
+      this.submittedNotifications.update(prev => ({
+        ...prev,
+        [product.id]: true
+      }));
+      this.toast.success('We will notify you when this item is restocked.');
+    } catch (e) {
+      console.error(e);
+      this.toast.error('Failed to submit notification request.');
+    }
   }
 
   updateCartQty(qty: number) {

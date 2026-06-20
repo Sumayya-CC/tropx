@@ -20,6 +20,13 @@ export interface BusinessSettings {
   hstNumber: string;
   currencyCode: string;
   timezone: string;
+  socialMedia?: {
+    facebook?: string;
+    instagram?: string;
+    whatsapp?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
 }
 
 export interface InvoiceSettings {
@@ -28,6 +35,8 @@ export interface InvoiceSettings {
   etransferEmail: string;
   acceptCash: boolean;
   showHstBreakdown: boolean;
+  portalInvoiceDownloadEnabled?: boolean;
+  portalInvoiceDownloadNote?: string;
 }
 
 export interface OrderingSettings {
@@ -56,7 +65,7 @@ export interface OrderingSettings {
   };
   lowStockVisibility?: 'none' | 'vague' | 'exact';
   lowStockCustomerThreshold?: number;
-  allowBackorder?: boolean;
+  outOfStockBehavior?: 'hide' | 'show_disabled' | 'allow_backorder';
   showBackorderMessage?: boolean;
   backorderMessage?: string;
   minimumOrderEnabled?: boolean;
@@ -120,6 +129,13 @@ export const DEFAULT_BUSINESS: BusinessSettings = {
   hstNumber: '793273830 RT 0001',
   currencyCode: 'CAD',
   timezone: 'America/Toronto',
+  socialMedia: {
+    facebook: '',
+    instagram: '',
+    whatsapp: '',
+    youtube: '',
+    tiktok: '',
+  },
 };
 
 export const DEFAULT_INVOICE: InvoiceSettings = {
@@ -128,6 +144,10 @@ export const DEFAULT_INVOICE: InvoiceSettings = {
   etransferEmail: 'tropxenterprises@gmail.com',
   acceptCash: true,
   showHstBreakdown: true,
+  portalInvoiceDownloadEnabled: true,
+  portalInvoiceDownloadNote: 'Invoice will be '
+    + 'sent by email once your order is '
+    + 'delivered.',
  };
 
 export const DEFAULT_ORDERING: OrderingSettings = {
@@ -152,11 +172,11 @@ export const DEFAULT_ORDERING: OrderingSettings = {
   lowStockVisibility: 'vague',
   lowStockCustomerThreshold: 5,
 
-  allowBackorder: false,
+  outOfStockBehavior: 'show_disabled',
   showBackorderMessage: true,
-  backorderMessage: 'This item is currently low '
-    + 'in stock. We may need additional time to '
-    + 'fulfill part of your order.',
+  backorderMessage: 'This item is currently '
+    + 'low in stock. We may need additional '
+    + 'time to fulfill part of your order.',
 
   deliveryEstimateDays: 2,
   deliveryEstimateText: 'Delivered within '

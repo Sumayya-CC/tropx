@@ -136,7 +136,7 @@
         @for (product of filteredProducts();
           track product.id) {
           <div class="product-card"
-            [class.out-of-stock]="product.stock <= 0">
+            [class.out-of-stock]="product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder'">
 
             <!-- Image -->
             <a [routerLink]="[
@@ -190,10 +190,22 @@
 
             <!-- Cart controls -->
             <div class="product-actions">
-              @if (product.stock <= 0) {
-                <button class="btn-add-cart disabled" disabled>
-                  Out of Stock
-                </button>
+              @if (product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder') {
+                @if (getEffectiveOutOfStockBehavior(product) === 'show_disabled') {
+                  @if (submittedNotifications()[product.id]) {
+                    <button class="btn-notify requested" disabled>
+                      ✓ Requested
+                    </button>
+                  } @else {
+                    <button class="btn-notify" (click)="requestStockNotification(product)">
+                      Notify Me
+                    </button>
+                  }
+                } @else {
+                  <button class="btn-add-cart disabled" disabled>
+                    Out of Stock
+                  </button>
+                }
               } @else if (isInCart(product.id)) {
                 <!-- Already in cart — compact stepper -->
                 <div class="in-cart-compact">
@@ -214,7 +226,7 @@
                     </span>
                     <button class="cart-qty-btn"
                       (click)="increment(product)"
-                      [disabled]="getCartQty(product.id)
+                      [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getCartQty(product.id)
                         >= product.stock">+</button>
                   </div>
                 </div>
@@ -238,7 +250,7 @@
                           class="qp-input"
                           [value]="getQty(product.id)"
                           min="1"
-                          [max]="product.stock"
+                          [max]="getEffectiveOutOfStockBehavior(product) === 'allow_backorder' ? 999999 : product.stock"
                           (input)="setQty(product.id,
                             +$any($event.target).value)"
                           (focus)="hasQuickQtys(product)
@@ -250,7 +262,7 @@
                         <button class="qp-btn"
                           (click)="setQty(product.id,
                             getQty(product.id) + 1)"
-                          [disabled]="getQty(product.id)
+                          [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getQty(product.id)
                             >= product.stock">
                           +
                         </button>
@@ -264,7 +276,7 @@
                             Quick select
                           </div>
                           @for (q of quickQtys; track q) {
-                            @if (q <= product.stock) {
+                            @if (q <= product.stock || getEffectiveOutOfStockBehavior(product) === 'allow_backorder') {
                               <button class="qty-dropdown-item"
                                 [class.active]="
                                   getQty(product.id) === q"
@@ -326,7 +338,7 @@
         @for (product of filteredProducts();
           track product.id) {
           <div class="list-product-row"
-            [class.out-of-stock]="product.stock <= 0">
+            [class.out-of-stock]="product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder'">
 
             <!-- Image thumbnail -->
             <a [routerLink]="[
@@ -383,11 +395,23 @@
 
             <!-- Cart action -->
             <div class="list-actions">
-              @if (product.stock <= 0) {
-                <button class="btn-add-cart-sm disabled"
-                  disabled>
-                  Out of Stock
-                </button>
+              @if (product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder') {
+                @if (getEffectiveOutOfStockBehavior(product) === 'show_disabled') {
+                  @if (submittedNotifications()[product.id]) {
+                    <button class="btn-notify-sm requested" disabled>
+                      ✓ Requested
+                    </button>
+                  } @else {
+                    <button class="btn-notify-sm" (click)="requestStockNotification(product)">
+                      Notify Me
+                    </button>
+                  }
+                } @else {
+                  <button class="btn-add-cart-sm disabled"
+                    disabled>
+                    Out of Stock
+                  </button>
+                }
               } @else if (isInCart(product.id)) {
                 <div class="qty-stepper sm">
                   <button class="qty-btn minus"
@@ -397,7 +421,7 @@
                   </span>
                   <button class="qty-btn plus"
                     (click)="increment(product)"
-                    [disabled]="getCartQty(product.id)
+                    [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getCartQty(product.id)
                       >= product.stock">+</button>
                 </div>
               } @else {
@@ -408,7 +432,7 @@
                     class="qty-input-sm"
                     [value]="getQty(product.id)"
                     min="1"
-                    [max]="product.stock"
+                    [max]="getEffectiveOutOfStockBehavior(product) === 'allow_backorder' ? 999999 : product.stock"
                     (input)="setQty(product.id,
                       +$any($event.target).value)"
                     (focus)="$any($event.target).select()">

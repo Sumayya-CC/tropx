@@ -552,3 +552,27 @@
   font-weight: 800;
   color: var(--navy-deep);
 }
+
+.btn-notify-detail {
+  width: 100%;
+  padding: 1rem;
+  background: transparent;
+  color: var(--navy-deep);
+  border: 2px solid var(--navy-deep);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(.requested) {
+    background: rgba(22, 88, 142, 0.05);
+  }
+
+  &.requested {
+    background: rgba(26, 124, 74, 0.1);
+    color: var(--green);
+    border-color: var(--green);
+    cursor: not-allowed;
+  }
+}

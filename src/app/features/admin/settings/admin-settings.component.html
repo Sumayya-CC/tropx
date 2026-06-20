@@ -14,7 +14,7 @@
       </div>
       @if (!editingBusiness()) {
         <button class="btn-edit" 
-          (click)="editingBusiness.set(true)">
+          (click)="editBusiness()">
           <svg xmlns="http://www.w3.org/2000/svg" 
             width="16" height="16" viewBox="0 0 24 24" 
             fill="none" stroke="currentColor" 
@@ -115,6 +115,23 @@
             </div>
           </div>
         </div>
+
+        @if (populatedSocialLinks().length > 0) {
+          <div class="view-divider"></div>
+          <div class="read-item social-read-item">
+            <span class="read-label">Social Media</span>
+            <div class="social-read-links">
+              @for (link of populatedSocialLinks();
+                track link.key) {
+                <a [href]="link.url" target="_blank"
+                  rel="noopener noreferrer"
+                  class="social-read-link">
+                  {{ link.label }}
+                </a>
+              }
+            </div>
+          </div>
+        }
       </div>
 
     } @else {
@@ -325,6 +342,59 @@
           </div>
         </div>
 
+        <div class="edit-section">
+          <h3>Social Media Links</h3>
+          <div class="form-group">
+            <div class="social-fields-list">
+              @for (key of activeSocialFields(); track key) {
+                <div class="social-field-row">
+                  <div class="social-field-input">
+                    <input type="url"
+                      [placeholder]="getSocialPlaceholder(key)"
+                      [value]="getSocialValue(key)"
+                      (input)="setSocialValue(key,
+                        $any($event.target).value)">
+                    <span class="social-field-platform-label">
+                      {{ getSocialLabel(key) }}
+                    </span>
+                  </div>
+                  <button type="button" class="btn-remove-field"
+                    (click)="removeSocialPlatform(key)"
+                    aria-label="Remove">
+                    ✕
+                  </button>
+                </div>
+              }
+            </div>
+
+            @if (availableSocialPlatforms().length > 0) {
+              <div class="add-platform-row">
+                <select #platformPicker
+                  class="platform-picker"
+                  (change)="addSocialPlatform(
+                    platformPicker.value);
+                    platformPicker.value = ''">
+                  <option value="" disabled selected>
+                    + Add a platform
+                  </option>
+                  @for (p of availableSocialPlatforms();
+                    track p.key) {
+                    <option [value]="p.key">
+                      {{ p.label }}
+                    </option>
+                  }
+                </select>
+              </div>
+            }
+
+            @if (activeSocialFields().length === 0) {
+              <p class="empty-hint">
+                No social media links added yet.
+              </p>
+            }
+          </div>
+        </div>
+
         <div class="edit-actions">
           <button class="btn-cancel-edit"
             (click)="cancelBusiness()"
@@ -341,6 +411,8 @@
       </div>
     }
   </div>
+
+
 
   <!-- ── INVOICE SETTINGS CARD ────────────────────── -->
   <div class="settings-card">
@@ -412,6 +484,16 @@
                   ? 'Shown on invoice' 
                   : 'Hidden' }}
               </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Portal Invoice Download</div>
+            <div class="view-value">
+              @if (settings.invoice().portalInvoiceDownloadEnabled ?? true) {
+                Enabled
+              } @else {
+                Disabled — note shown to customers
+              }
             </div>
           </div>
         </div>
@@ -491,7 +573,40 @@
                 <span class="slider"></span>
               </label>
             </div>
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">
+                  Allow Invoice Download on Portal
+                </span>
+                <span class="toggle-desc">
+                  When off, customers see your custom note instead of a download button
+                </span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="portalInvoiceDownloadEnabled()"
+                  (change)="portalInvoiceDownloadEnabled.set(
+                    $any($event.target).checked
+                  )">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
+
+          @if (!portalInvoiceDownloadEnabled()) {
+            <div class="form-group full-width" style="margin-top: 1rem;">
+              <label>Note Shown to Customers</label>
+              <textarea rows="2"
+                [value]="portalInvoiceDownloadNote()"
+                (input)="portalInvoiceDownloadNote.set(
+                  $any($event.target).value
+                )"
+                placeholder="Invoice will be sent by email once your order is delivered."></textarea>
+              <span class="hint">
+                This message appears where the Download Invoice button would normally be.
+              </span>
+            </div>
+          }
         </div>
 
         <div class="edit-actions">
@@ -990,11 +1105,11 @@
     }
   </div>
 
-  <!-- ── CARD 3: STOCK & BACKORDERS ────────────────── -->
+  <!-- ── CARD 3: OUT OF STOCK HANDLING ────────────────── -->
   <div class="settings-card">
     <div class="card-header">
       <div class="card-title-group">
-        <h2>Stock Visibility & Backorders</h2>
+        <h2>Out of Stock Handling</h2>
         <p>Control stock display and backordering rules for the portal</p>
       </div>
       @if (!editingStockBackorder()) {
@@ -1028,19 +1143,22 @@
             </div>
           }
           <div class="view-item">
-            <div class="view-label">Backorders</div>
+            <div class="view-label">Out of Stock Behavior</div>
             <div class="view-value">
-              @if (settings.ordering().allowBackorder) {
-                Allowed
-                @if (settings.ordering().showBackorderMessage) {
-                  (with checkout warning message)
+              @switch (settings.ordering().outOfStockBehavior || 'show_disabled') {
+                @case ('hide') {
+                  <span>Out-of-stock items are hidden</span>
                 }
-              } @else {
-                Not Allowed (Hard Blocked)
+                @case ('show_disabled') {
+                  <span>Out-of-stock items shown, ordering disabled</span>
+                }
+                @case ('allow_backorder') {
+                  <span>Backorders allowed</span>
+                }
               }
             </div>
           </div>
-          @if (settings.ordering().allowBackorder && settings.ordering().showBackorderMessage) {
+          @if ((settings.ordering().outOfStockBehavior === 'allow_backorder') && settings.ordering().showBackorderMessage) {
             <div class="view-item">
               <div class="view-label">Backorder Message</div>
               <div class="view-value">
@@ -1091,21 +1209,38 @@
             </div>
           }
 
-          <div class="toggle-list" style="margin-top: 1.25rem;">
-            <div class="toggle-item">
-              <div class="toggle-info">
-                <span class="toggle-title">Allow Backorders</span>
-                <span class="toggle-desc">Let customers order more than current stock — you'll fulfill manually</span>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox"
-                  [checked]="allowBackorder()"
-                  (change)="allowBackorder.set($any($event.target).checked)">
-                <span class="toggle-slider"></span>
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>When a Product Is Out of Stock</label>
+            <div class="radio-pills">
+              <label class="radio-pill">
+                <input type="radio" name="oosBehavior"
+                  value="hide"
+                  [checked]="outOfStockBehavior() === 'hide'"
+                  (change)="outOfStockBehavior.set('hide')">
+                <span>Hide From Catalog</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="oosBehavior"
+                  value="show_disabled"
+                  [checked]="outOfStockBehavior() === 'show_disabled'"
+                  (change)="outOfStockBehavior.set('show_disabled')">
+                <span>Show, Disable Ordering</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="oosBehavior"
+                  value="allow_backorder"
+                  [checked]="outOfStockBehavior() === 'allow_backorder'"
+                  (change)="outOfStockBehavior.set('allow_backorder')">
+                <span>Allow Backorder</span>
               </label>
             </div>
+            <span class="field-hint">
+              This is the default for all products. Individual products can override this from their product edit page.
+            </span>
+          </div>
 
-            @if (allowBackorder()) {
+          @if (outOfStockBehavior() === 'allow_backorder') {
+            <div class="toggle-list" style="margin-top: 1.25rem;">
               <div class="toggle-item">
                 <div class="toggle-info">
                   <span class="toggle-title">Show Backorder Message</span>
@@ -1128,8 +1263,8 @@
                   </textarea>
                 </div>
               }
-            }
-          </div>
+            </div>
+          }
         </div>
 
         <div class="edit-actions">

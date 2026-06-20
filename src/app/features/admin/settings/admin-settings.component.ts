@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -36,6 +36,40 @@ export class AdminSettingsComponent {
   editingNotifications = signal(false);
   isSaving = signal(false);
 
+  protected readonly SOCIAL_PLATFORMS = [
+    { key: 'facebook', label: 'Facebook',
+      placeholder: 'https://facebook.com/...' },
+    { key: 'instagram', label: 'Instagram',
+      placeholder: 'https://instagram.com/...' },
+    { key: 'whatsapp', label: 'WhatsApp',
+      placeholder: 'https://wa.me/15191234567' },
+    { key: 'youtube', label: 'YouTube',
+      placeholder: 'https://youtube.com/@...' },
+    { key: 'tiktok', label: 'TikTok',
+      placeholder: 'https://tiktok.com/@...' },
+  ] as const;
+
+  activeSocialFields = signal<string[]>([]);
+
+  availableSocialPlatforms = computed(() => {
+    const active = this.activeSocialFields();
+    return this.SOCIAL_PLATFORMS.filter(
+      p => !active.includes(p.key)
+    );
+  });
+
+  populatedSocialLinks = computed(() => {
+    const sm = this.settings.business().socialMedia;
+    if (!sm) return [];
+    return this.SOCIAL_PLATFORMS.filter(
+      p => !!(sm as any)[p.key]
+    ).map(p => ({
+      key: p.key,
+      label: p.label,
+      url: (sm as any)[p.key] as string,
+    }));
+  });
+
   // Business form fields
   companyName = signal('');
   tradingName = signal('');
@@ -54,6 +88,11 @@ export class AdminSettingsComponent {
   hstNumber = signal('');
   currencyCode = signal('CAD');
   timezone = signal('America/Toronto');
+  facebookUrl = signal('');
+  instagramUrl = signal('');
+  whatsappUrl = signal('');
+  youtubeUrl = signal('');
+  tiktokUrl = signal('');
 
   // Invoice form fields
   paymentTermsDays = signal(30);
@@ -61,6 +100,10 @@ export class AdminSettingsComponent {
   etransferEmail = signal('');
   acceptCash = signal(true);
   showHstBreakdown = signal(true);
+  portalInvoiceDownloadEnabled = signal(true);
+  portalInvoiceDownloadNote = signal(
+    'Invoice will be sent by email once your order is delivered.'
+  );
 
   // Ordering form fields
   defaultTaxRatePercent = signal(13);
@@ -88,7 +131,7 @@ export class AdminSettingsComponent {
   // Stock & backorder
   lowStockVisibility = signal<'none' | 'vague' | 'exact'>('vague');
   lowStockCustomerThreshold = signal(5);
-  allowBackorder = signal(false);
+  outOfStockBehavior = signal<'hide' | 'show_disabled' | 'allow_backorder'>('show_disabled');
   showBackorderMessage = signal(true);
   backorderMessage = signal(
     'This item is currently low in stock. ' +
@@ -144,6 +187,11 @@ export class AdminSettingsComponent {
       this.hstNumber.set(b.hstNumber || '');
       this.currencyCode.set(b.currencyCode || 'CAD');
       this.timezone.set(b.timezone || 'America/Toronto');
+      this.facebookUrl.set(b.socialMedia?.facebook || '');
+      this.instagramUrl.set(b.socialMedia?.instagram || '');
+      this.whatsappUrl.set(b.socialMedia?.whatsapp || '');
+      this.youtubeUrl.set(b.socialMedia?.youtube || '');
+      this.tiktokUrl.set(b.socialMedia?.tiktok || '');
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -153,6 +201,13 @@ export class AdminSettingsComponent {
       this.etransferEmail.set(inv.etransferEmail || '');
       this.acceptCash.set(inv.acceptCash);
       this.showHstBreakdown.set(inv.showHstBreakdown);
+      this.portalInvoiceDownloadEnabled.set(
+        inv.portalInvoiceDownloadEnabled ?? true
+      );
+      this.portalInvoiceDownloadNote.set(
+        inv.portalInvoiceDownloadNote ||
+        'Invoice will be sent by email once your order is delivered.'
+      );
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -188,7 +243,7 @@ export class AdminSettingsComponent {
 
       this.lowStockVisibility.set(ord.lowStockVisibility || 'vague');
       this.lowStockCustomerThreshold.set(ord.lowStockCustomerThreshold ?? 5);
-      this.allowBackorder.set(ord.allowBackorder ?? false);
+      this.outOfStockBehavior.set(ord.outOfStockBehavior || 'show_disabled');
       this.showBackorderMessage.set(ord.showBackorderMessage ?? true);
       this.backorderMessage.set(
         ord.backorderMessage ||
@@ -226,6 +281,15 @@ export class AdminSettingsComponent {
     }, { allowSignalWrites: true });
   }
 
+  editBusiness() {
+    const b = this.settings.business();
+    const active = this.SOCIAL_PLATFORMS
+      .filter(p => !!(b.socialMedia as any)?.[p.key])
+      .map(p => p.key);
+    this.activeSocialFields.set(active);
+    this.editingBusiness.set(true);
+  }
+
   cancelBusiness() {
     const b = this.settings.business();
     this.companyName.set(b.companyName);
@@ -245,6 +309,15 @@ export class AdminSettingsComponent {
     this.hstNumber.set(b.hstNumber || '');
     this.currencyCode.set(b.currencyCode || 'CAD');
     this.timezone.set(b.timezone || 'America/Toronto');
+    this.facebookUrl.set(b.socialMedia?.facebook || '');
+    this.instagramUrl.set(b.socialMedia?.instagram || '');
+    this.whatsappUrl.set(b.socialMedia?.whatsapp || '');
+    this.youtubeUrl.set(b.socialMedia?.youtube || '');
+    this.tiktokUrl.set(b.socialMedia?.tiktok || '');
+    const active = this.SOCIAL_PLATFORMS
+      .filter(p => !!(b.socialMedia as any)?.[p.key])
+      .map(p => p.key);
+    this.activeSocialFields.set(active);
     this.editingBusiness.set(false);
   }
 
@@ -255,6 +328,13 @@ export class AdminSettingsComponent {
     this.etransferEmail.set(inv.etransferEmail || '');
     this.acceptCash.set(inv.acceptCash);
     this.showHstBreakdown.set(inv.showHstBreakdown);
+    this.portalInvoiceDownloadEnabled.set(
+      inv.portalInvoiceDownloadEnabled ?? true
+    );
+    this.portalInvoiceDownloadNote.set(
+      inv.portalInvoiceDownloadNote ||
+      'Invoice will be sent by email once your order is delivered.'
+    );
     this.editingInvoice.set(false);
   }
 
@@ -311,8 +391,8 @@ export class AdminSettingsComponent {
       ord.lowStockVisibility || 'vague');
     this.lowStockCustomerThreshold.set(
       ord.lowStockCustomerThreshold ?? 5);
-    this.allowBackorder.set(
-      ord.allowBackorder ?? false);
+    this.outOfStockBehavior.set(
+      ord.outOfStockBehavior || 'show_disabled');
     this.showBackorderMessage.set(
       ord.showBackorderMessage ?? true);
     this.backorderMessage.set(
@@ -432,6 +512,13 @@ export class AdminSettingsComponent {
         hstNumber: this.hstNumber(),
         currencyCode: this.currencyCode(),
         timezone: this.timezone(),
+        socialMedia: {
+          facebook: this.facebookUrl().trim(),
+          instagram: this.instagramUrl().trim(),
+          whatsapp: this.whatsappUrl().trim(),
+          youtube: this.youtubeUrl().trim(),
+          tiktok: this.tiktokUrl().trim(),
+        },
       });
       this.toast.success('Business settings saved');
       this.editingBusiness.set(false);
@@ -443,6 +530,52 @@ export class AdminSettingsComponent {
     }
   }
 
+  getSocialValue(key: string): string {
+    switch (key) {
+      case 'facebook': return this.facebookUrl();
+      case 'instagram': return this.instagramUrl();
+      case 'whatsapp': return this.whatsappUrl();
+      case 'youtube': return this.youtubeUrl();
+      case 'tiktok': return this.tiktokUrl();
+      default: return '';
+    }
+  }
+
+  setSocialValue(key: string, value: string) {
+    switch (key) {
+      case 'facebook': this.facebookUrl.set(value); break;
+      case 'instagram': this.instagramUrl.set(value); break;
+      case 'whatsapp': this.whatsappUrl.set(value); break;
+      case 'youtube': this.youtubeUrl.set(value); break;
+      case 'tiktok': this.tiktokUrl.set(value); break;
+    }
+  }
+
+  getSocialLabel(key: string): string {
+    return this.SOCIAL_PLATFORMS.find(
+      p => p.key === key)?.label || key;
+  }
+
+  getSocialPlaceholder(key: string): string {
+    return this.SOCIAL_PLATFORMS.find(
+      p => p.key === key)?.placeholder || '';
+  }
+
+  addSocialPlatform(key: string) {
+    if (!this.activeSocialFields().includes(key)) {
+      this.activeSocialFields.update(
+        arr => [...arr, key]
+      );
+    }
+  }
+
+  removeSocialPlatform(key: string) {
+    this.activeSocialFields.update(
+      arr => arr.filter(k => k !== key)
+    );
+    this.setSocialValue(key, '');
+  }
+
   async saveInvoice() {
     this.isSaving.set(true);
     try {
@@ -452,6 +585,8 @@ export class AdminSettingsComponent {
         etransferEmail: this.etransferEmail(),
         acceptCash: this.acceptCash(),
         showHstBreakdown: this.showHstBreakdown(),
+        portalInvoiceDownloadEnabled: this.portalInvoiceDownloadEnabled(),
+        portalInvoiceDownloadNote: this.portalInvoiceDownloadNote(),
       });
       this.toast.success('Invoice settings saved');
       this.editingInvoice.set(false);
@@ -569,7 +704,7 @@ export class AdminSettingsComponent {
           this.lowStockVisibility(),
         lowStockCustomerThreshold:
           this.lowStockCustomerThreshold(),
-        allowBackorder: this.allowBackorder(),
+        outOfStockBehavior: this.outOfStockBehavior(),
         showBackorderMessage:
           this.showBackorderMessage(),
         backorderMessage: this.backorderMessage(),
