@@ -117,7 +117,7 @@ export class ServiceAreaSelectComponent implements OnDestroy {
 
   openAddForm() {
     this.showAddForm.set(true);
-    this.newAreaName.set('');
+    this.newAreaName.set(this.searchQuery().trim());
   }
 
   cancelAdd() {

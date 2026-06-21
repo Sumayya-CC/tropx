@@ -40,4 +40,7 @@ export interface Product {
   isDeleted: boolean;
   isDeletedAt?: Date;
   deletedBy?: ActionBy;
+  /** Manual override to feature this product in the portal's
+   *  "New arrivals" home section, regardless of createdAt age. */
+  isFeaturedNew?: boolean;
 }

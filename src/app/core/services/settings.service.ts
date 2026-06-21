@@ -3,6 +3,7 @@ import { FirestoreService } from './firestore.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
+import { StorefrontSettings, DEFAULT_STOREFRONT_SETTINGS } from '../models/storefront-settings.model';
 
 export interface BusinessSettings {
   companyName: string;
@@ -205,9 +206,13 @@ export class SettingsService {
   private ordering$ = this.firestore
     .getDocument<OrderingSettings>('settings/ordering');
 
+  private storefront$ = this.firestore
+    .getDocument<StorefrontSettings>('settings/storefront');
+
   private _business = toSignal(this.business$);
   private _invoice = toSignal(this.invoice$);
   private _ordering = toSignal(this.ordering$);
+  private _storefront = toSignal(this.storefront$);
   private _notificationsData = signal<NotificationSettings | null>(null);
 
   constructor() {
@@ -229,6 +234,11 @@ export class SettingsService {
   ordering = computed(() => ({
     ...DEFAULT_ORDERING,
     ...this._ordering()
+  }));
+
+  storefront = computed(() => ({
+    ...DEFAULT_STOREFRONT_SETTINGS,
+    ...this._storefront()
   }));
 
   notifications = computed(() => ({

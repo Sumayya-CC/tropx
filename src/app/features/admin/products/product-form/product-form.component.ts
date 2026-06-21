@@ -252,6 +252,18 @@ declare var window: any;
               </label>
             </div>
           </div>
+          <div class="form-group">
+            <div class="toggle-group">
+              <div class="toggle-label">
+                <span class="toggle-title">Featured as New Arrival</span>
+                <span class="toggle-desc">{{ isFeaturedNewDesc() }}</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" [(ngModel)]="isFeaturedNew">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -308,6 +320,7 @@ export class ProductFormComponent implements OnDestroy {
   stock = signal<number>(0);
   lowStockThreshold = signal<number>(10);
   active = signal(true);
+  isFeaturedNew = signal(false);
   outOfStockBehaviorOverride = signal<'hide' | 'show_disabled' | 'allow_backorder' | null>(null);
 
   // Validation state
@@ -344,6 +357,12 @@ export class ProductFormComponent implements OnDestroy {
     if (margin >= 10) return 'ok';
     return 'bad';
   });
+
+  isFeaturedNewDesc = computed(() =>
+    this.isFeaturedNew()
+      ? 'Always shown in the portal\u2019s New Arrivals section'
+      : 'Shown in New Arrivals only if recently added (per storefront settings)'
+  );
 
   constructor() {
     this.loadDropdowns();
@@ -392,6 +411,7 @@ export class ProductFormComponent implements OnDestroy {
       this.stock.set(product.stock);
       this.lowStockThreshold.set(product.lowStockThreshold);
       this.active.set(product.active);
+      this.isFeaturedNew.set(product.isFeaturedNew ?? false);
       this.outOfStockBehaviorOverride.set(product.outOfStockBehaviorOverride ?? null);
       this.existingImageUrl.set(product.imageUrl || null);
       this.previewImageUrl.set(product.imageUrl || null);
@@ -563,6 +583,7 @@ export class ProductFormComponent implements OnDestroy {
         currencyCode: 'CAD',
         lowStockThreshold: this.lowStockThreshold(),
         active: this.active(),
+        isFeaturedNew: this.isFeaturedNew(),
         outOfStockBehaviorOverride: this.outOfStockBehaviorOverride(),
         tenantId: 1,
         isDeleted: false,

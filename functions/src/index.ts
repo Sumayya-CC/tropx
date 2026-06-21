@@ -67,7 +67,7 @@ export const onAccessRequestApproved = onDocumentCreated(
     const data = event.data?.data();
     if (!data) return;
 
-    const {email, ownerName, businessName} = data;
+    const {email, ownerFirstName, ownerLastName, businessName} = data;
 
     if (!email) {
       console.error("No email found on approval");
@@ -77,6 +77,12 @@ export const onAccessRequestApproved = onDocumentCreated(
     const resend = new Resend(resendApiKey.value());
     const from = fromEmail.value();
 
+    const firstName = ownerFirstName ?? "";
+    const lastName = ownerLastName ?? null;
+    const fullDisplayName = [firstName, lastName]
+      .filter(Boolean)
+      .join(" ");
+
     let resetLink = "";
     try {
       let userRecord;
@@ -85,15 +91,10 @@ export const onAccessRequestApproved = onDocumentCreated(
       } catch {
         userRecord = await admin.auth().createUser({
           email,
-          displayName: ownerName ?? "",
+          displayName: fullDisplayName,
           emailVerified: false,
         });
       }
-
-      const ownerNameStr = ownerName ?? "";
-      const nameParts = ownerNameStr.trim().split(" ");
-      const firstName = nameParts[0] || ownerNameStr;
-      const lastName = nameParts.slice(1).join(" ") || null;
 
       await db.collection("users").doc(userRecord.uid).set({
         uid: userRecord.uid,
@@ -124,7 +125,7 @@ export const onAccessRequestApproved = onDocumentCreated(
     }
 
     const html = welcomeEmailHtml(
-      ownerName ?? "there",
+      firstName || "there",
       businessName ?? "Valued Partner",
       resetLink
     );
@@ -539,16 +540,21 @@ export const onAccessRequestNotification = onDocumentCreated(
 
     const {
       businessName,
-      ownerName,
+      ownerFirstName,
+      ownerLastName,
       email,
       phone,
       businessType,
       address,
     } = data;
 
+    const ownerFullName = [ownerFirstName, ownerLastName]
+      .filter(Boolean)
+      .join(" ");
+
     const html = accessRequestNotificationEmailHtml(
       businessName,
-      ownerName,
+      ownerFullName,
       email,
       phone,
       businessType,
@@ -2776,8 +2782,7 @@ export const checkAbandonedCarts =
       const customer = customerSnap.data();
       if (!customer) continue;
       const email = customer.email;
-      const firstName = customer.ownerName
-        ?.split(" ")[0] || "there";
+      const firstName = customer.ownerFirstName || "there";
 
       if (!email) continue;
 

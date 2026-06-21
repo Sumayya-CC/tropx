@@ -1,12 +1,19 @@
 import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { SettingsService } from '../../../core/services/settings.service';
 import { Storage } from '@angular/fire/storage';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { where } from '@angular/fire/firestore';
+import { StorefrontGalleryImage, StorefrontSettings } from '../../../core/models/storefront-settings.model';
+import { Product } from '../../../core/models/product.model';
+
+type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications';
 
 @Component({
   selector: 'app-admin-settings',
@@ -21,6 +28,11 @@ export class AdminSettingsComponent {
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly storage = inject(Storage);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  readonly TABS = ['business', 'ordering', 'storefront', 'invoice', 'notifications'] as const;
+  activeTab = signal<SettingsTab>('business');
 
   ordering = this.settings.ordering;
   protected readonly Math = Math;
@@ -34,6 +46,43 @@ export class AdminSettingsComponent {
   editingMinimumOrder = signal(false);
   editingClosure = signal(false);
   editingNotifications = signal(false);
+
+  // Storefront — Hero
+  editingHero = signal(false);
+  heroEnabled = signal(false);
+  heroProductId = signal<string | null>(null);
+  heroHeadline = signal('');
+  heroSubtext = signal('');
+
+  // Storefront — Home sections toggles
+  editingHomeSections = signal(false);
+  orderAgainEnabled = signal(true);
+  newArrivalsEnabled = signal(true);
+  newArrivalsAutoDays = signal(14);
+  popularEnabled = signal(true);
+
+  // Storefront — Gallery
+  editingGallery = signal(false);
+  galleryEnabled = signal(false);
+  galleryImages = signal<StorefrontGalleryImage[]>([]);
+  galleryUploadFile = signal<File | null>(null);
+  galleryUploadPreview = signal<string>('');
+  galleryUploadCaption = signal('');
+  isUploadingGalleryImage = signal(false);
+
+  private products$ = this.firestore.getCollection<Product>(
+    'products',
+    where('tenantId', '==', 1),
+    where('isDeleted', '==', false)
+  );
+  activeProducts = toSignal(this.products$, { initialValue: [] as Product[] });
+
+  selectedHeroProductName = computed(() => {
+    const id = this.heroProductId();
+    if (!id) return '';
+    return this.activeProducts().find(p => p.id === id)?.name || '';
+  });
+
   isSaving = signal(false);
 
   protected readonly SOCIAL_PLATFORMS = [
@@ -169,6 +218,13 @@ export class AdminSettingsComponent {
   returnPrefixChanged = signal(false);
 
   constructor() {
+    this.route.queryParamMap.subscribe(params => {
+      const tab = params.get('tab') as SettingsTab | null;
+      this.activeTab.set(
+        tab && (this.TABS as readonly string[]).includes(tab) ? tab : 'business'
+      );
+    });
+
     effect(() => {
       const b = this.settings.business();
       this.companyName.set(b.companyName);
@@ -279,6 +335,169 @@ export class AdminSettingsComponent {
       this.customerReturnRejected.set(n.customerReturnRejected);
       this.customerPaymentReceipt.set(n.customerPaymentReceipt);
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      const sf = this.settings.storefront();
+      this.heroEnabled.set(sf.heroEnabled);
+      this.heroProductId.set(sf.heroProductId);
+      this.heroHeadline.set(sf.heroHeadline || '');
+      this.heroSubtext.set(sf.heroSubtext || '');
+      this.orderAgainEnabled.set(sf.orderAgainEnabled);
+      this.newArrivalsEnabled.set(sf.newArrivalsEnabled);
+      this.newArrivalsAutoDays.set(sf.newArrivalsAutoDays ?? 14);
+      this.popularEnabled.set(sf.popularEnabled);
+      this.galleryEnabled.set(sf.galleryEnabled);
+      this.galleryImages.set(sf.galleryImages || []);
+    }, { allowSignalWrites: true });
+  }
+
+  setActiveTab(tab: SettingsTab) {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  cancelHero() {
+    const sf = this.settings.storefront();
+    this.heroEnabled.set(sf.heroEnabled);
+    this.heroProductId.set(sf.heroProductId);
+    this.heroHeadline.set(sf.heroHeadline || '');
+    this.heroSubtext.set(sf.heroSubtext || '');
+    this.editingHero.set(false);
+  }
+
+  cancelHomeSections() {
+    const sf = this.settings.storefront();
+    this.orderAgainEnabled.set(sf.orderAgainEnabled);
+    this.newArrivalsEnabled.set(sf.newArrivalsEnabled);
+    this.newArrivalsAutoDays.set(sf.newArrivalsAutoDays ?? 14);
+    this.popularEnabled.set(sf.popularEnabled);
+    this.editingHomeSections.set(false);
+  }
+
+  cancelGallery() {
+    const sf = this.settings.storefront();
+    this.galleryEnabled.set(sf.galleryEnabled);
+    this.galleryImages.set(sf.galleryImages || []);
+    this.galleryUploadFile.set(null);
+    this.galleryUploadPreview.set('');
+    this.galleryUploadCaption.set('');
+    this.editingGallery.set(false);
+  }
+
+  async saveHero() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument('settings/storefront', {
+        ...this.settings.storefront(),
+        heroEnabled: this.heroEnabled(),
+        heroProductId: this.heroProductId(),
+        heroHeadline: this.heroHeadline().trim(),
+        heroSubtext: this.heroSubtext().trim(),
+      });
+      this.toast.success('Hero settings saved');
+      this.editingHero.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to save hero settings');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async saveHomeSections() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument('settings/storefront', {
+        ...this.settings.storefront(),
+        orderAgainEnabled: this.orderAgainEnabled(),
+        newArrivalsEnabled: this.newArrivalsEnabled(),
+        newArrivalsAutoDays: this.newArrivalsAutoDays(),
+        popularEnabled: this.popularEnabled(),
+      });
+      this.toast.success('Home section settings saved');
+      this.editingHomeSections.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to save home section settings');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  onGalleryFileSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      this.toast.error('Image must be under 2MB');
+      return;
+    }
+    this.galleryUploadFile.set(file);
+    const reader = new FileReader();
+    reader.onload = (e) => this.galleryUploadPreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async addGalleryImage() {
+    const file = this.galleryUploadFile();
+    if (!file) {
+      this.toast.error('Please select an image first');
+      return;
+    }
+    this.isUploadingGalleryImage.set(true);
+    try {
+      const { ref, uploadBytes, getDownloadURL } = await import('@angular/fire/storage');
+      const path = `storefront/gallery/${Date.now()}_${file.name}`;
+      const storageRef = ref(this.storage, path);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      const newImage: StorefrontGalleryImage = {
+        id: crypto.randomUUID(),
+        imageUrl: url,
+        caption: this.galleryUploadCaption().trim(),
+        createdAt: Date.now(),
+      };
+
+      this.galleryImages.update(list => [...list, newImage]);
+      this.galleryUploadFile.set(null);
+      this.galleryUploadPreview.set('');
+      this.galleryUploadCaption.set('');
+      this.toast.success('Image added — remember to save');
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to upload image');
+    } finally {
+      this.isUploadingGalleryImage.set(false);
+    }
+  }
+
+  removeGalleryImage(id: string) {
+    this.galleryImages.update(list => list.filter(img => img.id !== id));
+  }
+
+  async saveGallery() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument('settings/storefront', {
+        ...this.settings.storefront(),
+        galleryEnabled: this.galleryEnabled(),
+        galleryImages: this.galleryImages(),
+      });
+      this.toast.success('Gallery saved');
+      this.editingGallery.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to save gallery');
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   editBusiness() {

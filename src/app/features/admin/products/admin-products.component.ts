@@ -137,7 +137,12 @@ type SortDirection = 'asc' | 'desc';
                 
                 <div class="card-body">
                   <div class="row-1">
-                    <h3 class="product-name" [title]="product.name" [class.inactive]="!product.active">{{ product.name }}</h3>
+                    <h3 class="product-name" [title]="product.name" [class.inactive]="!product.active">
+                      {{ product.name }}
+                      @if (product.isFeaturedNew) {
+                        <span class="featured-new-badge" title="Featured as New Arrival">✨</span>
+                      }
+                    </h3>
                     <label class="compact-toggle" (click)="$event.stopPropagation()">
                       <input type="checkbox" [ngModel]="product.active" (ngModelChange)="toggleStatus(product)">
                       <span class="slider"></span>
@@ -215,7 +220,12 @@ type SortDirection = 'asc' | 'desc';
                         }
                       </td>
                       <td class="name-sku">
-                        <div class="name">{{ product.name }}</div>
+                        <div class="name">
+                          {{ product.name }}
+                          @if (product.isFeaturedNew) {
+                            <span class="featured-new-badge" title="Featured as New Arrival">✨</span>
+                          }
+                        </div>
                         <div class="sku">{{ product.sku }}</div>
                       </td>
                       <td>{{ getBrandName(product.brandId) }}</td>

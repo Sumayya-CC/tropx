@@ -3,10 +3,45 @@
   subtitle="Manage your business configuration">
 </app-page-header>
 
+<div class="settings-tabs">
+  <button type="button"
+    class="settings-tab"
+    [class.active]="activeTab() === 'business'"
+    (click)="setActiveTab('business')">
+    Business
+  </button>
+  <button type="button"
+    class="settings-tab"
+    [class.active]="activeTab() === 'ordering'"
+    (click)="setActiveTab('ordering')">
+    Ordering
+  </button>
+  <button type="button"
+    class="settings-tab"
+    [class.active]="activeTab() === 'storefront'"
+    (click)="setActiveTab('storefront')">
+    Storefront
+  </button>
+  <button type="button"
+    class="settings-tab"
+    [class.active]="activeTab() === 'invoice'"
+    (click)="setActiveTab('invoice')">
+    Invoice
+  </button>
+  <button type="button"
+    class="settings-tab"
+    [class.active]="activeTab() === 'notifications'"
+    (click)="setActiveTab('notifications')">
+    Notifications
+  </button>
+</div>
+
 <div class="settings-page">
 
-  <!-- ── BUSINESS SETTINGS CARD ───────────────────── -->
-  <div class="settings-card">
+  @if (activeTab() === 'business') {
+    <div class="tab-panel">
+      <!-- ── BUSINESS SETTINGS CARD ───────────────────── -->
+      <div class="settings-card">
     <div class="card-header">
       <div class="card-title-group">
         <h2>Business Information</h2>
@@ -411,11 +446,15 @@
       </div>
     }
   </div>
+  </div>
+  }
 
 
 
-  <!-- ── INVOICE SETTINGS CARD ────────────────────── -->
-  <div class="settings-card">
+  @if (activeTab() === 'invoice') {
+    <div class="tab-panel">
+      <!-- ── INVOICE SETTINGS CARD ────────────────────── -->
+      <div class="settings-card">
     <div class="card-header">
       <div class="card-title-group">
         <h2>Invoice Settings</h2>
@@ -625,9 +664,13 @@
       </div>
     }
   </div>
+  </div>
+  }
 
-  <!-- ── ORDERING SETTINGS CARD ───────────────────── -->
-  <div class="settings-card">
+  @if (activeTab() === 'ordering') {
+    <div class="tab-panel">
+      <!-- ── ORDERING SETTINGS CARD ───────────────────── -->
+      <div class="settings-card">
     <div class="card-header">
       <div class="card-title-group">
         <h2>Ordering Defaults</h2>
@@ -1512,9 +1555,364 @@
       </div>
     }
   </div>
+  </div>
+  }
 
-  <!-- ── NOTIFICATIONS SETTINGS CARD ───────────────── -->
-  <div class="settings-card">
+  @if (activeTab() === 'storefront') {
+    <div class="tab-panel">
+
+      <!-- HERO CARD -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Hero Banner</h2>
+            <p>Hero banner section shown on the portal homepage</p>
+          </div>
+          @if (!editingHero()) {
+            <button class="btn-edit" (click)="editingHero.set(true)">Edit</button>
+          }
+        </div>
+
+        @if (!editingHero()) {
+          <div class="card-body">
+            <div class="view-grid">
+              <div class="view-item">
+                <div class="view-label">Status</div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="heroEnabled()"
+                    [class.no]="!heroEnabled()">
+                    {{ heroEnabled() ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </div>
+              </div>
+              @if (heroEnabled()) {
+                <div class="view-item">
+                  <div class="view-label">Featured product</div>
+                  <div class="view-value">{{ selectedHeroProductName() || 'None selected' }}</div>
+                </div>
+                <div class="view-item">
+                  <div class="view-label">Headline</div>
+                  <div class="view-value">{{ heroHeadline() || '—' }}</div>
+                </div>
+                <div class="view-item">
+                  <div class="view-label">Subtext</div>
+                  <div class="view-value">{{ heroSubtext() || '—' }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="card-body edit-mode">
+            <div class="edit-section">
+              <div class="toggle-list">
+                <div class="toggle-item">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Show Hero Banner</span>
+                    <span class="toggle-desc">Show the hero banner on portal home page</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [ngModel]="heroEnabled()"
+                      (ngModelChange)="heroEnabled.set($event)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              @if (heroEnabled()) {
+                <div class="form-grid" style="margin-top: 1.25rem;">
+                  <div class="form-group full-width">
+                    <label>Featured product</label>
+                    <select
+                      [ngModel]="heroProductId()"
+                      (ngModelChange)="heroProductId.set($event)">
+                      <option [ngValue]="null">— None —</option>
+                      @for (p of activeProducts(); track p.id) {
+                        <option [ngValue]="p.id">{{ p.name }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="form-group full-width">
+                    <label>Headline</label>
+                    <input type="text"
+                      [ngModel]="heroHeadline()"
+                      (ngModelChange)="heroHeadline.set($event)"
+                      placeholder="New this season">
+                  </div>
+                  <div class="form-group full-width">
+                    <label>Subtext</label>
+                    <textarea rows="2"
+                      [ngModel]="heroSubtext()"
+                      (ngModelChange)="heroSubtext.set($event)"
+                      placeholder="Short supporting line shown under the headline"></textarea>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="edit-actions">
+            <button class="btn-cancel-edit" (click)="cancelHero()" [disabled]="isSaving()">
+              Cancel
+            </button>
+            <button class="btn-save-edit" (click)="saveHero()" [disabled]="isSaving()">
+              @if (isSaving()) { Saving... }
+              @else { Save Hero Settings }
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- HOME SECTIONS CARD -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Home Page Sections</h2>
+            <p>Configure which sections are shown on the portal homepage</p>
+          </div>
+          @if (!editingHomeSections()) {
+            <button class="btn-edit" (click)="editingHomeSections.set(true)">Edit</button>
+          }
+        </div>
+
+        @if (!editingHomeSections()) {
+          <div class="card-body">
+            <div class="view-grid">
+              <div class="view-item">
+                <div class="view-label">Order again</div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="orderAgainEnabled()"
+                    [class.no]="!orderAgainEnabled()">
+                    {{ orderAgainEnabled() ? 'Shown' : 'Hidden' }}
+                  </span>
+                </div>
+              </div>
+              <div class="view-item">
+                <div class="view-label">New arrivals</div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="newArrivalsEnabled()"
+                    [class.no]="!newArrivalsEnabled()">
+                    {{ newArrivalsEnabled() ? 'Shown' : 'Hidden' }}
+                  </span>
+                  @if (newArrivalsEnabled()) {
+                    <span class="view-hint" style="display: inline-block; margin-left: 0.5rem; margin-bottom: 0;">
+                      (auto-included for {{ newArrivalsAutoDays() }} days)
+                    </span>
+                  }
+                </div>
+              </div>
+              <div class="view-item">
+                <div class="view-label">Popular with other shops</div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="popularEnabled()"
+                    [class.no]="!popularEnabled()">
+                    {{ popularEnabled() ? 'Shown' : 'Hidden' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <div class="card-body edit-mode">
+            <div class="edit-section">
+              <div class="toggle-list">
+                
+                <div class="toggle-item">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Show "Order again" section</span>
+                    <span class="toggle-desc">Show product recommendations based on customer's purchase history</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [ngModel]="orderAgainEnabled()"
+                      (ngModelChange)="orderAgainEnabled.set($event)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="toggle-item">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Show "New arrivals" section</span>
+                    <span class="toggle-desc">Show recently added catalog items on portal homepage</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [ngModel]="newArrivalsEnabled()"
+                      (ngModelChange)="newArrivalsEnabled.set($event)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                @if (newArrivalsEnabled()) {
+                  <div class="form-group" style="margin-top: 0.75rem;">
+                    <label>Auto-include products as "new" for this many days after creation</label>
+                    <input type="number" min="0"
+                      [ngModel]="newArrivalsAutoDays()"
+                      (ngModelChange)="newArrivalsAutoDays.set($event)">
+                    <span class="hint">
+                      Products with "Featured as new" enabled on the product itself are always
+                      included regardless of this setting.
+                    </span>
+                  </div>
+                }
+
+                <div class="toggle-item" style="margin-top: 1.25rem;">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Show "Popular with other shops" section</span>
+                    <span class="toggle-desc">Show best-selling wholesale catalog items</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [ngModel]="popularEnabled()"
+                      (ngModelChange)="popularEnabled.set($event)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="edit-actions">
+            <button class="btn-cancel-edit" (click)="cancelHomeSections()" [disabled]="isSaving()">
+              Cancel
+            </button>
+            <button class="btn-save-edit" (click)="saveHomeSections()" [disabled]="isSaving()">
+              @if (isSaving()) { Saving... }
+              @else { Save Home Sections }
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- GALLERY CARD -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Gallery</h2>
+            <p>Showcase photos shown on the portal home — products, packaging, events, anything you want customers to see.</p>
+          </div>
+          @if (!editingGallery()) {
+            <button class="btn-edit" (click)="editingGallery.set(true)">Edit</button>
+          }
+        </div>
+
+        @if (!editingGallery()) {
+          <div class="card-body">
+            <div class="view-grid">
+              <div class="view-item">
+                <div class="view-label">Status</div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="galleryEnabled()"
+                    [class.no]="!galleryEnabled()">
+                    {{ galleryEnabled() ? 'Shown' : 'Hidden' }}
+                  </span>
+                </div>
+              </div>
+              <div class="view-item">
+                <div class="view-label">Images</div>
+                <div class="view-value">
+                  {{ galleryImages().length }} uploaded
+                </div>
+              </div>
+            </div>
+
+            @if (galleryImages().length > 0) {
+              <div class="gallery-grid gallery-grid-view" style="margin-top: 1.5rem;">
+                @for (img of galleryImages(); track img.id) {
+                  <div class="gallery-item gallery-item-view">
+                    <img [src]="img.imageUrl" [alt]="img.caption">
+                    @if (img.caption) {
+                      <p class="gallery-caption">{{ img.caption }}</p>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="card-body edit-mode">
+            <div class="edit-section">
+              <div class="toggle-list">
+                <div class="toggle-item">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Show gallery section on portal home</span>
+                    <span class="toggle-desc">Showcase photos shown on the portal home — products, packaging, events, anything you want customers to see.</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [ngModel]="galleryEnabled()"
+                      (ngModelChange)="galleryEnabled.set($event)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              @if (galleryImages().length > 0) {
+                <div class="gallery-grid" style="margin-top: 1.5rem;">
+                  @for (img of galleryImages(); track img.id) {
+                    <div class="gallery-item">
+                      <img [src]="img.imageUrl" [alt]="img.caption">
+                      <p class="gallery-caption">{{ img.caption || '(no caption)' }}</p>
+                      <button type="button" class="btn-remove-gallery-item"
+                        (click)="removeGalleryImage(img.id)">
+                        Remove
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="gallery-upload-row">
+                <input type="file" accept="image/*"
+                  (change)="onGalleryFileSelected($event)">
+                @if (galleryUploadPreview()) {
+                  <img [src]="galleryUploadPreview()" class="gallery-upload-preview" alt="Preview">
+                }
+                <input type="text" class="form-control"
+                  placeholder="Caption (e.g. Bell Pepper Chips · QuickStop, Guelph)"
+                  [ngModel]="galleryUploadCaption()"
+                  (ngModelChange)="galleryUploadCaption.set($event)">
+                <button type="button" class="btn btn-outline"
+                  (click)="addGalleryImage()"
+                  [disabled]="isUploadingGalleryImage() || !galleryUploadFile()">
+                  @if (isUploadingGalleryImage()) {
+                    Uploading...
+                  } @else {
+                    Add image
+                  }
+                </button>
+              </div>
+              <span class="hint" style="display: block; margin-top: 0.5rem;">
+                JPG, PNG or WebP. Max 2MB. Add images one at a time, then Save below to publish the gallery.
+              </span>
+            </div>
+          </div>
+
+          <div class="edit-actions">
+            <button class="btn-cancel-edit" (click)="cancelGallery()" [disabled]="isSaving()">
+              Cancel
+            </button>
+            <button class="btn-save-edit" (click)="saveGallery()" [disabled]="isSaving()">
+              @if (isSaving()) { Saving... }
+              @else { Save Gallery Settings }
+            </button>
+          </div>
+        }
+      </div>
+
+    </div>
+  }
+
+  @if (activeTab() === 'notifications') {
+    <div class="tab-panel">
+      <!-- ── NOTIFICATIONS SETTINGS CARD ───────────────── -->
+      <div class="settings-card">
     <div class="card-header">
       <div class="card-title-group">
         <h2>Notifications</h2>
@@ -2039,44 +2437,8 @@
       </div>
     }
   </div>
-
-  <!-- Data Export Card -->
-  <div class="settings-card export-card">
-    <div class="card-header">
-      <div class="card-title-group">
-        <h2 class="card-title">Data Export</h2>
-        <p class="card-subtitle">Export system records as CSV spreadsheet files</p>
-      </div>
-    </div>
-    <div class="card-body">
-      <p class="export-desc">
-        Select a collection below to generate and download a CSV file containing all active (non-deleted) records. Value formats, dates, and text quotes are formatted automatically.
-      </p>
-      <div class="export-actions-grid">
-        <button class="btn-export" (click)="exportToCsv('orders')" [disabled]="exporting() !== null">
-          <span class="icon">📊</span>
-          <span class="label">Export Orders</span>
-          @if (exporting() === 'orders') {
-            <span class="spinner"></span>
-          }
-        </button>
-        <button class="btn-export" (click)="exportToCsv('payments')" [disabled]="exporting() !== null">
-          <span class="icon">💳</span>
-          <span class="label">Export Payments</span>
-          @if (exporting() === 'payments') {
-            <span class="spinner"></span>
-          }
-        </button>
-        <button class="btn-export" (click)="exportToCsv('customers')" [disabled]="exporting() !== null">
-          <span class="icon">👥</span>
-          <span class="label">Export Customers</span>
-          @if (exporting() === 'customers') {
-            <span class="spinner"></span>
-          }
-        </button>
-      </div>
-    </div>
   </div>
+  }
 
 </div>
 
