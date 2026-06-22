@@ -240,15 +240,23 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
 
   // Load categories dynamically from Firestore
   private categories$ = this.firestore
-    .getCollection<{ id: string; name: string }>(
+    .getCollection<{ id: string; name: string; imageUrl?: string }>(
       'categories',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
     );
 
   categories = toSignal(this.categories$,
-    { initialValue: [] as { id: string; name: string }[] }
+    { initialValue: [] as { id: string; name: string; imageUrl?: string }[] }
   );
+
+  getCategoryThumbnail(categoryId: string): string | null {
+    const product = this.portal.allProducts().find(
+      (p: any) => p.categoryId === categoryId &&
+        p.active && !p.isDeleted && p.imageUrl
+    );
+    return product?.imageUrl || null;
+  }
 
   formatCurrency(cents: number): string {
     return '$' + (cents / 100).toFixed(2);

@@ -33,18 +33,22 @@ export class PortalCatalogComponent {
     if (initialSearch) {
       this.searchQuery.set(initialSearch);
     }
+    const initialCategory = this.route.snapshot.queryParamMap.get('category');
+    if (initialCategory) {
+      this.selectedCategory.set(initialCategory);
+    }
   }
 
   // Load categories dynamically from Firestore
   private categories$ = this.firestore
-    .getCollection<{ id: string; name: string }>(
+    .getCollection<{ id: string; name: string; imageUrl?: string }>(
       'categories',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
     );
 
   categories = toSignal(this.categories$,
-    { initialValue: [] as { id: string; name: string }[] }
+    { initialValue: [] as { id: string; name: string; imageUrl?: string }[] }
   );
 
   // Quantity inputs per product (for cart stepper)

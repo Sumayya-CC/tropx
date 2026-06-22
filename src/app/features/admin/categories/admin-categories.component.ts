@@ -7,6 +7,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { where, orderBy, serverTimestamp } from '@angular/fire/firestore';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 
 interface Category {
   id: string;
@@ -15,6 +16,8 @@ interface Category {
   active: boolean;
   tenantId: number;
   isDeleted: boolean;
+  imageUrl?: string;
+  zohoItemGroupId?: string;
 }
 
 interface Product {
@@ -35,6 +38,7 @@ export class AdminCategoriesComponent {
   private readonly firestore = inject(FirestoreService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly storage = inject(Storage);
 
   categories = signal<Category[]>([]);
   products = signal<Product[]>([]);
@@ -50,6 +54,11 @@ export class AdminCategoriesComponent {
   formName = signal('');
   formDisplayOrder = signal(1);
   formActive = signal(true);
+  formImageUrl = signal('');
+  formImageFile = signal<File | null>(null);
+  formImagePreview = signal('');
+  isUploadingImage = signal(false);
+  lightboxImageUrl = signal<string | null>(null);
 
   // Delete State
   deletingId = signal<string | null>(null);
@@ -95,6 +104,9 @@ export class AdminCategoriesComponent {
     this.formName.set('');
     this.formDisplayOrder.set(maxOrder + 1);
     this.formActive.set(true);
+    this.formImageUrl.set('');
+    this.formImageFile.set(null);
+    this.formImagePreview.set('');
     this.isEditing.set(false);
     this.editingId.set(null);
     this.showModal.set(true);
@@ -104,6 +116,9 @@ export class AdminCategoriesComponent {
     this.formName.set(category.name);
     this.formDisplayOrder.set(category.displayOrder);
     this.formActive.set(category.active);
+    this.formImageUrl.set(category.imageUrl || '');
+    this.formImagePreview.set(category.imageUrl || '');
+    this.formImageFile.set(null);
     this.isEditing.set(true);
     this.editingId.set(category.id);
     this.showModal.set(true);
@@ -111,6 +126,29 @@ export class AdminCategoriesComponent {
 
   closeModal() {
     this.showModal.set(false);
+  }
+
+  onImageSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      this.toast.error('Image must be under 2MB');
+      return;
+    }
+    this.formImageFile.set(file);
+    const reader = new FileReader();
+    reader.onload = (e) => this.formImagePreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  removeImage() {
+    this.formImageFile.set(null);
+    this.formImagePreview.set('');
+    this.formImageUrl.set('');
   }
 
   @HostListener('document:keydown.escape')
@@ -129,10 +167,23 @@ export class AdminCategoriesComponent {
     this.isSaving.set(true);
     
     try {
-      const data = {
+      let finalImageUrl = this.formImageUrl();
+
+      if (this.formImageFile()) {
+        this.isUploadingImage.set(true);
+        const file = this.formImageFile()!;
+        const path = `categories/${Date.now()}_${file.name}`;
+        const storageRef = ref(this.storage, path);
+        await uploadBytes(storageRef, file);
+        finalImageUrl = await getDownloadURL(storageRef);
+        this.isUploadingImage.set(false);
+      }
+
+      const data: any = {
         name: this.formName().trim(),
         displayOrder: this.formDisplayOrder(),
         active: this.formActive(),
+        imageUrl: finalImageUrl || null,
       };
 
       if (this.isEditing() && this.editingId()) {
@@ -155,6 +206,7 @@ export class AdminCategoriesComponent {
       this.toast.error('Failed to save category');
     } finally {
       this.isSaving.set(false);
+      this.isUploadingImage.set(false);
     }
   }
 

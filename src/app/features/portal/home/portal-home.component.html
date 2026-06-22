@@ -145,8 +145,21 @@
         <h3 class="section-title">Shop by Category</h3>
         <div class="category-grid">
           @for (cat of categories(); track cat.id) {
-            <a routerLink="/portal/catalog" class="category-card">
-              <div class="category-card-icon">📁</div>
+            <a routerLink="/portal/catalog"
+              [queryParams]="{ category: cat.id }"
+              class="category-card">
+              <div class="category-circle">
+                @if (cat.imageUrl) {
+                  <img [src]="cat.imageUrl" [alt]="cat.name"
+                    class="category-circle-img">
+                } @else if (getCategoryThumbnail(cat.id)) {
+                  <img [src]="getCategoryThumbnail(cat.id)!"
+                    [alt]="cat.name"
+                    class="category-circle-img">
+                } @else {
+                  <span class="category-circle-emoji">🛍️</span>
+                }
+              </div>
               <span class="category-card-name">{{ cat.name }}</span>
             </a>
           }
