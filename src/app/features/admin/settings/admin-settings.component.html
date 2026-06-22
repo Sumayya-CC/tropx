@@ -1561,45 +1561,75 @@
   @if (activeTab() === 'storefront') {
     <div class="tab-panel">
 
-      <!-- HERO CARD -->
+      <!-- FEATURED BANNER CARD -->
       <div class="settings-card">
         <div class="card-header">
           <div class="card-title-group">
-            <h2>Hero Banner</h2>
-            <p>Hero banner section shown on the portal homepage</p>
+            <h2>Featured Banner</h2>
+            <p>Featured banner carousel shown on the portal homepage</p>
           </div>
-          @if (!editingHero()) {
-            <button class="btn-edit" (click)="editingHero.set(true)">Edit</button>
+          @if (!editingFeaturedBanner()) {
+            <button class="btn-edit" (click)="editingFeaturedBanner.set(true)">
+              Edit
+            </button>
           }
         </div>
 
-        @if (!editingHero()) {
+        @if (!editingFeaturedBanner()) {
           <div class="card-body">
             <div class="view-grid">
               <div class="view-item">
                 <div class="view-label">Status</div>
                 <div class="view-value">
                   <span class="bool-badge"
-                    [class.yes]="heroEnabled()"
-                    [class.no]="!heroEnabled()">
-                    {{ heroEnabled() ? 'Enabled' : 'Disabled' }}
+                    [class.yes]="featuredBannerEnabled()"
+                    [class.no]="!featuredBannerEnabled()">
+                    {{ featuredBannerEnabled() ? 'Enabled' : 'Disabled' }}
                   </span>
                 </div>
               </div>
-              @if (heroEnabled()) {
-                <div class="view-item">
-                  <div class="view-label">Featured product</div>
-                  <div class="view-value">{{ selectedHeroProductName() || 'None selected' }}</div>
+              <div class="view-item" style="grid-column: span 2;">
+                <div class="view-label">Slides</div>
+                <div class="view-value">
+                  @if (featuredBannerSlides().length === 0) {
+                    <span style="color: var(--gray); font-style: italic;">No slides configured</span>
+                  } @else {
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+                      @for (slide of featuredBannerSlides(); track slide.id; let i = $index) {
+                        <div style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem;
+                          background: var(--cream); border-radius: 8px; border: 1px solid var(--color-border);">
+                          <img [src]="slide.imageUrl" alt="Slide {{ i + 1 }}"
+                            (click)="lightboxImageUrl.set(slide.imageUrl)"
+                            style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;
+                              flex-shrink: 0; border: 1px solid var(--color-border); cursor: pointer;">
+                          <div style="flex: 1;">
+                            <div style="font-size: 0.8125rem; font-weight: 700; color: var(--navy-deep);
+                              margin-bottom: 0.25rem;">Slide {{ i + 1 }}</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.375rem;">
+                              @for (sp of slide.products; track sp.productId) {
+                                <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem;
+                                  background: white; border: 1px solid var(--color-border);
+                                  border-radius: 12px; color: var(--charcoal); font-weight: 500;">
+                                  {{ getSlideProductName(sp.productId) }}
+                                  @if (!sp.showPrice) {
+                                    <span style="color: var(--gray);">(price hidden)</span>
+                                  }
+                                </span>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
                 </div>
-                <div class="view-item">
-                  <div class="view-label">Headline</div>
-                  <div class="view-value">{{ heroHeadline() || '—' }}</div>
+              </div>
+              <div class="view-item">
+                <div class="view-label">Auto-advance</div>
+                <div class="view-value">
+                  {{ featuredBannerAutoAdvance() ? 'On (' + featuredBannerIntervalSeconds() + 's)' : 'Off' }}
                 </div>
-                <div class="view-item">
-                  <div class="view-label">Subtext</div>
-                  <div class="view-value">{{ heroSubtext() || '—' }}</div>
-                </div>
-              }
+              </div>
             </div>
           </div>
         } @else {
@@ -1608,58 +1638,164 @@
               <div class="toggle-list">
                 <div class="toggle-item">
                   <div class="toggle-info">
-                    <span class="toggle-title">Show Hero Banner</span>
-                    <span class="toggle-desc">Show the hero banner on portal home page</span>
+                    <span class="toggle-title">Enable Featured Banner</span>
+                    <span class="toggle-desc">Show the featured banner on portal home page</span>
                   </div>
                   <label class="toggle-switch">
                     <input type="checkbox"
-                      [ngModel]="heroEnabled()"
-                      (ngModelChange)="heroEnabled.set($event)">
+                      [ngModel]="featuredBannerEnabled()"
+                      (ngModelChange)="featuredBannerEnabled.set($event)">
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
+
+                @if (featuredBannerEnabled()) {
+                  <div class="toggle-item">
+                    <div class="toggle-info">
+                      <span class="toggle-title">Auto-advance</span>
+                      <span class="toggle-desc">Automatically switch between slides</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox"
+                        [ngModel]="featuredBannerAutoAdvance()"
+                        (ngModelChange)="featuredBannerAutoAdvance.set($event)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                }
               </div>
 
-              @if (heroEnabled()) {
+              @if (featuredBannerEnabled() && featuredBannerAutoAdvance()) {
                 <div class="form-grid" style="margin-top: 1.25rem;">
                   <div class="form-group full-width">
-                    <label>Featured product</label>
-                    <select
-                      [ngModel]="heroProductId()"
-                      (ngModelChange)="heroProductId.set($event)">
-                      <option [ngValue]="null">— None —</option>
-                      @for (p of activeProducts(); track p.id) {
-                        <option [ngValue]="p.id">{{ p.name }}</option>
-                      }
-                    </select>
-                  </div>
-                  <div class="form-group full-width">
-                    <label>Headline</label>
-                    <input type="text"
-                      [ngModel]="heroHeadline()"
-                      (ngModelChange)="heroHeadline.set($event)"
-                      placeholder="New this season">
-                  </div>
-                  <div class="form-group full-width">
-                    <label>Subtext</label>
-                    <textarea rows="2"
-                      [ngModel]="heroSubtext()"
-                      (ngModelChange)="heroSubtext.set($event)"
-                      placeholder="Short supporting line shown under the headline"></textarea>
+                    <label>Interval (Seconds)</label>
+                    <input type="number"
+                      [ngModel]="featuredBannerIntervalSeconds()"
+                      (ngModelChange)="featuredBannerIntervalSeconds.set($event)"
+                      min="3" max="30">
                   </div>
                 </div>
               }
             </div>
-          </div>
 
-          <div class="edit-actions">
-            <button class="btn-cancel-edit" (click)="cancelHero()" [disabled]="isSaving()">
-              Cancel
-            </button>
-            <button class="btn-save-edit" (click)="saveHero()" [disabled]="isSaving()">
-              @if (isSaving()) { Saving... }
-              @else { Save Hero Settings }
-            </button>
+              <div class="edit-section">
+                <h3>Existing Slides</h3>
+                @if (featuredBannerSlides().length === 0) {
+                  <p class="empty-hint">No slides configured yet.</p>
+                } @else {
+                  <div class="slides-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    @for (slide of featuredBannerSlides(); track slide.id; let i = $index) {
+                      <div class="slide-row" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--cream); border-radius: 8px; border: 1px solid var(--color-border);">
+                        <img [src]="slide.imageUrl" alt="Slide" style="width: 60px; height: 40px; object-fit: cover; border-radius: 4px;">
+                        <div style="flex: 1;">
+                          <div style="font-size: 0.875rem; font-weight: 600; color: var(--navy-deep);
+                            margin-bottom: 0.25rem;">Slide {{ i + 1 }}</div>
+                          <div style="display: flex; flex-wrap: wrap; gap: 0.375rem;">
+                            @for (sp of slide.products; track sp.productId) {
+                              <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem;
+                                background: white; border: 1px solid var(--color-border);
+                                border-radius: 12px; color: var(--charcoal);">
+                                {{ getSlideProductName(sp.productId) }}
+                                @if (!sp.showPrice) {
+                                  <span style="color: var(--gray);">(price hidden)</span>
+                                }
+                              </span>
+                            }
+                          </div>
+                        </div>
+                        <button type="button" class="btn-remove" (click)="removeSlide(slide.id)" style="background: none; border: none; color: var(--red); font-weight: 600; cursor: pointer; padding: 0.5rem;">
+                          Remove
+                        </button>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div class="edit-section">
+                <h3>Add New Slide</h3>
+                
+                <div style="margin-bottom: 1.25rem;">
+                  <label style="font-size: 0.8125rem; font-weight: 600; color: var(--charcoal);
+                    display: block; margin-bottom: 0.375rem;">
+                    Banner image (16:9 recommended · Max 5MB)
+                  </label>
+                  <input type="file" #bannerFileInputRef
+                    accept="image/*"
+                    (change)="onSlideImageSelected($event)">
+                  @if (slideUploadPreview() || slideImageUrl()) {
+                    <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.75rem;">
+                      <img [src]="slideUploadPreview() || slideImageUrl()"
+                        style="height: 80px; border-radius: 6px; object-fit: cover;
+                          border: 1px solid var(--color-border);">
+                      <button type="button" class="btn-remove-logo"
+                        (click)="slideUploadFile.set(null); slideUploadPreview.set('');
+                          slideImageUrl.set('')">
+                        Remove
+                      </button>
+                    </div>
+                  }
+                </div>
+
+                <div class="form-group full-width">
+                  <label>Products on this slide (Max 4)</label>
+                  <div class="products-picker" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                    @for (p of activeProducts(); track p.id) {
+                      <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 6px;" [style.background]="isProductSelectedForSlide(p.id) ? 'var(--cream)' : 'transparent'">
+                        <input type="checkbox" 
+                          [checked]="isProductSelectedForSlide(p.id)"
+                          (change)="toggleSlideProduct(p.id)">
+                        <span style="flex: 1; font-size: 0.9rem;">{{ p.name }}</span>
+                        
+                        @if (isProductSelectedForSlide(p.id)) {
+                          <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; margin: 0; color: var(--gray);">
+                            <input type="checkbox"
+                              [checked]="!getProductShowPrice(p.id)"
+                              (change)="toggleSlideProductPrice(p.id)">
+                            Hide price
+                          </label>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <div class="hint" style="margin-top: 0.5rem; font-weight: 600;">
+                    {{ slideSelectedProducts().length }} of 4 products selected
+                  </div>
+                </div>
+
+                <button type="button"
+                  (click)="addSlide()"
+                  [disabled]="isUploadingSlideImage() ||
+                    (!slideUploadFile() && !slideImageUrl()) ||
+                    slideSelectedProducts().length === 0"
+                  style="margin-top: 1rem; width: auto; padding: 0.625rem 1.5rem;
+                    background: white; border: 1.5px solid var(--navy); border-radius: 8px;
+                    font-size: 0.9rem; font-weight: 700; color: var(--navy); cursor: pointer;
+                    opacity: 1; transition: opacity 0.15s;"
+                  [style.opacity]="(isUploadingSlideImage() ||
+                    (!slideUploadFile() && !slideImageUrl()) ||
+                    slideSelectedProducts().length === 0) ? '0.45' : '1'">
+                  @if (isUploadingSlideImage()) {
+                    Uploading image...
+                  } @else if (!slideUploadFile() && !slideImageUrl()) {
+                    + Add this slide (select an image first)
+                  } @else if (slideSelectedProducts().length === 0) {
+                    + Add this slide (select at least one product)
+                  } @else {
+                    + Add this slide to the list
+                  }
+                </button>
+              </div>
+
+            <div class="edit-actions">
+              <button class="btn-cancel-edit" (click)="cancelFeaturedBanner()" [disabled]="isSaving()">
+                Cancel
+              </button>
+              <button class="btn-save-edit" (click)="saveFeaturedBanner()" [disabled]="isSaving()">
+                @if (isSaving()) { Saving... }
+                @else { Save Featured Banner Settings }
+              </button>
+            </div>
           </div>
         }
       </div>
@@ -1826,7 +1962,9 @@
               <div class="gallery-grid gallery-grid-view" style="margin-top: 1.5rem;">
                 @for (img of galleryImages(); track img.id) {
                   <div class="gallery-item gallery-item-view">
-                    <img [src]="img.imageUrl" [alt]="img.caption">
+                    <img [src]="img.imageUrl" [alt]="img.caption"
+                      (click)="lightboxImageUrl.set(img.imageUrl)"
+                      style="cursor: pointer;">
                     @if (img.caption) {
                       <p class="gallery-caption">{{ img.caption }}</p>
                     }
@@ -2438,6 +2576,29 @@
     }
   </div>
   </div>
+  }
+
+  @if (lightboxImageUrl()) {
+    <div
+      (click)="lightboxImageUrl.set(null)"
+      style="position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 9999; cursor: zoom-out; padding: 2rem;">
+      <img [src]="lightboxImageUrl()"
+        (click)="$event.stopPropagation()"
+        style="max-width: 90vw; max-height: 90vh; object-fit: contain;
+          border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+          cursor: default;">
+      <button
+        (click)="lightboxImageUrl.set(null)"
+        style="position: absolute; top: 1.5rem; right: 1.5rem;
+          width: 40px; height: 40px; border-radius: 50%;
+          background: rgba(255,255,255,0.15); border: none;
+          color: white; font-size: 1.25rem; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;">
+        ✕
+      </button>
+    </div>
   }
 
 </div>

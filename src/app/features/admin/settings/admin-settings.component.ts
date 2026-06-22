@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect, computed } from '@angular/core';
+import { Component, inject, signal, effect, computed, untracked, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -10,7 +10,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { Storage } from '@angular/fire/storage';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
-import { StorefrontGalleryImage, StorefrontSettings } from '../../../core/models/storefront-settings.model';
+import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct } from '../../../core/models/storefront-settings.model';
 import { Product } from '../../../core/models/product.model';
 
 type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications';
@@ -34,6 +34,8 @@ export class AdminSettingsComponent {
   readonly TABS = ['business', 'ordering', 'storefront', 'invoice', 'notifications'] as const;
   activeTab = signal<SettingsTab>('business');
 
+
+
   ordering = this.settings.ordering;
   protected readonly Math = Math;
 
@@ -47,12 +49,25 @@ export class AdminSettingsComponent {
   editingClosure = signal(false);
   editingNotifications = signal(false);
 
-  // Storefront — Hero
-  editingHero = signal(false);
-  heroEnabled = signal(false);
-  heroProductId = signal<string | null>(null);
-  heroHeadline = signal('');
-  heroSubtext = signal('');
+  // Storefront — Featured Banner
+  editingFeaturedBanner = signal(false);
+  featuredBannerEnabled = signal(false);
+  featuredBannerAutoAdvance = signal(true);
+  featuredBannerIntervalSeconds = signal(5);
+  featuredBannerSlides = signal<FeaturedBannerSlide[]>([]);
+
+  // Per-slide edit state (which slide is being edited, null = none)
+  editingSlideId = signal<string | null>(null);
+
+  lightboxImageUrl = signal<string | null>(null);
+  @ViewChild('bannerFileInputRef') bannerFileInputRef?: ElementRef<HTMLInputElement>;
+
+  // New slide form state
+  slideUploadFile = signal<File | null>(null);
+  slideUploadPreview = signal<string>('');
+  slideImageUrl = signal<string>('');
+  slideSelectedProducts = signal<FeaturedBannerProduct[]>([]);
+  isUploadingSlideImage = signal(false);
 
   // Storefront — Home sections toggles
   editingHomeSections = signal(false);
@@ -77,11 +92,7 @@ export class AdminSettingsComponent {
   );
   activeProducts = toSignal(this.products$, { initialValue: [] as Product[] });
 
-  selectedHeroProductName = computed(() => {
-    const id = this.heroProductId();
-    if (!id) return '';
-    return this.activeProducts().find(p => p.id === id)?.name || '';
-  });
+
 
   isSaving = signal(false);
 
@@ -338,16 +349,25 @@ export class AdminSettingsComponent {
 
     effect(() => {
       const sf = this.settings.storefront();
-      this.heroEnabled.set(sf.heroEnabled);
-      this.heroProductId.set(sf.heroProductId);
-      this.heroHeadline.set(sf.heroHeadline || '');
-      this.heroSubtext.set(sf.heroSubtext || '');
+      
+      // Only sync featured banner state when not actively editing
+      // (prevents Firestore listener from clobbering local edits)
+      if (!untracked(() => this.editingFeaturedBanner())) {
+        this.featuredBannerEnabled.set(sf.featuredBannerEnabled);
+        this.featuredBannerAutoAdvance.set(sf.featuredBannerAutoAdvance ?? true);
+        this.featuredBannerIntervalSeconds.set(sf.featuredBannerIntervalSeconds ?? 5);
+        this.featuredBannerSlides.set(sf.featuredBannerSlides || []);
+      }
+      
       this.orderAgainEnabled.set(sf.orderAgainEnabled);
       this.newArrivalsEnabled.set(sf.newArrivalsEnabled);
       this.newArrivalsAutoDays.set(sf.newArrivalsAutoDays ?? 14);
       this.popularEnabled.set(sf.popularEnabled);
-      this.galleryEnabled.set(sf.galleryEnabled);
-      this.galleryImages.set(sf.galleryImages || []);
+      
+      if (!untracked(() => this.editingGallery())) {
+        this.galleryEnabled.set(sf.galleryEnabled);
+        this.galleryImages.set(sf.galleryImages || []);
+      }
     }, { allowSignalWrites: true });
   }
 
@@ -359,13 +379,18 @@ export class AdminSettingsComponent {
     });
   }
 
-  cancelHero() {
+  cancelFeaturedBanner() {
     const sf = this.settings.storefront();
-    this.heroEnabled.set(sf.heroEnabled);
-    this.heroProductId.set(sf.heroProductId);
-    this.heroHeadline.set(sf.heroHeadline || '');
-    this.heroSubtext.set(sf.heroSubtext || '');
-    this.editingHero.set(false);
+    this.featuredBannerEnabled.set(sf.featuredBannerEnabled);
+    this.featuredBannerAutoAdvance.set(sf.featuredBannerAutoAdvance ?? true);
+    this.featuredBannerIntervalSeconds.set(sf.featuredBannerIntervalSeconds ?? 5);
+    this.featuredBannerSlides.set(sf.featuredBannerSlides || []);
+    this.editingSlideId.set(null);
+    this.slideUploadFile.set(null);
+    this.slideUploadPreview.set('');
+    this.slideImageUrl.set('');
+    this.slideSelectedProducts.set([]);
+    this.editingFeaturedBanner.set(false);
   }
 
   cancelHomeSections() {
@@ -387,24 +412,217 @@ export class AdminSettingsComponent {
     this.editingGallery.set(false);
   }
 
-  async saveHero() {
+  async saveFeaturedBanner() {
+    // Warn if there's a pending unsaved slide
+    const hasPendingSlide = this.slideUploadFile() ||
+      this.slideImageUrl() ||
+      this.slideSelectedProducts().length > 0;
+
+    if (hasPendingSlide) {
+      const proceed = confirm(
+        'You have an unsaved slide in progress. ' +
+        'Click OK to save the banner without it, ' +
+        'or Cancel to go back and click "Add this slide to the list" first.'
+      );
+      if (!proceed) return;
+    }
+
+    console.log('saveFeaturedBanner ENTRY, slides:',
+      this.featuredBannerSlides().length);
     this.isSaving.set(true);
+    const slidesToSave = [...this.featuredBannerSlides()];
+    const enabledToSave = this.featuredBannerEnabled();
+    const autoAdvanceToSave = this.featuredBannerAutoAdvance();
+    const intervalToSave = this.featuredBannerIntervalSeconds();
+
     try {
-      await this.firestore.setDocument('settings/storefront', {
-        ...this.settings.storefront(),
-        heroEnabled: this.heroEnabled(),
-        heroProductId: this.heroProductId(),
-        heroHeadline: this.heroHeadline().trim(),
-        heroSubtext: this.heroSubtext().trim(),
+      // Use updateDocument instead of setDocument to do a partial merge
+      // This avoids the risk of the spread clobbering or dropping fields
+      await this.firestore.updateDocument('settings/storefront', {
+        featuredBannerEnabled: enabledToSave,
+        featuredBannerAutoAdvance: autoAdvanceToSave,
+        featuredBannerIntervalSeconds: intervalToSave,
+        featuredBannerSlides: slidesToSave,
       });
-      this.toast.success('Hero settings saved');
-      this.editingHero.set(false);
+      this.toast.success('Featured banner saved');
+      setTimeout(() => this.editingFeaturedBanner.set(false), 150);
     } catch (err) {
-      console.error(err);
-      this.toast.error('Failed to save hero settings');
+      console.error('saveFeaturedBanner error:', err);
+      // If updateDocument fails (doc doesn't exist yet), fall back to setDocument
+      try {
+        const current = this.settings.storefront();
+        await this.firestore.setDocument('settings/storefront', {
+          ...current,
+          featuredBannerEnabled: enabledToSave,
+          featuredBannerAutoAdvance: autoAdvanceToSave,
+          featuredBannerIntervalSeconds: intervalToSave,
+          featuredBannerSlides: slidesToSave,
+        });
+        this.toast.success('Featured banner saved');
+        setTimeout(() => this.editingFeaturedBanner.set(false), 150);
+      } catch (err2) {
+        console.error('saveFeaturedBanner setDocument fallback error:', err2);
+        this.toast.error('Failed to save featured banner');
+      }
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  onSlideImageSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      this.toast.error('Image must be under 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Crop to 3:1
+        const targetRatio = 3 / 1;
+        const srcRatio = img.width / img.height;
+
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (srcRatio > targetRatio) {
+          // Too wide — crop sides
+          sw = Math.round(img.height * targetRatio);
+          sx = Math.round((img.width - sw) / 2);
+        } else if (srcRatio < targetRatio) {
+          // Too tall — crop top/bottom
+          sh = Math.round(img.width / targetRatio);
+          sy = Math.round((img.height - sh) / 2);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1920;
+        canvas.height = 640;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 1920, 640);
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            this.toast.error('Failed to process image');
+            return;
+          }
+          // Create a new File from the cropped blob
+          const croppedFile = new File(
+            [blob],
+            file.name.replace(/\.[^.]+$/, '.jpg'),
+            { type: 'image/jpeg' }
+          );
+          this.slideUploadFile.set(croppedFile);
+          this.slideUploadPreview.set(canvas.toDataURL('image/jpeg', 0.92));
+        }, 'image/jpeg', 0.92);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async uploadSlideImage(): Promise<string> {
+    const file = this.slideUploadFile();
+    if (!file) return this.slideImageUrl();
+    this.isUploadingSlideImage.set(true);
+    try {
+      const { ref, uploadBytes, getDownloadURL } = await import('@angular/fire/storage');
+      const path = `storefront/banners/${Date.now()}_${file.name}`;
+      const storageRef = ref(this.storage, path);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      this.slideImageUrl.set(url);
+      this.slideUploadFile.set(null);
+      this.slideUploadPreview.set('');
+      return url;
+    } catch (err) {
+      console.error('uploadSlideImage FAILED:', err);
+      throw err;
+    } finally {
+      this.isUploadingSlideImage.set(false);
+    }
+  }
+
+  async addSlide() {
+    if (!this.slideUploadFile() && !this.slideImageUrl()) {
+      this.toast.error('Please upload a banner image first');
+      return;
+    }
+    if (this.slideSelectedProducts().length === 0) {
+      this.toast.error('Please select at least one product');
+      return;
+    }
+    try {
+      const imageUrl = await this.uploadSlideImage();
+      const newSlide: FeaturedBannerSlide = {
+        id: crypto.randomUUID(),
+        imageUrl,
+        products: this.slideSelectedProducts(),
+        createdAt: Date.now(),
+      };
+      this.featuredBannerSlides.update(slides => [...slides, newSlide]);
+      this.slideImageUrl.set('');
+      this.slideSelectedProducts.set([]);
+      // Clear the native file input so the filename disappears
+      if (this.bannerFileInputRef?.nativeElement) {
+        this.bannerFileInputRef.nativeElement.value = '';
+      }
+      this.toast.success('Slide added — click Save to publish');
+    } catch (err) {
+      console.error('addSlide FAILED:', err);
+      this.toast.error('Failed to add slide — check console for details');
+    }
+  }
+
+  removeSlide(id: string) {
+    this.featuredBannerSlides.update(slides =>
+      slides.filter(s => s.id !== id)
+    );
+  }
+
+  toggleSlideProduct(productId: string) {
+    const current = this.slideSelectedProducts();
+    const exists = current.find(p => p.productId === productId);
+    if (exists) {
+      this.slideSelectedProducts.update(list =>
+        list.filter(p => p.productId !== productId)
+      );
+    } else {
+      if (current.length >= 4) {
+        this.toast.error('Maximum 4 products per slide');
+        return;
+      }
+      this.slideSelectedProducts.update(list => [
+        ...list,
+        { productId, showPrice: true }
+      ]);
+    }
+  }
+
+  toggleSlideProductPrice(productId: string) {
+    this.slideSelectedProducts.update(list =>
+      list.map(p => p.productId === productId
+        ? { ...p, showPrice: !p.showPrice }
+        : p
+      )
+    );
+  }
+
+  isProductSelectedForSlide(productId: string): boolean {
+    return this.slideSelectedProducts().some(p => p.productId === productId);
+  }
+
+  getSlideProductName(productId: string): string {
+    return this.activeProducts().find(p => p.id === productId)?.name || productId;
+  }
+
+  getProductShowPrice(productId: string): boolean {
+    return this.slideSelectedProducts().find(p => p.productId === productId)?.showPrice ?? true;
   }
 
   async saveHomeSections() {

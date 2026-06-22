@@ -41,8 +41,7 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'dashboard',
-        pathMatch: 'full'
+        loadComponent: () => import('./features/portal/home/portal-home.component').then(m => m.PortalHomeComponent),
       },
       {
         path: 'dashboard',

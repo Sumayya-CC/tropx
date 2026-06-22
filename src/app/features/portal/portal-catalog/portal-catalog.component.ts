@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
 import { PortalService } from '../../../core/services/portal.service';
@@ -21,11 +21,19 @@ export class PortalCatalogComponent {
   protected readonly settingsService = inject(SettingsService);
   private readonly firestore = inject(FirestoreService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
 
   searchQuery = signal('');
   selectedCategory = signal<string>('all');
   sortBy = signal<'name' | 'price_asc' | 'price_desc'>('name');
   viewMode = signal<'grid' | 'list'>('grid');
+
+  constructor() {
+    const initialSearch = this.route.snapshot.queryParamMap.get('search');
+    if (initialSearch) {
+      this.searchQuery.set(initialSearch);
+    }
+  }
 
   // Load categories dynamically from Firestore
   private categories$ = this.firestore

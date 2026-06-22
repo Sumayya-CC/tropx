@@ -1,0 +1,405 @@
+<div class="home-page">
+
+  <!-- Header Greeting Section -->
+  <header class="home-header">
+    <div class="header-greeting-container">
+      <h1 class="greeting-text">{{ greeting() }}</h1>
+      <p class="greeting-subtitle">Welcome to your wholesale portal. Browse our latest arrivals, catalog, and manage your account.</p>
+    </div>
+  </header>
+
+  <div class="home-search-bar">
+    <div class="home-search-inner">
+      <svg class="home-search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        class="home-search-input"
+        placeholder="Search all products by name or SKU..."
+        [value]="homeSearchQuery()"
+        (input)="homeSearchQuery.set($any($event.target).value)"
+        (keydown.enter)="submitSearch()">
+      <button type="button" class="home-search-btn" (click)="submitSearch()">
+        Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Checks if at least one section has content -->
+  @let hasContent = (storefront().featuredBannerEnabled && storefront().featuredBannerSlides.length > 0) || 
+                     (storefront().newArrivalsEnabled && newArrivals().length > 0) || 
+                     (storefront().galleryEnabled && storefront().galleryImages.length > 0) || 
+                     (categories() && categories().length > 0);
+
+  @if (!hasContent) {
+    <!-- Empty Welcome State -->
+    <div class="home-empty-state">
+      <div class="empty-icon">👋</div>
+      <h2>Welcome to Tropx Wholesale!</h2>
+      <p>Start browsing our product catalog to discover wholesale options for your business.</p>
+      <a routerLink="/portal/catalog" class="btn-browse-catalog">Browse Catalog</a>
+    </div>
+  } @else {
+
+    <!-- Featured Banner -->
+    @if (storefront().featuredBannerEnabled &&
+         storefront().featuredBannerSlides.length > 0) {
+      <section class="featured-banner-section"
+        (mouseenter)="bannerPaused.set(true)"
+        (mouseleave)="bannerPaused.set(false)">
+
+        <div class="featured-banner-track">
+          @for (slide of storefront().featuredBannerSlides;
+                track slide.id; let i = $index) {
+            <div class="featured-banner-slide"
+              [class.active]="bannerIndex() === i">
+
+              <!-- Background image -->
+              <img [src]="slide.imageUrl"
+                alt="Featured products"
+                class="featured-banner-img">
+
+              <!-- Dark gradient overlay -->
+              <div class="featured-banner-overlay"></div>
+
+              <!-- Product cards overlaid at bottom -->
+              <div class="featured-banner-products">
+                @for (product of getSlideProducts(slide); track product.id) {
+                  <a [routerLink]="['/portal/catalog', product.id]"
+                    class="featured-product-card">
+                    <div class="featured-product-img-wrap">
+                      @if (product.imageUrl) {
+                        <img [src]="product.imageUrl"
+                          [alt]="product.name"
+                          class="featured-product-img">
+                      } @else {
+                        <div class="featured-product-placeholder">
+                          {{ getProductInitial(product.name) }}
+                        </div>
+                      }
+                    </div>
+                    <div class="featured-product-info">
+                      <span class="featured-product-name">
+                        {{ product.name }}
+                      </span>
+                      @if (product.showPrice) {
+                        <span class="featured-product-price">
+                          {{ formatCurrency(product.priceCents) }}
+                        </span>
+                      }
+                    </div>
+                  </a>
+                }
+              </div>
+
+              <!-- Arrows -->
+              @if (storefront().featuredBannerSlides.length > 1) {
+                <button class="banner-arrow banner-arrow-prev"
+                  (click)="bannerPrev(); $event.stopPropagation()"
+                  aria-label="Previous slide">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="20" height="20" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor"
+                    stroke-width="2.5">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <button class="banner-arrow banner-arrow-next"
+                  (click)="bannerNext(); $event.stopPropagation()"
+                  aria-label="Next slide">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                    width="20" height="20" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor"
+                    stroke-width="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Dots -->
+        @if (storefront().featuredBannerSlides.length > 1) {
+          <div class="banner-dots">
+            @for (slide of storefront().featuredBannerSlides;
+                  track slide.id; let i = $index) {
+              <button class="banner-dot"
+                [class.active]="bannerIndex() === i"
+                (click)="bannerGoTo(i)"
+                [attr.aria-label]="'Slide ' + (i + 1)">
+              </button>
+            }
+          </div>
+        }
+
+      </section>
+    }
+
+    <!-- Shop by Category -->
+    @if (categories() && categories().length > 0) {
+      <section class="home-section categories-section">
+        <h3 class="section-title">Shop by Category</h3>
+        <div class="category-grid">
+          @for (cat of categories(); track cat.id) {
+            <a routerLink="/portal/catalog" class="category-card">
+              <div class="category-card-icon">📁</div>
+              <span class="category-card-name">{{ cat.name }}</span>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- New Arrivals -->
+    @if (storefront().newArrivalsEnabled && newArrivals().length > 0) {
+      <section class="home-section new-arrivals-section">
+        <div class="section-header-row">
+          <h3 class="section-title">New Arrivals</h3>
+          <a routerLink="/portal/catalog" class="section-link">View All</a>
+        </div>
+        <div class="product-grid">
+          @for (product of newArrivals(); track product.id) {
+            <div class="product-card"
+              [class.out-of-stock]="product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder'">
+
+              <!-- Image -->
+              <a [routerLink]="['/portal/catalog', product.id]" class="product-image-link">
+                @if (product.imageUrl) {
+                  <img [src]="product.imageUrl" [alt]="product.name" class="product-img">
+                } @else {
+                  <div class="product-img-placeholder">
+                    <span class="product-initial">
+                      {{ getProductInitial(product.name) }}
+                    </span>
+                  </div>
+                }
+                <!-- Stock badge overlay -->
+                @let status = getStockStatus(product);
+                @if (status.class === 'out') {
+                  <div class="stock-overlay">
+                    {{ status.label }}
+                  </div>
+                } @else if (status.class === 'low') {
+                  <div class="low-stock-ribbon">
+                    {{ status.label }}
+                  </div>
+                }
+              </a>
+
+              <!-- Info -->
+              <div class="product-info">
+                <a [routerLink]="['/portal/catalog', product.id]" class="product-name-link">
+                  <h3 class="product-name">
+                    {{ product.name }}
+                  </h3>
+                </a>
+                <span class="product-sku">
+                  {{ product.sku }}
+                </span>
+                <div class="product-price-row">
+                  <span class="product-price">
+                    {{ formatCurrency(product.priceCents || 0) }}
+                  </span>
+                  <span class="price-unit">/ unit</span>
+                </div>
+              </div>
+
+              <!-- Cart controls -->
+              <div class="product-actions">
+                @if (product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder') {
+                  @if (getEffectiveOutOfStockBehavior(product) === 'show_disabled') {
+                    @if (submittedNotifications()[product.id]) {
+                      <button class="btn-notify requested" disabled>
+                        ✓ Requested
+                      </button>
+                    } @else {
+                      <button class="btn-notify" (click)="requestStockNotification(product)">
+                        Notify Me
+                      </button>
+                    }
+                  } @else {
+                    <button class="btn-add-cart disabled" disabled>
+                      Out of Stock
+                    </button>
+                  }
+                } @else if (isInCart(product.id)) {
+                  <!-- Already in cart — compact stepper -->
+                  <div class="in-cart-compact">
+                    <div class="in-cart-label">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      {{ getCartQty(product.id) }} in cart
+                    </div>
+                    <div class="cart-qty-controls">
+                      <button class="cart-qty-btn" (click)="decrement(product)">−</button>
+                      <span class="cart-qty-num">
+                        {{ getCartQty(product.id) }}
+                      </span>
+                      <button class="cart-qty-btn" (click)="increment(product)"
+                        [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getCartQty(product.id) >= product.stock">+</button>
+                    </div>
+                  </div>
+                } @else {
+                  <!-- Not in cart — qty selector + add button -->
+                  <div class="qty-add-section">
+                    <div class="qty-input-add-row">
+
+                      <div class="qty-picker-wrap" (click)="$event.stopPropagation()">
+                        <div class="qty-picker">
+                          <button class="qp-btn" (click)="setQty(product.id, getQty(product.id) - 1)" [disabled]="getQty(product.id) <= 1">
+                            −
+                          </button>
+
+                          <input
+                            type="number"
+                            class="qp-input"
+                            [value]="getQty(product.id)"
+                            min="1"
+                            [max]="getEffectiveOutOfStockBehavior(product) === 'allow_backorder' ? 999999 : product.stock"
+                            (input)="setQty(product.id, +$any($event.target).value)"
+                            (focus)="hasQuickQtys(product) ? showQtyDropdown.set(product.id) : null"
+                            (click)="hasQuickQtys(product) ? showQtyDropdown.set(product.id) : null; $any($event.target).select()">
+
+                          <button class="qp-btn" (click)="setQty(product.id, getQty(product.id) + 1)"
+                            [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getQty(product.id) >= product.stock">
+                            +
+                          </button>
+                        </div>
+
+                        <!-- Dropdown appears below input -->
+                        @if (showQtyDropdown() === product.id && hasQuickQtys(product)) {
+                          <div class="qty-dropdown">
+                            <div class="qty-dropdown-label">Quick select</div>
+                            @for (q of quickQtys; track q) {
+                              @if (q <= product.stock || getEffectiveOutOfStockBehavior(product) === 'allow_backorder') {
+                                <button class="qty-dropdown-item" [class.active]="getQty(product.id) === q" (click)="selectQuickQty(product.id, q)">
+                                  <span class="qty-dropdown-num">{{ q }}</span>
+                                  <span class="qty-dropdown-units">units</span>
+                                  @if (getQty(product.id) === q) {
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="qty-check">
+                                      <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                  }
+                                </button>
+                              }
+                            }
+                          </div>
+                        }
+                      </div>
+
+                      <!-- Add to cart button -->
+                      <button class="btn-add-cart" (click)="addToCart(product)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="9" cy="21" r="1"/>
+                          <circle cx="20" cy="21" r="1"/>
+                          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                        </svg>
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Gallery -->
+    @if (storefront().galleryEnabled && storefront().galleryImages.length > 0) {
+      <section class="home-section gallery-section">
+        <h3 class="section-title">Gallery</h3>
+
+        <!-- DESKTOP/TABLET: slideshow carousel -->
+        <div class="gallery-carousel"
+          (mouseenter)="galleryPaused.set(true)"
+          (mouseleave)="galleryPaused.set(false)">
+
+          <div class="gallery-carousel-track"
+            [style.transform]="'translateX(calc(-' + galleryIndex() + ' * (33.333% + 0.333rem)))'">
+            @for (item of storefront().galleryImages; track item.id; let i = $index) {
+              <div class="gallery-slide">
+                <img [src]="item.imageUrl" [alt]="item.caption || 'Gallery image'">
+                @if (item.caption) {
+                  <div class="gallery-slide-caption">{{ item.caption }}</div>
+                }
+              </div>
+            }
+          </div>
+
+          @if (storefront().galleryImages.length > 1) {
+            <button class="gallery-arrow gallery-arrow-prev" (click)="galleryPrev()" aria-label="Previous">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <button class="gallery-arrow gallery-arrow-next" (click)="galleryNext()" aria-label="Next">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          }
+        </div>
+
+        @if (storefront().galleryImages.length > 1) {
+          <div class="gallery-dots">
+            @for (item of storefront().galleryImages; track item.id; let i = $index) {
+              <button class="gallery-dot"
+                [class.active]="galleryIndex() === i"
+                (click)="galleryGoTo(i)"
+                [attr.aria-label]="'Go to slide ' + (i + 1)">
+              </button>
+            }
+          </div>
+        }
+
+        <!-- MOBILE: peek-scroll -->
+        <div class="gallery-peek-scroll">
+          @for (item of storefront().galleryImages; track item.id) {
+            <div class="gallery-peek-item">
+              <img [src]="item.imageUrl" [alt]="item.caption || 'Gallery image'">
+              @if (item.caption) {
+                <p class="gallery-caption">{{ item.caption }}</p>
+              }
+            </div>
+          }
+        </div>
+
+      </section>
+    }
+
+  }
+
+  <!-- FLOATING CART BAR (shows when cart has items) -->
+  @if (portal.cartCount() > 0) {
+    <div class="floating-cart-bar">
+      <div class="cart-bar-info">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span>
+          <strong>{{ portal.cartCount() }}</strong>
+          item{{ portal.cartCount() > 1 ? 's' : '' }} in cart
+        </span>
+        <span class="cart-bar-total">
+          {{ formatCurrency(portal.cartSubtotalCents()) }}
+        </span>
+      </div>
+      <a routerLink="/portal/cart" class="cart-bar-btn">
+        View Cart & Checkout →
+      </a>
+    </div>
+  }
+
+</div>

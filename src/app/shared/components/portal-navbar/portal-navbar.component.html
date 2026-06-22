@@ -11,11 +11,11 @@
 
     <!-- Desktop nav links -->
     <nav class="navbar-links">
-      <a routerLink="/portal/dashboard"
+      <a routerLink="/portal"
         routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: false }"
+        [routerLinkActiveOptions]="{ exact: true }"
         class="nav-link">
-        Dashboard
+        Home
       </a>
       <a routerLink="/portal/catalog"
         routerLinkActive="active"
@@ -122,7 +122,7 @@
                   <rect x="14" y="14" width="7" height="7"/>
                   <rect x="3" y="14" width="7" height="7"/>
                 </svg>
-                Dashboard
+                Account overview
               </a>
               <a routerLink="/portal/payments"
                 class="dropdown-item hide-desktop"
@@ -230,12 +230,12 @@
   @if (mobileMenuOpen()) {
     <div class="mobile-menu-wrapper">
       <nav class="mobile-menu">
-        <a routerLink="/portal/dashboard"
+        <a routerLink="/portal"
           routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: false }"
+          [routerLinkActiveOptions]="{ exact: true }"
           class="mobile-link"
           (click)="closeMobileMenu()">
-          Dashboard
+          Home
         </a>
         <a routerLink="/portal/catalog"
           routerLinkActive="active"

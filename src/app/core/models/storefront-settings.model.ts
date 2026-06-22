@@ -5,11 +5,23 @@ export interface StorefrontGalleryImage {
   createdAt: any;
 }
 
+export interface FeaturedBannerProduct {
+  productId: string;
+  showPrice: boolean;
+}
+
+export interface FeaturedBannerSlide {
+  id: string;
+  imageUrl: string;
+  products: FeaturedBannerProduct[];
+  createdAt?: number;
+}
+
 export interface StorefrontSettings {
-  heroEnabled: boolean;
-  heroProductId: string | null;
-  heroHeadline: string;
-  heroSubtext: string;
+  featuredBannerEnabled: boolean;
+  featuredBannerAutoAdvance: boolean;
+  featuredBannerIntervalSeconds: number;
+  featuredBannerSlides: FeaturedBannerSlide[];
 
   orderAgainEnabled: boolean;
 
@@ -26,10 +38,10 @@ export interface StorefrontSettings {
 }
 
 export const DEFAULT_STOREFRONT_SETTINGS: StorefrontSettings = {
-  heroEnabled: false,
-  heroProductId: null,
-  heroHeadline: '',
-  heroSubtext: '',
+  featuredBannerEnabled: false,
+  featuredBannerAutoAdvance: true,
+  featuredBannerIntervalSeconds: 5,
+  featuredBannerSlides: [],
   orderAgainEnabled: true,
   newArrivalsEnabled: true,
   newArrivalsAutoDays: 14,

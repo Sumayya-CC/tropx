@@ -1,12 +1,9 @@
 .portal-layout {
   min-height: 100vh;
   background: #f4f5f7;
-  display: flex;
-  flex-direction: column;
 }
 
 .portal-main {
-  flex: 1;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
