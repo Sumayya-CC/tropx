@@ -320,7 +320,7 @@ export class OrderDetailComponent {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice ${order.orderNumber}</title>
+  <title>Order Confirmation ${order.orderNumber}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -428,7 +428,7 @@ export class OrderDetailComponent {
         </div>
       </div>
       <div class="invoice-title">
-        <div class="word">Invoice</div>
+        <div class="word">Order Confirmation</div>
         <div class="number">${order.orderNumber}</div>
         <div>
           <span class="status-badge">
@@ -576,7 +576,7 @@ export class OrderDetailComponent {
       await html2pdf()
         .set({
           margin: 0,
-          filename: `Invoice-${order.orderNumber}.pdf`,
+          filename: `OrderConfirmation-${order.orderNumber}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
             scale: 2,
@@ -595,7 +595,7 @@ export class OrderDetailComponent {
 
       document.body.removeChild(element);
       this.toast.success(
-        `Invoice ${order.orderNumber} downloaded`
+        `Order Confirmation ${order.orderNumber} downloaded`
       );
     } catch (err) {
       console.error('PDF generation error:', err);
@@ -640,7 +640,7 @@ export class OrderDetailComponent {
       });
 
       this.toast.success(
-        `Invoice sent to ${customerEmail}`
+        `Order Confirmation sent to ${customerEmail}`
       );
     } catch (err) {
       console.error('Error sending invoice:', err);

@@ -25,6 +25,7 @@ export class PortalCatalogComponent {
 
   searchQuery = signal('');
   selectedCategory = signal<string>('all');
+  selectedBrand = signal<string>('all');
   sortBy = signal<'name' | 'price_asc' | 'price_desc'>('name');
   viewMode = signal<'grid' | 'list'>('grid');
 
@@ -36,6 +37,10 @@ export class PortalCatalogComponent {
     const initialCategory = this.route.snapshot.queryParamMap.get('category');
     if (initialCategory) {
       this.selectedCategory.set(initialCategory);
+    }
+    const initialBrand = this.route.snapshot.queryParamMap.get('brand');
+    if (initialBrand) {
+      this.selectedBrand.set(initialBrand);
     }
   }
 
@@ -49,6 +54,18 @@ export class PortalCatalogComponent {
 
   categories = toSignal(this.categories$,
     { initialValue: [] as { id: string; name: string; imageUrl?: string }[] }
+  );
+
+  // Load brands dynamically from Firestore
+  private brands$ = this.firestore
+    .getCollection<{ id: string; name: string; logoUrl?: string }>(
+      'brands',
+      where('tenantId', '==', 1),
+      where('isDeleted', '==', false)
+    );
+
+  brands = toSignal(this.brands$,
+    { initialValue: [] as { id: string; name: string; logoUrl?: string }[] }
   );
 
   // Quantity inputs per product (for cart stepper)
@@ -90,6 +107,12 @@ export class PortalCatalogComponent {
     const cat = this.selectedCategory();
     if (cat !== 'all') {
       list = list.filter(p => p.categoryId === cat);
+    }
+
+    // Brand filter
+    const brand = this.selectedBrand();
+    if (brand !== 'all') {
+      list = list.filter(p => p.brandId === brand);
     }
 
     // Sort
@@ -275,5 +298,7 @@ export class PortalCatalogComponent {
 
   clearSearch() {
     this.searchQuery.set('');
+    this.selectedCategory.set('all');
+    this.selectedBrand.set('all');
   }
 }

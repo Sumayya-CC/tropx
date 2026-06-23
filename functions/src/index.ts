@@ -410,7 +410,7 @@ export const onInvoiceRequest = onDocumentCreated(
       await resend.emails.send({
         from: `Tropx Wholesale <${from}>`,
         to: customerEmail,
-        subject: `Invoice ${orderNumber} — Tropx Wholesale`,
+        subject: `Order Confirmation ${orderNumber} — Tropx Wholesale`,
         html: invoiceHtml,
       });
 
@@ -705,8 +705,41 @@ export const onLowStockAlert = onDocumentCreated(
     const product = productDoc.data()!;
     const threshold = product.lowStockThreshold || 5;
 
-    // Only alert if at or below threshold
-    if (newStock > threshold) return;
+    // Compute committed stock: sum quantities from
+    // orders with status confirmed or out_for_delivery
+    // for this product
+    let committedQty = 0;
+    try {
+      const committedSnap = await db
+        .collection("orders")
+        .where("status", "in", ["confirmed", "out_for_delivery"])
+        .where("isDeleted", "==", false)
+        .get();
+
+      for (const orderDoc of committedSnap.docs) {
+        const orderData = orderDoc.data();
+        const items: any[] = orderData.items || [];
+        for (const item of items) {
+          if (item.productId === productId) {
+            committedQty += item.quantity || 0;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error computing committed stock:", err);
+      // Fall back to raw stock if query fails
+    }
+
+    const atp = Math.max(0, newStock - committedQty);
+
+    console.log(
+      `Low stock check for ${productName}: ` +
+      `stock=${newStock}, committed=${committedQty}, atp=${atp}, ` +
+      `threshold=${threshold}`
+    );
+
+    // Only alert if ATP is at or below threshold
+    if (atp > threshold) return;
 
     // Check last alert time — max once per 24h per product
     const lastAlert = product.lastLowStockAlertAt;
@@ -735,15 +768,16 @@ export const onLowStockAlert = onDocumentCreated(
     const resend = new Resend(resendApiKey.value());
     const from = fromEmail.value();
 
-    const isOutOfStock = newStock <= 0;
+    const isOutOfStock = atp <= 0;
 
     const html = lowStockAlertEmailHtml(
       productName,
       productSku,
-      newStock,
+      atp,
       threshold,
       isOutOfStock,
-      data.linkedOrderNumber || null
+      data.linkedOrderNumber || null,
+      committedQty
     );
 
     try {
@@ -752,7 +786,7 @@ export const onLowStockAlert = onDocumentCreated(
         to: adminEmail,
         subject: isOutOfStock ?
           `🔴 Out of Stock: ${productName}` :
-          `🟡 Low Stock: ${productName} (${newStock} left)`,
+          `🟡 Low Stock: ${productName} (${atp} available)`,
         html,
       });
       console.log(
@@ -1975,10 +2009,11 @@ function returnNotificationEmailHtml(
 function lowStockAlertEmailHtml(
   productName: string,
   productSku: string,
-  currentStock: number,
+  atp: number,
   threshold: number,
   isOutOfStock: boolean,
-  linkedOrderNumber: string | null
+  linkedOrderNumber: string | null,
+  committedQty = 0
 ): string {
   const headerColor = isOutOfStock ?
     "#e7222e" : "#c9952a";
@@ -2048,13 +2083,16 @@ function lowStockAlertEmailHtml(
       <div class="product-sku">SKU: ${productSku}</div>
       <div class="stock-display">
         <div class="stock-number">
-          ${currentStock}
+          ${atp}
         </div>
         <div class="stock-label">
-          units remaining
+          units available to promise
         </div>
         <div class="threshold-note">
           Low stock threshold: ${threshold} units
+          ${committedQty > 0 ?
+            `· ${committedQty} committed to open orders` :
+            ""}
         </div>
       </div>
       ${linkedOrderNumber ? `

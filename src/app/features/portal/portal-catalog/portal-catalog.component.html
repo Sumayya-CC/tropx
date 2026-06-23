@@ -15,6 +15,15 @@
     <!-- View toggle + Sort -->
     <div class="catalog-header-right">
       <select class="sort-select"
+        [ngModel]="selectedBrand()"
+        (ngModelChange)="selectedBrand.set($event)">
+        <option value="all">All Brands</option>
+        @for (brand of brands(); track brand.id) {
+          <option [value]="brand.id">{{ brand.name }}</option>
+        }
+      </select>
+
+      <select class="sort-select"
         [value]="sortBy()"
         (change)="sortBy.set(
           $any($event.target).value

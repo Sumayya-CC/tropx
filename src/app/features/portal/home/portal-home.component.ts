@@ -238,6 +238,68 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
     return isNaN(d.getTime()) ? null : d.getTime();
   }
 
+  formatDate(ts: any): string {
+    if (!ts) return '';
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleDateString('en-CA', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  }
+
+  // Last delivered order items for "Order Again" row
+  lastOrder = computed(() => {
+    const orders = this.portal.activeOrders();
+    // Find most recent delivered order
+    return orders.find((o: any) =>
+      o.status === 'delivered' && !o.isDeleted
+    ) || null;
+  });
+
+  lastOrderProducts = computed(() => {
+    const order = this.lastOrder();
+    if (!order) return [];
+    return (order.items || [])
+      .map((item: any) => {
+        // Cross-reference with live product for
+        // current stock, price, imageUrl
+        const live = this.portal.allProducts()
+          .find((p: any) => p.id === item.productId);
+        return {
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          quantity: item.quantity,
+          priceCents: live?.priceCents ?? item.unitPriceCents,
+          imageUrl: live?.imageUrl || null,
+          stock: live?.stock ?? 0,
+          active: live?.active ?? false,
+          outOfStockBehaviorOverride: live?.outOfStockBehaviorOverride ?? null,
+        };
+      })
+      .filter((p: any) => p.active); // only show still-active products
+  });
+
+  reorderAll() {
+    const items = this.lastOrderProducts();
+    let added = 0;
+    for (const item of items) {
+      const live = this.portal.allProducts()
+        .find((p: any) => p.id === item.productId);
+      if (!live) continue;
+      const behavior = this.getEffectiveOutOfStockBehavior(live);
+      if (live.stock <= 0 && behavior !== 'allow_backorder') continue;
+      this.portal.addToCart(live, item.quantity);
+      added++;
+    }
+    if (added > 0) {
+      this.toast.success(
+        `${added} item${added > 1 ? 's' : ''} added to cart`
+      );
+    } else {
+      this.toast.error('No items from this order are currently available');
+    }
+  }
+
   // Load categories dynamically from Firestore
   private categories$ = this.firestore
     .getCollection<{ id: string; name: string; imageUrl?: string }>(
@@ -248,6 +310,27 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
 
   categories = toSignal(this.categories$,
     { initialValue: [] as { id: string; name: string; imageUrl?: string }[] }
+  );
+
+  // Load brands with logoUrl
+  private brands$ = this.firestore
+    .getCollection<{ id: string; name: string; logoUrl?: string }>(
+      'brands',
+      where('tenantId', '==', 1),
+      where('isDeleted', '==', false)
+    );
+
+  brands = toSignal(this.brands$,
+    { initialValue: [] as { id: string; name: string; logoUrl?: string }[] }
+  );
+
+  // Only show brands that have at least one active product
+  activeBrands = computed(() =>
+    this.brands().filter(brand =>
+      this.portal.allProducts().some(
+        (p: any) => p.brandId === brand.id && p.active && !p.isDeleted
+      )
+    )
   );
 
   getCategoryThumbnail(categoryId: string): string | null {

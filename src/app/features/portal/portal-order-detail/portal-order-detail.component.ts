@@ -507,7 +507,7 @@ export class PortalOrderDetailComponent {
       await html2pdf()
         .set({
           margin: 0,
-          filename: `Invoice-${order.orderNumber}.pdf`,
+          filename: `OrderConfirmation-${order.orderNumber}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
             scale: 2,
@@ -525,7 +525,7 @@ export class PortalOrderDetailComponent {
         .save();
 
       document.body.removeChild(element);
-      this.toast.success(`Invoice ${order.orderNumber} downloaded`);
+      this.toast.success(`Order Confirmation ${order.orderNumber} downloaded`);
     } catch (err) {
       console.error('PDF generation error:', err);
       this.toast.error('Failed to generate PDF');
@@ -618,7 +618,7 @@ export class PortalOrderDetailComponent {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice ${order.orderNumber}</title>
+  <title>Order Confirmation ${order.orderNumber}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -726,7 +726,7 @@ export class PortalOrderDetailComponent {
         </div>
       </div>
       <div class="invoice-title">
-        <div class="word">Invoice</div>
+        <div class="word">Order Confirmation</div>
         <div class="number">${order.orderNumber}</div>
         <div>
           <span class="status-badge">

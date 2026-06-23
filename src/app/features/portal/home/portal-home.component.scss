@@ -352,6 +352,185 @@
   }
 }
 
+/* ── ORDER AGAIN ─────────────────────────────────── */
+.order-again-section {
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .order-again-ref {
+    font-size: 0.8125rem;
+    color: var(--gray);
+    font-weight: 500;
+  }
+}
+
+.btn-reorder-all {
+  padding: 0.5rem 1.125rem;
+  background: var(--navy-deep);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+
+  &:hover { background: var(--navy); }
+}
+
+.order-again-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.order-again-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  transition: box-shadow 0.15s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  }
+}
+
+.oa-img-wrap {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--cream);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oa-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.oa-img-placeholder {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--navy-deep);
+}
+
+.oa-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.oa-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oa-price {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--charcoal);
+}
+
+.oa-last-qty {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.oa-action {
+  flex-shrink: 0;
+}
+
+.oa-add-btn {
+  padding: 0.4rem 0.75rem;
+  background: var(--navy-deep);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  &:hover { background: var(--navy); }
+}
+
+.oa-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--cream);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 0.25rem 0.5rem;
+
+  button {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.1s;
+
+    &:hover { background: var(--color-border); }
+  }
+
+  span {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+    min-width: 20px;
+    text-align: center;
+  }
+}
+
+.oa-oos {
+  font-size: 0.75rem;
+  color: var(--gray);
+  font-style: italic;
+}
+
 /* Category Pills / Cards */
 .category-grid {
   display: flex;

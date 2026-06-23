@@ -156,11 +156,12 @@ type SortDirection = 'asc' | 'desc';
                   </div>
                   
                   <div class="row-3">
-                    <span class="product-sku">{{ product.sku }}</span>
-                    <span class="stock-pill" [ngClass]="getStockClass(product)">
-                      {{ product.stock === 0 ? 'Out of stock' : product.stock <= product.lowStockThreshold ? 'Low stock' : 'In stock' }}
-                    </span>
-                  </div>
+  <span class="product-sku">{{ product.sku }}</span>
+  <span class="stock-pill" [ngClass]="getStockClass(product)">
+    {{ product.stock === 0 ? 'Out of stock' : product.stock <= product.lowStockThreshold ? 'Low stock' : 'In stock' }}
+    &nbsp;·&nbsp;{{ product.stock }}
+  </span>
+</div>
                 </div>
                 
                 <div class="card-footer">
@@ -278,9 +279,9 @@ type SortDirection = 'asc' | 'desc';
 export class AdminProductsComponent {
   private readonly firestore = inject(FirestoreService);
   protected readonly router = inject(Router);
-  
+
   viewMode = signal<'grid' | 'table'>('grid');
-  
+
   products = signal<Product[]>([]);
   categories = signal<Category[]>([]);
   brands = signal<Brand[]>([]);
@@ -299,10 +300,10 @@ export class AdminProductsComponent {
 
   hasActiveFilters = computed(() => {
     return this.searchQuery().trim() !== '' ||
-           this.categoryFilter() !== 'all' ||
-           this.brandFilter() !== 'all' ||
-           this.statusFilter() !== 'all' ||
-           this.stockFilter() !== 'all';
+      this.categoryFilter() !== 'all' ||
+      this.brandFilter() !== 'all' ||
+      this.statusFilter() !== 'all' ||
+      this.stockFilter() !== 'all';
   });
 
   filteredProducts = computed(() => {
@@ -314,25 +315,25 @@ export class AdminProductsComponent {
     const stock = this.stockFilter();
 
     if (query) {
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(query) || 
-        p.sku.toLowerCase().includes(query) || 
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(query) ||
+        p.sku.toLowerCase().includes(query) ||
         (p.barcode && p.barcode.toLowerCase().includes(query))
       );
     }
-    
+
     if (catId !== 'all') {
       result = result.filter(p => p.categoryId === catId);
     }
-    
+
     if (brandId !== 'all') {
       result = result.filter(p => p.brandId === brandId);
     }
-    
+
     if (status !== 'all') {
       result = result.filter(p => p.active === (status === 'active'));
     }
-    
+
     if (stock !== 'all') {
       if (stock === 'low') {
         result = result.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold);
@@ -344,7 +345,7 @@ export class AdminProductsComponent {
     // Sort
     const col = this.sortCol();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
-    
+
     return [...result].sort((a, b) => {
       let valA, valB;
       if (col === 'name') {
@@ -359,7 +360,7 @@ export class AdminProductsComponent {
       } else {
         return 0;
       }
-      
+
       if (valA < valB) return -1 * dir;
       if (valA > valB) return 1 * dir;
       return 0;

@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { where, orderBy, serverTimestamp } from '@angular/fire/firestore';
+import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 interface Brand {
@@ -14,6 +15,7 @@ interface Brand {
   active: boolean;
   tenantId: number;
   isDeleted: boolean;
+  logoUrl?: string;
 }
 
 interface Product {
@@ -34,10 +36,18 @@ export class AdminBrandsComponent {
   private readonly firestore = inject(FirestoreService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly storage = inject(Storage);
 
   brands = signal<Brand[]>([]);
   products = signal<Product[]>([]);
   isLoading = signal(true);
+
+  // Logo Upload State
+  formLogoUrl = signal('');
+  formLogoFile = signal<File | null>(null);
+  formLogoPreview = signal('');
+  isUploadingLogo = signal(false);
+  lightboxImageUrl = signal<string | null>(null);
 
   // Modal State
   showModal = signal(false);
@@ -91,6 +101,9 @@ export class AdminBrandsComponent {
   openAddModal() {
     this.formName.set('');
     this.formActive.set(true);
+    this.formLogoUrl.set('');
+    this.formLogoFile.set(null);
+    this.formLogoPreview.set('');
     this.isEditing.set(false);
     this.editingId.set(null);
     this.showModal.set(true);
@@ -99,6 +112,9 @@ export class AdminBrandsComponent {
   openEditModal(brand: Brand) {
     this.formName.set(brand.name);
     this.formActive.set(brand.active);
+    this.formLogoUrl.set(brand.logoUrl || '');
+    this.formLogoPreview.set(brand.logoUrl || '');
+    this.formLogoFile.set(null);
     this.isEditing.set(true);
     this.editingId.set(brand.id);
     this.showModal.set(true);
@@ -115,6 +131,30 @@ export class AdminBrandsComponent {
     }
   }
 
+  onLogoSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      this.toast.error('Image must be under 2MB');
+      return;
+    }
+    this.formLogoFile.set(file);
+    const reader = new FileReader();
+    reader.onload = (e) =>
+      this.formLogoPreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  removeLogo() {
+    this.formLogoFile.set(null);
+    this.formLogoPreview.set('');
+    this.formLogoUrl.set('');
+  }
+
   async saveBrand() {
     if (!this.formName().trim()) {
       this.toast.warning('Please enter a name');
@@ -124,9 +164,22 @@ export class AdminBrandsComponent {
     this.isSaving.set(true);
     
     try {
-      const data = {
+      let finalLogoUrl = this.formLogoUrl();
+
+      if (this.formLogoFile()) {
+        this.isUploadingLogo.set(true);
+        const file = this.formLogoFile()!;
+        const path = `brands/${Date.now()}_${file.name}`;
+        const storageRef = ref(this.storage, path);
+        await uploadBytes(storageRef, file);
+        finalLogoUrl = await getDownloadURL(storageRef);
+        this.isUploadingLogo.set(false);
+      }
+
+      const data: any = {
         name: this.formName().trim(),
         active: this.formActive(),
+        logoUrl: finalLogoUrl || null,
       };
 
       if (this.isEditing() && this.editingId()) {
@@ -149,6 +202,7 @@ export class AdminBrandsComponent {
       this.toast.error('Failed to save brand');
     } finally {
       this.isSaving.set(false);
+      this.isUploadingLogo.set(false);
     }
   }
 

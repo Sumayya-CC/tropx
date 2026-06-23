@@ -30,6 +30,7 @@
 
   <!-- Checks if at least one section has content -->
   @let hasContent = (storefront().featuredBannerEnabled && storefront().featuredBannerSlides.length > 0) || 
+                     (storefront().orderAgainEnabled && lastOrder()) ||
                      (storefront().newArrivalsEnabled && newArrivals().length > 0) || 
                      (storefront().galleryEnabled && storefront().galleryImages.length > 0) || 
                      (categories() && categories().length > 0);
@@ -139,6 +140,78 @@
       </section>
     }
 
+    <!-- Order Again -->
+    @if (storefront().orderAgainEnabled && lastOrder()) {
+      <section class="home-section order-again-section">
+        <div class="section-header">
+          <h2 class="section-title">Order Again</h2>
+          <div class="section-actions">
+            <span class="order-again-ref">
+              Last order: {{ lastOrder()!.orderNumber }}
+              · {{ formatDate(lastOrder()!.confirmedAt) }}
+            </span>
+            <button class="btn-reorder-all"
+              (click)="reorderAll()">
+              Add All to Cart
+            </button>
+          </div>
+        </div>
+
+        <div class="order-again-grid">
+          @for (item of lastOrderProducts(); track item.productId) {
+            <div class="order-again-card">
+              <!-- Product image -->
+              <div class="oa-img-wrap">
+                @if (item.imageUrl) {
+                  <img [src]="item.imageUrl"
+                    [alt]="item.productName"
+                    class="oa-img">
+                } @else {
+                  <div class="oa-img-placeholder">
+                    {{ getProductInitial(item.productName) }}
+                  </div>
+                }
+              </div>
+
+              <!-- Product info -->
+              <div class="oa-info">
+                <span class="oa-name">
+                  {{ item.productName }}
+                </span>
+                <span class="oa-price">
+                  {{ formatCurrency(item.priceCents) }}
+                </span>
+                <span class="oa-last-qty">
+                  Last ordered: ×{{ item.quantity }}
+                </span>
+              </div>
+
+              <!-- Add to cart -->
+              <div class="oa-action">
+                @if (item.stock > 0 ||
+                  getEffectiveOutOfStockBehavior(item) === 'allow_backorder') {
+                  @if (isInCart(item.productId)) {
+                    <div class="oa-stepper">
+                      <button (click)="decrement(item)">−</button>
+                      <span>{{ getCartQty(item.productId) }}</span>
+                      <button (click)="increment(item)">+</button>
+                    </div>
+                  } @else {
+                    <button class="oa-add-btn"
+                      (click)="addToCart(item)">
+                      + Add ×{{ item.quantity }}
+                    </button>
+                  }
+                } @else {
+                  <span class="oa-oos">Out of stock</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
     <!-- Shop by Category -->
     @if (categories() && categories().length > 0) {
       <section class="home-section categories-section">
@@ -161,6 +234,34 @@
                 }
               </div>
               <span class="category-card-name">{{ cat.name }}</span>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Shop by Brand -->
+    @if (activeBrands().length > 0) {
+      <section class="home-section">
+        <h2 class="section-title">Shop by Brand</h2>
+        <div class="category-grid">
+          @for (brand of activeBrands(); track brand.id) {
+            <a routerLink="/portal/catalog"
+              [queryParams]="{ brand: brand.id }"
+              class="category-card">
+              <div class="category-circle">
+                @if (brand.logoUrl) {
+                  <img [src]="brand.logoUrl" [alt]="brand.name"
+                    class="category-circle-img">
+                } @else {
+                  <span class="category-circle-emoji"
+                    style="font-size: 1.25rem; font-weight: 800;
+                      color: var(--navy-deep);">
+                    {{ brand.name.charAt(0).toUpperCase() }}
+                  </span>
+                }
+              </div>
+              <span class="category-card-name">{{ brand.name }}</span>
             </a>
           }
         </div>
