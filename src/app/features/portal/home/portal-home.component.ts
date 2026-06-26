@@ -2,7 +2,6 @@ import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
 import { PortalService } from '../../../core/services/portal.service';
 import { SettingsService } from '../../../core/services/settings.service';
@@ -36,6 +35,17 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.startGalleryTimer();
     this.startBannerTimer();
+    this.portal.loadCart();
+    this.firestore.getCollection<{ id: string; name: string; imageUrl?: string }>(
+      'categories',
+      where('tenantId', '==', 1),
+      where('isDeleted', '==', false)
+    ).subscribe(v => this.categories.set(v));
+    this.firestore.getCollection<{ id: string; name: string; logoUrl?: string }>(
+      'brands',
+      where('tenantId', '==', 1),
+      where('isDeleted', '==', false)
+    ).subscribe(v => this.brands.set(v));
   }
 
   ngOnDestroy() {
@@ -300,29 +310,8 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Load categories dynamically from Firestore
-  private categories$ = this.firestore
-    .getCollection<{ id: string; name: string; imageUrl?: string }>(
-      'categories',
-      where('tenantId', '==', 1),
-      where('isDeleted', '==', false)
-    );
-
-  categories = toSignal(this.categories$,
-    { initialValue: [] as { id: string; name: string; imageUrl?: string }[] }
-  );
-
-  // Load brands with logoUrl
-  private brands$ = this.firestore
-    .getCollection<{ id: string; name: string; logoUrl?: string }>(
-      'brands',
-      where('tenantId', '==', 1),
-      where('isDeleted', '==', false)
-    );
-
-  brands = toSignal(this.brands$,
-    { initialValue: [] as { id: string; name: string; logoUrl?: string }[] }
-  );
+  categories = signal<{ id: string; name: string; imageUrl?: string }[]>([]);
+  brands = signal<{ id: string; name: string; logoUrl?: string }[]>([]);
 
   // Only show brands that have at least one active product
   activeBrands = computed(() =>

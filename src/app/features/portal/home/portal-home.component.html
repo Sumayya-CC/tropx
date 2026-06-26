@@ -1,3 +1,4 @@
+@if (portal.customerProfile()) {
 <div class="home-page">
 
   <!-- Header Greeting Section -->
@@ -344,18 +345,45 @@
                   <!-- Already in cart — compact stepper -->
                   <div class="in-cart-compact">
                     <div class="in-cart-label">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green, #16a34a)" stroke-width="2.5">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
-                      {{ getCartQty(product.id) }} in cart
+                      <span style="color: var(--green, #16a34a); font-weight: 600; font-size: 0.75rem;">In cart</span>
                     </div>
-                    <div class="cart-qty-controls">
-                      <button class="cart-qty-btn" (click)="decrement(product)">−</button>
-                      <span class="cart-qty-num">
-                        {{ getCartQty(product.id) }}
-                      </span>
-                      <button class="cart-qty-btn" (click)="increment(product)"
-                        [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getCartQty(product.id) >= product.stock">+</button>
+                    <div class="qty-picker-wrap" (click)="$event.stopPropagation()">
+                      <div class="qty-picker">
+                        <button class="qp-btn" (click)="decrement(product)">−</button>
+                        <input
+                          type="number"
+                          class="qp-input"
+                          [value]="getCartQty(product.id)"
+                          min="1"
+                          [max]="getEffectiveOutOfStockBehavior(product) === 'allow_backorder' ? 999999 : product.stock"
+                          (change)="portal.updateCartQty(product.id, +$any($event.target).value)"
+                          (focus)="hasQuickQtys(product) ? showQtyDropdown.set(product.id + '_c') : null"
+                          (click)="hasQuickQtys(product) ? showQtyDropdown.set(product.id + '_c') : null; $any($event.target).select()">
+                        <button class="qp-btn"
+                          (click)="increment(product)"
+                          [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getCartQty(product.id) >= product.stock">+</button>
+                      </div>
+                      @if (showQtyDropdown() === product.id + '_c' && hasQuickQtys(product)) {
+                        <div class="qty-dropdown">
+                          <div class="qty-dropdown-label">Quick select</div>
+                          @for (q of quickQtys; track q) {
+                            @if (q <= product.stock || getEffectiveOutOfStockBehavior(product) === 'allow_backorder') {
+                              <button class="qty-dropdown-item"
+                                [class.active]="getCartQty(product.id) === q"
+                                (click)="portal.updateCartQty(product.id, q); showQtyDropdown.set(null)">
+                                <span class="qty-dropdown-num">{{ q }}</span>
+                                <span class="qty-dropdown-units">units</span>
+                                @if (getCartQty(product.id) === q) {
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="qty-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                }
+                              </button>
+                            }
+                          }
+                        </div>
+                      }
                     </div>
                   </div>
                 } @else {
@@ -517,3 +545,4 @@
   }
 
 </div>
+}

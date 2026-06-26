@@ -576,3 +576,144 @@
     cursor: not-allowed;
   }
 }
+
+/* Qty picker — shared with catalog/home */
+.qty-picker-wrap {
+  position: relative;
+}
+
+.qty-picker {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--navy-deep);
+  border-radius: 10px;
+  overflow: visible;
+
+  &.large {
+    border-radius: 12px;
+  }
+}
+
+.qp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 40px;
+  background: var(--cream);
+  border: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--navy-deep);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  &.large-btn {
+    width: 44px;
+    height: 48px;
+    font-size: 1.4rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--navy-deep);
+    color: white;
+  }
+
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
+}
+
+.qp-input {
+  width: 52px;
+  height: 40px;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+  background: white;
+  outline: none;
+  -moz-appearance: textfield;
+
+  &.large-input {
+    width: 72px;
+    height: 48px;
+    font-size: 1.0625rem;
+  }
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &:focus {
+    background: rgba(22,88,142,0.04);
+  }
+}
+
+.qty-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 9999;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  min-width: 160px;
+  overflow: hidden;
+
+  &.detail-dropdown {
+    min-width: 180px;
+  }
+}
+
+.qty-dropdown-label {
+  padding: 0.5rem 0.875rem 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gray);
+}
+
+.qty-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.875rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+
+  &:hover { background: var(--cream); }
+
+  &.active {
+    background: rgba(22,88,142,0.08);
+    color: var(--navy-deep);
+    font-weight: 600;
+  }
+}
+
+.qty-dropdown-num {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--navy-deep);
+  min-width: 28px;
+}
+
+.qty-dropdown-units {
+  font-size: 0.8rem;
+  color: var(--gray);
+}
+
+.qty-check {
+  margin-left: auto;
+  color: var(--navy-deep);
+}

@@ -123,16 +123,16 @@ export class PortalService {
   );
 
   // All active products (no customer scope)
-  private products$ = this.firestoreService
-    .getCollection<any>(
+  allProducts = signal<any[]>([]);
+
+  constructor() {
+    this.firestoreService.getCollection<any>(
       'products',
       where('tenantId', '==', 1),
       where('active', '==', true),
       where('isDeleted', '==', false)
-    );
-
-  allProducts = toSignal(this.products$,
-    { initialValue: [] as any[] });
+    ).subscribe(v => this.allProducts.set(v));
+  }
 
   // ── COMPUTED ─────────────────────────────────────────
 

@@ -1,5 +1,4 @@
-import { Injectable, inject, computed } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Injectable, inject, computed, signal } from '@angular/core';
 import { FirestoreService } from './firestore.service';
 import { SettingsService } from './settings.service';
 import { Return } from '../models/return.model';
@@ -12,27 +11,28 @@ export class NotificationService {
   private readonly firestore = inject(FirestoreService);
   private readonly settingsService = inject(SettingsService);
 
-  private returns$ = this.firestore.getCollection<Return>(
-    'returns', where('tenantId', '==', 1)
-  );
-  private orders$ = this.firestore.getCollection<Order>(
-    'orders', where('tenantId', '==', 1)
-  );
-  private products$ = this.firestore.getCollection<Product>(
-    'products', where('tenantId', '==', 1)
-  );
-  private accessRequests$ = this.firestore.getCollection<any>(
-    'accessRequests', where('tenantId', '==', 1)
-  );
+  allReturns = signal<Return[]>([]);
+  allOrders = signal<Order[]>([]);
+  allProducts = signal<Product[]>([]);
+  allAccessRequests = signal<any[]>([]);
 
-  allReturns = toSignal(this.returns$, 
-    { initialValue: [] as Return[] });
-  allOrders = toSignal(this.orders$, 
-    { initialValue: [] as Order[] });
-  allProducts = toSignal(this.products$, 
-    { initialValue: [] as Product[] });
-  allAccessRequests = toSignal(this.accessRequests$,
-    { initialValue: [] as any[] });
+  constructor() {
+    this.firestore.getCollection<Return>(
+      'returns', where('tenantId', '==', 1)
+    ).subscribe(v => this.allReturns.set(v));
+
+    this.firestore.getCollection<Order>(
+      'orders', where('tenantId', '==', 1)
+    ).subscribe(v => this.allOrders.set(v));
+
+    this.firestore.getCollection<Product>(
+      'products', where('tenantId', '==', 1)
+    ).subscribe(v => this.allProducts.set(v));
+
+    this.firestore.getCollection<any>(
+      'accessRequests', where('tenantId', '==', 1)
+    ).subscribe(v => this.allAccessRequests.set(v));
+  }
 
   pendingReturnsCount = computed(() =>
     this.allReturns()

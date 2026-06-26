@@ -89,15 +89,7 @@ export class AdminDashboardComponent {
     return this.expandedActions().has(key);
   }
 
-  private hasLoaded = signal(false);
-  
-  constructor() {
-    this.orders$.subscribe(
-      () => this.hasLoaded.set(true)
-    );
-  }
-
-  isLoading = computed(() => !this.hasLoaded());
+  isLoading = computed(() => !this.authService.currentProfile());
   isAdmin = computed(() => this.authService.isAdmin());
   userFirstName = computed(() =>
     this.authService.currentProfile()?.firstName || ''

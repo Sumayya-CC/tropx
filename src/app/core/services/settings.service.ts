@@ -1,6 +1,5 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
 import { FirestoreService } from './firestore.service';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { StorefrontSettings, DEFAULT_STOREFRONT_SETTINGS } from '../models/storefront-settings.model';
@@ -197,28 +196,23 @@ export class SettingsService {
   private readonly firestore = inject(FirestoreService);
   private readonly storage = inject(Storage);
 
-  private business$ = this.firestore
-    .getDocument<BusinessSettings>('settings/business');
-
-  private invoice$ = this.firestore
-    .getDocument<InvoiceSettings>('settings/invoice');
-
-  private ordering$ = this.firestore
-    .getDocument<OrderingSettings>('settings/ordering');
-
-  private storefront$ = this.firestore
-    .getDocument<StorefrontSettings>('settings/storefront');
-
-  private _business = toSignal(this.business$);
-  private _invoice = toSignal(this.invoice$);
-  private _ordering = toSignal(this.ordering$);
-  private _storefront = toSignal(this.storefront$);
+  private _business = signal<BusinessSettings | null>(null);
+  private _invoice = signal<InvoiceSettings | null>(null);
+  private _ordering = signal<OrderingSettings | null>(null);
+  private _storefront = signal<StorefrontSettings | null>(null);
   private _notificationsData = signal<NotificationSettings | null>(null);
 
   constructor() {
-    this.firestore.getDocument<NotificationSettings>(
-      'settings/notifications'
-    ).subscribe(data => this._notificationsData.set(data));
+    this.firestore.getDocument<BusinessSettings>('settings/business')
+      .subscribe(v => this._business.set(v));
+    this.firestore.getDocument<InvoiceSettings>('settings/invoice')
+      .subscribe(v => this._invoice.set(v));
+    this.firestore.getDocument<OrderingSettings>('settings/ordering')
+      .subscribe(v => this._ordering.set(v));
+    this.firestore.getDocument<StorefrontSettings>('settings/storefront')
+      .subscribe(v => this._storefront.set(v));
+    this.firestore.getDocument<NotificationSettings>('settings/notifications')
+      .subscribe(v => this._notificationsData.set(v));
   }
 
   business = computed(() => ({

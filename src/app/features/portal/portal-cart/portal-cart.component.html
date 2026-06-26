@@ -121,48 +121,45 @@
 
               <!-- Qty stepper -->
               <div class="cart-item-qty center">
-                <div class="qty-stepper">
-                  <button class="qty-btn"
-                    (click)="portal.updateCartQty(
-                      item.productId,
-                      item.quantity - 1
-                    )"
-                    [disabled]="item.quantity <= 1">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                      width="14" height="14"
-                      viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5">
-                      <line x1="5" y1="12"
-                        x2="19" y2="12"/>
-                    </svg>
-                  </button>
-                  <span class="qty-num">
-                    {{ item.quantity }}
-                  </span>
-                  <button class="qty-btn"
-                    (click)="portal.updateCartQty(
-                      item.productId,
-                      item.quantity + 1
-                    )"
-                    [disabled]="getEffectiveOutOfStockBehavior(item) !== 'allow_backorder' && item.quantity >=
-                      item.stock">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                      width="14" height="14"
-                      viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5">
-                      <line x1="12" y1="5"
-                        x2="12" y2="19"/>
-                      <line x1="5" y1="12"
-                        x2="19" y2="12"/>
-                    </svg>
-                  </button>
+                <div class="qty-picker-wrap" (click)="$event.stopPropagation()">
+                  <div class="qty-picker">
+                    <button class="qp-btn"
+                      (click)="portal.updateCartQty(item.productId, item.quantity - 1)"
+                      [disabled]="item.quantity <= 1">−</button>
+                    <input
+                      type="number"
+                      class="qp-input"
+                      [value]="item.quantity"
+                      min="1"
+                      [max]="getEffectiveOutOfStockBehavior(item) === 'allow_backorder' ? 999999 : item.stock"
+                      (change)="portal.updateCartQty(item.productId, +$any($event.target).value)"
+                      (focus)="hasQuickQtys(item) ? showQtyDropdown.set(item.productId) : null"
+                      (click)="hasQuickQtys(item) ? showQtyDropdown.set(item.productId) : null; $any($event.target).select()">
+                    <button class="qp-btn"
+                      (click)="portal.updateCartQty(item.productId, item.quantity + 1)"
+                      [disabled]="getEffectiveOutOfStockBehavior(item) !== 'allow_backorder' && item.quantity >= item.stock">+</button>
+                  </div>
+                  @if (showQtyDropdown() === item.productId && hasQuickQtys(item)) {
+                    <div class="qty-dropdown">
+                      <div class="qty-dropdown-label">Quick select</div>
+                      @for (q of quickQtys; track q) {
+                        @if (q <= item.stock || getEffectiveOutOfStockBehavior(item) === 'allow_backorder') {
+                          <button class="qty-dropdown-item"
+                            [class.active]="item.quantity === q"
+                            (click)="portal.updateCartQty(item.productId, q); showQtyDropdown.set(null)">
+                            <span class="qty-dropdown-num">{{ q }}</span>
+                            <span class="qty-dropdown-units">units</span>
+                            @if (item.quantity === q) {
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="qty-check"><polyline points="20 6 9 17 4 12"/></svg>
+                            }
+                          </button>
+                        }
+                      }
+                    </div>
+                  }
                 </div>
                 @if (getEffectiveOutOfStockBehavior(item) !== 'allow_backorder' && item.quantity >= item.stock) {
-                  <span class="max-stock-hint">
-                    Max
-                  </span>
+                  <span class="max-stock-hint">Max</span>
                 }
               </div>
 

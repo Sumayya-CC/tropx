@@ -2,7 +2,6 @@ import { Component, computed, inject, signal, HostListener } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
 import { PortalService } from '../../../core/services/portal.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -31,42 +30,23 @@ export class PortalCatalogComponent {
 
   constructor() {
     const initialSearch = this.route.snapshot.queryParamMap.get('search');
-    if (initialSearch) {
-      this.searchQuery.set(initialSearch);
-    }
+    if (initialSearch) this.searchQuery.set(initialSearch);
     const initialCategory = this.route.snapshot.queryParamMap.get('category');
-    if (initialCategory) {
-      this.selectedCategory.set(initialCategory);
-    }
+    if (initialCategory) this.selectedCategory.set(initialCategory);
     const initialBrand = this.route.snapshot.queryParamMap.get('brand');
-    if (initialBrand) {
-      this.selectedBrand.set(initialBrand);
-    }
+    if (initialBrand) this.selectedBrand.set(initialBrand);
+
+    this.firestore.getCollection<{ id: string; name: string; imageUrl?: string }>(
+      'categories', where('tenantId', '==', 1), where('isDeleted', '==', false)
+    ).subscribe(v => this.categories.set(v));
+
+    this.firestore.getCollection<{ id: string; name: string; logoUrl?: string }>(
+      'brands', where('tenantId', '==', 1), where('isDeleted', '==', false)
+    ).subscribe(v => this.brands.set(v));
   }
 
-  // Load categories dynamically from Firestore
-  private categories$ = this.firestore
-    .getCollection<{ id: string; name: string; imageUrl?: string }>(
-      'categories',
-      where('tenantId', '==', 1),
-      where('isDeleted', '==', false)
-    );
-
-  categories = toSignal(this.categories$,
-    { initialValue: [] as { id: string; name: string; imageUrl?: string }[] }
-  );
-
-  // Load brands dynamically from Firestore
-  private brands$ = this.firestore
-    .getCollection<{ id: string; name: string; logoUrl?: string }>(
-      'brands',
-      where('tenantId', '==', 1),
-      where('isDeleted', '==', false)
-    );
-
-  brands = toSignal(this.brands$,
-    { initialValue: [] as { id: string; name: string; logoUrl?: string }[] }
-  );
+  categories = signal<{ id: string; name: string; imageUrl?: string }[]>([]);
+  brands = signal<{ id: string; name: string; logoUrl?: string }[]>([]);
 
   // Quantity inputs per product (for cart stepper)
   qtyInputs = signal<Record<string, number>>({});

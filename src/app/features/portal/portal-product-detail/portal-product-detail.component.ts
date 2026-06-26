@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { PortalService } from '../../../core/services/portal.service';
@@ -27,6 +27,21 @@ export class PortalProductDetailComponent implements OnInit {
   isLoading = signal(true);
   quantity = signal(1);
   submittedNotifications = signal<Record<string, boolean>>({});
+  showQtyDropdown = signal(false);
+  quickQtys = [5, 10, 20, 30, 50, 100];
+
+  hasQuickQtys(): boolean {
+    const p = this.product();
+    if (!p) return false;
+    const behavior = this.getEffectiveOutOfStockBehavior(p);
+    if (behavior === 'allow_backorder') return true;
+    return this.quickQtys.some(q => q <= p.stock);
+  }
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    this.showQtyDropdown.set(false);
+  }
 
   getEffectiveOutOfStockBehavior(product: any): 'hide' | 'show_disabled' | 'allow_backorder' {
     if (!product) return 'show_disabled';
