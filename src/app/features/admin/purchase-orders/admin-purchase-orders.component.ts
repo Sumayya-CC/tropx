@@ -14,7 +14,7 @@ import { centsToDisplay } from '../../../shared/utils/currency.utils';
 @Component({
   selector: 'app-admin-purchase-orders',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, PageHeaderComponent, LoadingSpinnerComponent, DatePipe, StatusBadgeComponent],
+  imports: [CommonModule, RouterModule, FormsModule, PageHeaderComponent, LoadingSpinnerComponent, StatusBadgeComponent],
   template: `
     <app-page-header 
       title="Purchase Orders" 

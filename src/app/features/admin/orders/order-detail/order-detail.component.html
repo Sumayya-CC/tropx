@@ -115,50 +115,173 @@
         <div class="detail-section">
           <h3>Items</h3>
           <div class="items-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Qty</th>
-                  <th>Unit Price</th>
-                  <th>Line Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of order()?.items; track item.productId) {
+            @if (!isEditingOrder()) {
+              <table>
+                <thead>
                   <tr>
-                    <td>
-                      <div class="item-info">
-                        <span class="name">{{ item.productName }}</span>
-                        <span class="sku">{{ item.productSku }}</span>
-                      </div>
-                    </td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ formatCurrency(item.unitPriceCents) }}</td>
-                    <td class="line-total">{{ formatCurrency(item.lineTotalCents) }}</td>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Line Total</th>
                   </tr>
-                }
-                <!-- Totals -->
-                <tr class="summary-row">
-                  <td colspan="3">Subtotal</td>
-                  <td>{{ formatCurrency(order()?.subtotalCents!) }}</td>
-                </tr>
-                @if (order()?.discountCents! > 0) {
+                </thead>
+                <tbody>
+                  @for (item of order()?.items; track item.productId) {
+                    <tr>
+                      <td>
+                        <div class="item-info">
+                          <span class="name">{{ item.productName }}</span>
+                          <span class="sku">{{ item.productSku }}</span>
+                        </div>
+                      </td>
+                      <td>{{ item.quantity }}</td>
+                      <td>{{ formatCurrency(item.unitPriceCents) }}</td>
+                      <td class="line-total">{{ formatCurrency(item.lineTotalCents) }}</td>
+                    </tr>
+                  }
+                  <!-- Totals -->
                   <tr class="summary-row">
-                    <td colspan="3">Discount</td>
-                    <td style="color:var(--red)">-{{ formatCurrency(order()?.discountCents!) }}</td>
+                    <td colspan="3">Subtotal</td>
+                    <td>{{ formatCurrency(order()?.subtotalCents!) }}</td>
                   </tr>
-                }
-                <tr class="summary-row">
-                  <td colspan="3">Tax ({{ order()?.taxRatePercent }}%)</td>
-                  <td>{{ formatCurrency(order()?.taxCents!) }}</td>
-                </tr>
-                <tr class="summary-row total-row">
-                  <td colspan="3">Total</td>
-                  <td>{{ formatCurrency(order()?.totalCents!) }}</td>
-                </tr>
-              </tbody>
-            </table>
+                  @if (order()?.discountCents! > 0) {
+                    <tr class="summary-row">
+                      <td colspan="3">Discount</td>
+                      <td style="color:var(--red)">-{{ formatCurrency(order()?.discountCents!) }}</td>
+                    </tr>
+                  }
+                  <tr class="summary-row">
+                    <td colspan="3">Tax ({{ order()?.taxRatePercent }}%)</td>
+                    <td>{{ formatCurrency(order()?.taxCents!) }}</td>
+                  </tr>
+                  <tr class="summary-row total-row">
+                    <td colspan="3">Total</td>
+                    <td>{{ formatCurrency(order()?.totalCents!) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            } @else {
+              <!-- EDIT MODE items table -->
+              <div class="edit-mode-banner">
+                ✏️ Editing order — changes will update stock and customer totals automatically
+              </div>
+
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th style="text-align:center">Qty</th>
+                    <th style="text-align:right">Unit Price</th>
+                    <th style="text-align:right">Line Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of editItems(); track item.productId) {
+                    <tr>
+                      <td>
+                        <div class="item-name">{{ item.productName }}</div>
+                        <div class="item-sku">{{ item.productSku }}</div>
+                        @if (item.quantity < item.originalQuantity) {
+                          <div class="qty-reduced-note">
+                            ↓ Reduced from {{ item.originalQuantity }}
+                          </div>
+                        }
+                      </td>
+                      <td style="text-align:center">
+                        <input type="number"
+                          class="edit-qty-input"
+                          [value]="item.quantity"
+                          [min]="1"
+                          [max]="item.originalQuantity"
+                          (change)="updateItemQuantity(item.productId, +$any($event.target).value)">
+                      </td>
+                      <td style="text-align:right">
+                        <input type="number"
+                          class="edit-price-input"
+                          [value]="(item.unitPriceCents / 100).toFixed(2)"
+                          min="0" step="0.01"
+                          (change)="updateItemPrice(item.productId, +$any($event.target).value)">
+                      </td>
+                      <td style="text-align:right; font-weight:600;">
+                        {{ formatCurrency(item.lineTotalCents) }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+
+              <!-- Edit discount -->
+              <div class="edit-discount-row">
+                <span class="discount-label">Discount</span>
+                <div class="discount-controls">
+                  <div class="discount-type-pills">
+                    <label class="type-pill" [class.active]="editDiscountType() === 'fixed'">
+                      <input type="radio"
+                        name="discountType" value="fixed"
+                        [checked]="editDiscountType() === 'fixed'"
+                        (change)="setDiscountType('fixed')">
+                      $ Fixed
+                    </label>
+                    <label class="type-pill" [class.active]="editDiscountType() === 'percent'">
+                      <input type="radio"
+                        name="discountType" value="percent"
+                        [checked]="editDiscountType() === 'percent'"
+                        (change)="setDiscountType('percent')">
+                      % Percent
+                    </label>
+                  </div>
+                  <input type="number"
+                    class="discount-input"
+                    [value]="editDiscountType() === 'percent' ? editDiscountPercent() : (editDiscountCents() / 100).toFixed(2)"
+                    min="0"
+                    [step]="editDiscountType() === 'percent' ? 1 : 0.01"
+                    [placeholder]="editDiscountType() === 'percent' ? '0%' : '$0.00'"
+                    (change)="updateDiscount(+$any($event.target).value)">
+                </div>
+              </div>
+
+              <!-- Recalculated totals preview -->
+              @if (editTotals()) {
+                <div class="edit-totals-preview">
+                  <div class="totals-row">
+                    <span>Subtotal</span>
+                    <span>{{ formatCurrency(editTotals()!.subtotalCents) }}</span>
+                  </div>
+                  @if (editTotals()!.discountCents > 0) {
+                    <div class="totals-row discount">
+                      <span>Discount</span>
+                      <span>-{{ formatCurrency(editTotals()!.discountCents) }}</span>
+                    </div>
+                  }
+                  <div class="totals-row">
+                    <span>HST ({{ order()?.taxRatePercent }}%)</span>
+                    <span>{{ formatCurrency(editTotals()!.taxCents) }}</span>
+                  </div>
+                  <div class="totals-row total">
+                    <span>New Total</span>
+                    <span>{{ formatCurrency(editTotals()!.totalCents) }}</span>
+                  </div>
+                  <div class="totals-row balance">
+                    <span>New Balance Due</span>
+                    <span>{{ formatCurrency(editTotals()!.balanceCents) }}</span>
+                  </div>
+                </div>
+              }
+
+              <!-- Edit mode save/cancel -->
+              <div class="edit-actions">
+                <button class="btn-cancel-edit"
+                  (click)="cancelEditOrder()"
+                  [disabled]="isUpdating()">
+                  Cancel
+                </button>
+                <button class="btn-save-edit"
+                  (click)="saveOrderEdits()"
+                  [disabled]="isUpdating()">
+                  @if (isUpdating()) { Saving... } @else { Save Changes }
+                </button>
+              </div>
+            }
           </div>
         </div>
 
@@ -280,9 +403,6 @@
             } @else {
               @if (order()?.status === 'confirmed') {
                 <button class="btn-action" (click)="updateStatus('out_for_delivery')">Mark Out for Delivery</button>
-                <button class="btn-action secondary" (click)="router.navigate(['/admin/orders', order()!.id, 'edit'])">
-                  ✏️ Edit Order
-                </button>
                 <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
               } @else if (order()?.status === 'out_for_delivery') {
                 <button class="btn-action success" (click)="updateStatus('delivered')">Mark as Delivered</button>
@@ -290,6 +410,14 @@
               } @else if (order()?.status === 'delivered') {
                 <button class="btn-action secondary" (click)="showReturnModal.set(true)">
                   ↩️ Create Return
+                </button>
+              }
+
+              @if (canEditOrder() && !isEditingOrder()) {
+                <button class="btn-action secondary"
+                  (click)="startEditOrder()"
+                  [disabled]="isUpdating()">
+                  ✏️ Edit Order
                 </button>
               }
 

@@ -42,6 +42,47 @@ export class OrderDetailComponent {
   isGeneratingPdf = signal(false);
   isSendingInvoice = signal(false);
 
+  isEditingOrder = signal(false);
+  editItems = signal<{
+    productId: string;
+    productName: string;
+    productSku: string;
+    quantity: number;
+    unitPriceCents: number;
+    lineTotalCents: number;
+    originalQuantity: number;
+    originalUnitPriceCents: number;
+  }[]>([]);
+  editDiscountCents = signal(0);
+  editDiscountType = signal<'fixed' | 'percent'>('fixed');
+  editDiscountPercent = signal(0);
+
+  canEditOrder = computed(() => {
+    const status = this.order()?.status;
+    return status === 'confirmed' || status === 'out_for_delivery';
+  });
+
+  editTotals = computed(() => {
+    const items = this.editItems();
+    const order = this.order();
+    if (!order) return null;
+
+    const subtotalCents = items.reduce((sum, i) => sum + i.lineTotalCents, 0);
+    const discountCents = this.editDiscountCents();
+    const taxableAmount = Math.max(0, subtotalCents - discountCents);
+    const taxCents = Math.round(taxableAmount * order.taxRatePercent / 100);
+    const totalCents = taxableAmount + taxCents;
+    const balanceCents = Math.max(0, totalCents - (order.amountPaidCents || 0));
+
+    return {
+      subtotalCents,
+      discountCents,
+      taxCents,
+      totalCents,
+      balanceCents,
+    };
+  });
+
   // Data
   private orderId = this.route.snapshot.paramMap.get('id') || '';
   private order$ = this.firestore.getDocument<Order>(`orders/${this.orderId}`);
@@ -809,6 +850,187 @@ export class OrderDetailComponent {
       case 'approved': return 'success';
       case 'rejected': return 'danger';
       default: return 'info';
+    }
+  }
+
+  // --- ORDER EDITING ---
+
+  startEditOrder() {
+    const order = this.order();
+    if (!order || !this.canEditOrder()) return;
+  
+    this.editItems.set(order.items.map(i => ({
+      productId: i.productId,
+      productName: i.productName,
+      productSku: i.productSku,
+      quantity: i.quantity,
+      unitPriceCents: i.unitPriceCents,
+      lineTotalCents: i.lineTotalCents,
+      originalQuantity: i.quantity,
+      originalUnitPriceCents: i.unitPriceCents,
+    })));
+    this.editDiscountCents.set(order.discountCents || 0);
+    this.editDiscountType.set('fixed');
+    this.editDiscountPercent.set(0);
+    this.isEditingOrder.set(true);
+  }
+  
+  cancelEditOrder() {
+    this.isEditingOrder.set(false);
+    this.editItems.set([]);
+    this.editDiscountCents.set(0);
+  }
+  
+  updateItemQuantity(productId: string, quantity: number) {
+    this.editItems.update(items =>
+      items.map(i => {
+        if (i.productId !== productId) return i;
+        const clamped = Math.max(1, Math.min(quantity, i.originalQuantity));
+        return {
+          ...i,
+          quantity: clamped,
+          lineTotalCents: clamped * i.unitPriceCents,
+        };
+      })
+    );
+  }
+  
+  updateItemPrice(productId: string, priceDollars: number) {
+    const priceCents = Math.round(priceDollars * 100);
+    this.editItems.update(items =>
+      items.map(i => {
+        if (i.productId !== productId) return i;
+        return {
+          ...i,
+          unitPriceCents: priceCents,
+          lineTotalCents: i.quantity * priceCents,
+        };
+      })
+    );
+  }
+  
+  updateDiscount(value: number) {
+    const order = this.order();
+    if (!order) return;
+  
+    if (this.editDiscountType() === 'percent') {
+      const pct = Math.min(100, Math.max(0, value));
+      this.editDiscountPercent.set(pct);
+      const items = this.editItems();
+      const subtotal = items.reduce((sum, i) => sum + i.lineTotalCents, 0);
+      this.editDiscountCents.set(Math.round(subtotal * pct / 100));
+    } else {
+      this.editDiscountCents.set(Math.max(0, Math.round(value * 100)));
+    }
+  }
+  
+  setDiscountType(type: 'fixed' | 'percent') {
+    this.editDiscountType.set(type);
+    this.editDiscountCents.set(0);
+    this.editDiscountPercent.set(0);
+  }
+  
+  async saveOrderEdits() {
+    const order = this.order();
+    const totals = this.editTotals();
+    const actionBy = this.auth.getActionBy();
+    if (!order || !totals || !actionBy) return;
+  
+    this.isUpdating.set(true);
+    try {
+      const editedItems = this.editItems();
+      const originalTotal = order.totalCents;
+      const newTotal = totals.totalCents;
+      const totalDiff = newTotal - originalTotal;
+  
+      await this.firestore.runBatch(async (batch, db) => {
+        const { collection } = await import('@angular/fire/firestore');
+  
+        // 1. Update order document
+        const orderRef = doc(db, `orders/${order.id}`);
+        batch.update(orderRef, {
+          items: editedItems.map(i => ({
+            productId: i.productId,
+            productName: i.productName,
+            productSku: i.productSku,
+            quantity: i.quantity,
+            unitPriceCents: i.unitPriceCents,
+            lineTotalCents: i.lineTotalCents,
+            unitCostCents: order.items.find(oi => oi.productId === i.productId)?.unitCostCents || 0,
+            lineCostCents: i.quantity * (order.items.find(oi => oi.productId === i.productId)?.unitCostCents || 0),
+            currencyCode: 'CAD',
+          })),
+          subtotalCents: totals.subtotalCents,
+          discountCents: totals.discountCents,
+          taxCents: totals.taxCents,
+          totalCents: totals.totalCents,
+          balanceCents: totals.balanceCents,
+          totalCostCents: editedItems.reduce(
+            (sum, i) => sum + i.quantity * (order.items.find(oi => oi.productId === i.productId)?.unitCostCents || 0), 0
+          ),
+          lastEditedAt: serverTimestamp(),
+          lastEditedBy: actionBy,
+        });
+  
+        // 2. Update customer totals if total changed
+        if (totalDiff !== 0) {
+          const customerRef = doc(db, `customers/${order.customerId}`);
+          const customerSnap = await getDoc(customerRef);
+          if (customerSnap.exists()) {
+            const cd = customerSnap.data();
+            batch.update(customerRef, {
+              totalOrderedCents: Math.max(0, (cd['totalOrderedCents'] || 0) + totalDiff),
+              totalOwingCents: Math.max(0, (cd['totalOwingCents'] || 0) + totalDiff),
+            });
+          }
+        }
+  
+        // 3. Restore stock for any reduced quantities
+        for (const editItem of editedItems) {
+          const original = order.items.find(i => i.productId === editItem.productId);
+          if (!original) continue;
+  
+          const qtyDiff = original.quantity - editItem.quantity;
+          if (qtyDiff <= 0) continue;
+  
+          // Quantity was reduced — restore diff to stock
+          const productRef = doc(db, `products/${editItem.productId}`);
+          const productSnap = await getDoc(productRef);
+          if (!productSnap.exists()) continue;
+  
+          const pd = productSnap.data();
+          const currentStock = pd['stock'] || 0;
+          const newStock = currentStock + qtyDiff;
+  
+          batch.update(productRef, { stock: newStock });
+  
+          const adjustRef = doc(collection(db, 'stockAdjustments'));
+          batch.set(adjustRef, {
+            productId: editItem.productId,
+            productName: editItem.productName,
+            productSku: editItem.productSku,
+            type: 'adjustment',
+            quantity: qtyDiff,
+            previousStock: currentStock,
+            newStock,
+            reason: `Order ${order.orderNumber} quantity reduced by ${qtyDiff}`,
+            adjustedBy: actionBy,
+            createdAt: serverTimestamp(),
+            tenantId: 1,
+            isDeleted: false,
+            linkedOrderId: order.id,
+            linkedOrderNumber: order.orderNumber,
+          });
+        }
+      });
+  
+      this.toast.success('Order updated successfully');
+      this.isEditingOrder.set(false);
+    } catch (err) {
+      console.error('Error saving order edits:', err);
+      this.toast.error('Failed to save changes');
+    } finally {
+      this.isUpdating.set(false);
     }
   }
 
