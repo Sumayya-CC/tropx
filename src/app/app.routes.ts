@@ -286,6 +286,59 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'suppliers',
+        data: { title: 'Suppliers' },
+        loadComponent: () =>
+          import('./features/admin/suppliers/admin-suppliers.component').then(
+            m => m.AdminSuppliersComponent
+          ),
+      },
+      {
+        path: 'purchase-orders',
+        data: { title: 'Purchase Orders' },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/admin/purchase-orders/admin-purchase-orders.component').then(
+                m => m.AdminPurchaseOrdersComponent
+              ),
+          },
+          {
+            path: 'new',
+            data: { title: 'New Purchase Order' },
+            loadComponent: () =>
+              import('./features/admin/purchase-orders/po-form/po-form.component').then(
+                m => m.PoFormComponent
+              ),
+          },
+          {
+            path: ':id',
+            data: { title: 'Purchase Order Details' },
+            loadComponent: () =>
+              import('./features/admin/purchase-orders/po-detail/po-detail.component').then(
+                m => m.PoDetailComponent
+              ),
+          },
+          {
+            path: ':id/receive',
+            data: { title: 'Receive PO' },
+            loadComponent: () =>
+              import('./features/admin/purchase-orders/po-receive/po-receive.component').then(
+                m => m.PoReceiveComponent
+              ),
+          },
+          {
+            path: ':id/edit',
+            data: { title: 'Edit Purchase Order' },
+            loadComponent: () =>
+              import('./features/admin/purchase-orders/po-form/po-form.component').then(
+                m => m.PoFormComponent
+              ),
+          },
+        ]
+      },
+      {
         path: 'profile',
         component: AdminProfileComponent,
         data: { title: 'My Profile' }

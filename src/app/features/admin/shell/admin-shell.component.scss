@@ -31,7 +31,7 @@
 
 .sidebar-top {
   min-height: 64px;
-  height: auto;
+  height: 64px;
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
@@ -77,6 +77,9 @@
   align-items: center;
   justify-content: center;
   transition: color 0.2s ease;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
 
   &:hover {
     color: var(--gold-light);
@@ -127,6 +130,7 @@
   white-space: nowrap;
   border-left: 3px solid transparent;
   margin-bottom: 0.25rem;
+  position: relative;
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
@@ -253,6 +257,11 @@
     width: 64px;
   }
 
+  .sidebar-top {
+    justify-content: center;
+    padding: 0 0.75rem;
+  }
+
   .brand-collapsed {
     display: block;
   }
@@ -262,11 +271,14 @@
   }
 
   .nav-item {
-    padding: 0.75rem;
+    padding: 0.75rem 0;
     justify-content: center;
+    width: 100%;
 
     .icon-wrapper {
       margin-right: 0;
+      width: 20px;
+      height: 20px;
     }
   }
 

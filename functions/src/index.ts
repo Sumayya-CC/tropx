@@ -2091,8 +2091,8 @@ function lowStockAlertEmailHtml(
         <div class="threshold-note">
           Low stock threshold: ${threshold} units
           ${committedQty > 0 ?
-            `· ${committedQty} committed to open orders` :
-            ""}
+    `· ${committedQty} committed to open orders` :
+    ""}
         </div>
       </div>
       ${linkedOrderNumber ? `
@@ -3523,3 +3523,53 @@ export const onPortalOrderConfirmation =
       );
     }
   );
+
+// ─── Purchase Order Requests ────────────────────────────────────────────────
+
+export const onPoRequest = onDocumentCreated(
+  {
+    document: "poRequests/{id}",
+    database: DATABASE_ID,
+    region: "northamerica-northeast2",
+    secrets: [resendApiKey, fromEmail],
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data || data.status !== "pending") return;
+
+    const {supplierEmail, poNumber, poHtml} = data;
+
+    if (!supplierEmail || !poHtml) {
+      await event.data?.ref.update({
+        status: "error",
+        error: "Missing email or HTML",
+      });
+      return;
+    }
+
+    const resend = new Resend(resendApiKey.value());
+    const from = fromEmail.value();
+
+    try {
+      await resend.emails.send({
+        from: `Tropx Wholesale <${from}>`,
+        to: supplierEmail,
+        subject: `Purchase Order ${poNumber} — Tropx Wholesale`,
+        html: poHtml,
+      });
+
+      await event.data?.ref.update({
+        status: "sent",
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(`PO ${poNumber} sent to ${supplierEmail}`);
+    } catch (err: any) {
+      console.error("Error sending PO email:", err);
+      await event.data?.ref.update({
+        status: "error",
+        error: err.message,
+      });
+    }
+  }
+);

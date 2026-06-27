@@ -2,6 +2,7 @@ import { Injectable, inject, computed, signal } from '@angular/core';
 import { FirestoreService } from './firestore.service';
 import { map } from 'rxjs';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
+import { Firestore, doc } from '@angular/fire/firestore';
 import { StorefrontSettings, DEFAULT_STOREFRONT_SETTINGS } from '../models/storefront-settings.model';
 
 export interface BusinessSettings {
@@ -95,6 +96,18 @@ export interface NotificationSettings {
   abandonedCart72h: boolean;
   abandonedCart7d: boolean;
 }
+
+export interface InventorySettings {
+  defaultWarehouseId: string;
+  defaultWarehouseName: string;
+  multiWarehouseEnabled: boolean;
+}
+
+export const DEFAULT_INVENTORY: InventorySettings = {
+  defaultWarehouseId: '',
+  defaultWarehouseName: 'Main Warehouse',
+  multiWarehouseEnabled: false,
+};
 
 export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   newOrderAlert: true,
@@ -194,6 +207,7 @@ export const DEFAULT_ORDERING: OrderingSettings = {
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   private readonly firestore = inject(FirestoreService);
+  private readonly firestoreDb = inject(Firestore);
   private readonly storage = inject(Storage);
 
   private _business = signal<BusinessSettings | null>(null);
@@ -201,6 +215,7 @@ export class SettingsService {
   private _ordering = signal<OrderingSettings | null>(null);
   private _storefront = signal<StorefrontSettings | null>(null);
   private _notificationsData = signal<NotificationSettings | null>(null);
+  private _inventory = signal<InventorySettings | null>(null);
 
   constructor() {
     this.firestore.getDocument<BusinessSettings>('settings/business')
@@ -213,6 +228,8 @@ export class SettingsService {
       .subscribe(v => this._storefront.set(v));
     this.firestore.getDocument<NotificationSettings>('settings/notifications')
       .subscribe(v => this._notificationsData.set(v));
+    this.firestore.getDocument<InventorySettings>('settings/inventory')
+      .subscribe(v => this._inventory.set(v));
   }
 
   business = computed(() => ({
@@ -240,6 +257,11 @@ export class SettingsService {
     ...(this._notificationsData() ?? {})
   }));
 
+  inventory = computed(() => ({
+    ...DEFAULT_INVENTORY,
+    ...(this._inventory() ?? {})
+  }));
+
 
 
   async uploadLogo(file: File): Promise<string> {
@@ -250,4 +272,37 @@ export class SettingsService {
     await uploadBytes(storageRef, file);
     return getDownloadURL(storageRef);
   }
+
+  async getNextPoNumber(): Promise<string> {
+    const { runTransaction } = await import('@angular/fire/firestore');
+    return runTransaction(this.firestoreDb, async (tx) => {
+      const ref = doc(this.firestoreDb, 'settings/poSequence');
+      const snap = await tx.get(ref);
+      const data = (snap.exists() ? snap.data() : { prefix: 'PO', nextNumber: 1, padding: 5 }) as any;
+      const nextNum = data['nextNumber'] || 1;
+      const prefix = data['prefix'] || 'PO';
+      const padding = data['padding'] || 5;
+      
+      tx.set(ref, { ...data, nextNumber: nextNum + 1 });
+      
+      return `${prefix}-${String(nextNum).padStart(padding, '0')}`;
+    });
+  }
+
+  async getNextReceiveNumber(): Promise<string> {
+    const { runTransaction } = await import('@angular/fire/firestore');
+    return runTransaction(this.firestoreDb, async (tx) => {
+      const ref = doc(this.firestoreDb, 'settings/receiveSequence');
+      const snap = await tx.get(ref);
+      const data = (snap.exists() ? snap.data() : { prefix: 'GRN', nextNumber: 1, padding: 5 }) as any;
+      const nextNum = data['nextNumber'] || 1;
+      const prefix = data['prefix'] || 'GRN';
+      const padding = data['padding'] || 5;
+      
+      tx.set(ref, { ...data, nextNumber: nextNum + 1 });
+      
+      return `${prefix}-${String(nextNum).padStart(padding, '0')}`;
+    });
+  }
 }
+

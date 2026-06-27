@@ -126,9 +126,9 @@
                         min="1"
                       >
                       @if (item.quantity > getAvailableStock(item)) {
-                        <span class="stock-warning">
-                          ⚠️ Only {{ getAvailableStock(item) }} in stock
-                        </span>
+                        <div class="stock-warning" style="color: #ef4444; font-size: 0.75rem; margin-top: 4px; font-weight: 500;">
+                          ⚠️ Exceeds available: {{ getAvailableStock(item) }}
+                        </div>
                       }
                     </td>
                     <td>

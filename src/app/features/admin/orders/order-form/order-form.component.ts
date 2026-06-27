@@ -371,6 +371,10 @@ export class OrderFormComponent {
     return currentStock;
   }
 
+  oversoldLines = computed(() => {
+    return this.items().filter(item => item.quantity > this.getAvailableStock(item));
+  });
+
   async saveOrder() {
     const customer = this.selectedCustomer();
     const items = this.items();
@@ -389,6 +393,11 @@ export class OrderFormComponent {
     if (this.isEditMode()) {
       await this.saveEditedOrder();
       return;
+    }
+
+    if (this.oversoldLines().length > 0) {
+      const msg = `These items exceed available stock and will be backordered:\n${this.oversoldLines().map(i => `- ${i.productName} (Avail: ${this.getAvailableStock(i)}, Order: ${i.quantity})`).join('\n')}\n\nContinue?`;
+      if (!confirm(msg)) return;
     }
 
     this.isSaving.set(true);
@@ -527,6 +536,11 @@ export class OrderFormComponent {
     const actionBy = this.auth.getActionBy();
     
     if (!order || !actionBy) return;
+
+    if (this.oversoldLines().length > 0) {
+      const msg = `These items exceed available stock and will be backordered:\n${this.oversoldLines().map(i => `- ${i.productName} (Avail: ${this.getAvailableStock(i)}, Order: ${i.quantity})`).join('\n')}\n\nContinue?`;
+      if (!confirm(msg)) return;
+    }
 
     this.isSaving.set(true);
 

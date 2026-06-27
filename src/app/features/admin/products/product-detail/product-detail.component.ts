@@ -10,6 +10,7 @@ import { Product } from '../../../../core/models/product.model';
 import { where, orderBy, limit } from '@angular/fire/firestore';
 import { StockAdjustment } from '../../../../core/models/stock-adjustment.model';
 import { StockAdjustmentModalComponent } from '../../stock-adjustments/stock-adjustment-modal/stock-adjustment-modal.component';
+import { StockAvailabilityService } from '../../../../core/services/stock-availability.service';
 
 interface Category { id: string; name: string; }
 interface Brand { id: string; name: string; }
@@ -28,6 +29,7 @@ export class ProductDetailComponent implements OnInit {
   private router = inject(Router);
   private firestore = inject(FirestoreService);
   private toast = inject(ToastService);
+  public stockService = inject(StockAvailabilityService);
 
   productId = signal<string>('');
   product = signal<Product | null>(null);

@@ -71,18 +71,29 @@
 
           <!-- STOCK CARD -->
           <div class="card stock-card">
-            <div class="stock-header">
-              <span class="stock-label">CURRENT STOCK</span>
-              <span class="stock-number"
-                    [class.text-green]="product()!.stock > product()!.lowStockThreshold"
-                    [class.text-gold]="product()!.stock <= product()!.lowStockThreshold && product()!.stock > 0"
-                    [class.text-red]="product()!.stock === 0">
-                {{ product()?.stock }}
-              </span>
-            </div>
-            
-            <div class="progress-bg">
-              <div class="progress-fill" [style.width]="(product()!.stock > 100 ? 100 : product()!.stock) + '%'"></div>
+            <h2 class="card-title">Stock Availability</h2>
+            <div class="stock-breakdown">
+              <div class="stock-item">
+                <div class="stock-number text-available" [class.text-red]="product()!.stock === 0">
+                  {{ stockService.availableFor(product()!) }}
+                </div>
+                <div class="stock-label">Available</div>
+                <div class="stock-desc">Sellable now</div>
+              </div>
+              <div class="stock-item">
+                <div class="stock-number text-committed">
+                  {{ stockService.committedFor(product()!.id) }}
+                </div>
+                <div class="stock-label">Committed</div>
+                <div class="stock-desc">In open orders</div>
+              </div>
+              <div class="stock-item">
+                <div class="stock-number text-on-hand">
+                  {{ stockService.onHandFor(product()!) }}
+                </div>
+                <div class="stock-label">On-Hand</div>
+                <div class="stock-desc">In warehouse</div>
+              </div>
             </div>
             
             <div class="low-stock-alert">

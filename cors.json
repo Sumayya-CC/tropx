@@ -1,0 +1,11 @@
+[
+  {
+    "origin": [
+      "http://localhost:4200",
+      "https://tropxwholesale.ca"
+    ],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type"]
+  }
+]

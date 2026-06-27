@@ -226,6 +226,46 @@
   padding: 1.25rem;
   margin-top: 1rem;
 
+  .stock-breakdown {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 24px;
+
+    .stock-item {
+      text-align: center;
+      background: #f8fafc;
+      padding: 0.5rem;
+      border-radius: 8px;
+      min-width: 0;
+
+      .stock-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        
+        &.text-available { color: var(--navy-deep); }
+        &.text-committed { color: var(--gold); }
+        &.text-on-hand { color: var(--navy); }
+      }
+
+      .stock-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #475569;
+        margin-top: 4px;
+        white-space: nowrap;
+      }
+
+      .stock-desc {
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-top: 2px;
+        white-space: nowrap;
+      }
+    }
+  }
+
   .stock-header {
     display: flex;
     justify-content: space-between;

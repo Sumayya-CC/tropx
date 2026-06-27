@@ -1,0 +1,189 @@
+@if (isLoading()) {
+  <app-loading-spinner></app-loading-spinner>
+} @else if (po()) {
+  <app-page-header 
+    [title]="'Purchase Order ' + po()!.poNumber" 
+    backLink="/admin/purchase-orders"
+    backLinkLabel="Purchase Orders">
+  </app-page-header>
+
+  <div class="header-actions" style="margin-bottom: 24px;">
+    @if (po()!.status === 'draft') {
+      <button class="btn-outline" (click)="markAsSent()" [disabled]="isUpdating()">
+        {{ isUpdating() ? 'Updating...' : 'Mark as Sent' }}
+      </button>
+      <button class="btn-outline" routerLink="/admin/purchase-orders/{{po()!.id}}/edit">Edit</button>
+    }
+    
+    <button class="btn-outline" (click)="downloadPdf()" [disabled]="isGeneratingPdf()">
+      {{ isGeneratingPdf() ? 'Generating...' : 'Download PDF' }}
+    </button>
+
+    <button class="btn-primary" (click)="emailSupplier()" [disabled]="isSendingEmail()">
+      {{ isSendingEmail() ? 'Sending...' : 'Email to Supplier' }}
+    </button>
+
+    @if (po()!.status !== 'cancelled' && po()!.status !== 'received') {
+      <button class="btn-danger" (click)="showCancelForm.set(true)">Cancel</button>
+    }
+
+    @if (po()!.status === 'sent' || po()!.status === 'partially_received') {
+      <button class="btn-primary" (click)="receiveItems()">Receive Items</button>
+    }
+  </div>
+
+  @if (showCancelForm()) {
+    <div class="card cancel-card">
+      <h3 style="color: #ef4444; margin-top: 0;">Cancel Purchase Order</h3>
+      <p>Are you sure you want to cancel this PO? This action cannot be undone.</p>
+      <div class="form-group">
+        <label>Reason for cancellation</label>
+        <input type="text" [ngModel]="cancelReason()" (ngModelChange)="cancelReason.set($event)" placeholder="e.g. Supplier out of stock" style="width:100%; padding: 8px;">
+      </div>
+      <div class="actions" style="margin-top: 16px; display: flex; gap: 8px;">
+        <button class="btn-primary" style="background:#ef4444;" (click)="confirmCancel()" [disabled]="isUpdating()">Confirm Cancel</button>
+        <button class="btn-outline" (click)="showCancelForm.set(false)">Nevermind</button>
+      </div>
+    </div>
+  }
+
+  <div class="content-grid">
+    <!-- Main Content -->
+    <div class="main-column">
+      <div class="card meta-card">
+        <div class="meta-item">
+          <div class="label">Status</div>
+          <app-status-badge [status]="getBadgeStatus(po()!.status)" [label]="getStatusLabel(po()!.status)"></app-status-badge>
+        </div>
+        <div class="meta-item">
+          <div class="label">Supplier</div>
+          <div class="value">{{ po()!.supplierName }}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Order Date</div>
+          <div class="value">{{ formatDate(po()!.orderDate) | date:'MMM d, yyyy' }}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Expected Date</div>
+          <div class="value">{{ po()!.expectedDate ? (formatDate(po()!.expectedDate) | date:'MMM d, yyyy') : '—' }}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Items</h3>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th style="text-align:center">Ordered</th>
+              <th style="text-align:center">Received</th>
+              <th style="text-align:right">Unit Cost</th>
+              <th style="text-align:right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of po()!.items; track item.productId) {
+              <tr>
+                <td>
+                  <div class="fw-bold">{{ item.productName }}</div>
+                  <div class="sku">{{ item.productSku }}</div>
+                </td>
+                <td style="text-align:center">{{ item.quantityOrdered }}</td>
+                <td style="text-align:center; font-weight:600; color: {{ item.quantityReceived === item.quantityOrdered ? '#16a34a' : (item.quantityReceived > 0 ? '#d97706' : '#9ca3af') }}">
+                  {{ item.quantityReceived }}
+                </td>
+                <td style="text-align:right">{{ (item.unitCostCents / 100) | currency:'CAD':'symbol-narrow' }}</td>
+                <td style="text-align:right; font-weight:600;">{{ (item.lineTotalCents / 100) | currency:'CAD':'symbol-narrow' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (po()!.notes) {
+        <div class="card">
+          <h3>Notes</h3>
+          <p>{{ po()!.notes }}</p>
+        </div>
+      }
+
+      @if (receives().length > 0) {
+        <div class="card">
+          <h3>Receive History</h3>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            @for (rec of receives(); track rec.id) {
+              <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                  <div>
+                    <span style="font-weight: 600; color: #0f172a; margin-right: 8px;">{{ rec.receiveNumber }}</span>
+                    <span style="font-size: 0.8rem; color: #64748b;">{{ formatDate(rec.receivedDate) | date:'MMM d, yyyy' }}</span>
+                  </div>
+                  <div style="font-size: 0.85rem; color: #475569;">
+                    by {{ rec.createdBy?.firstName }} {{ rec.createdBy?.lastName }}
+                  </div>
+                </div>
+                <table class="items-table" style="margin: 0;">
+                  <thead>
+                    <tr>
+                      <th style="padding: 4px 8px; border:none; background:transparent;">Product</th>
+                      <th style="padding: 4px 8px; border:none; background:transparent; text-align:right;">Qty Received</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of rec.items; track item.productId) {
+                      <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #f8fafc;">
+                          <div class="fw-bold" style="font-size: 0.9rem;">{{ item.productName }}</div>
+                          <div class="sku" style="font-size: 0.75rem;">{{ item.productSku }}</div>
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #f8fafc; text-align:right; font-weight: 600;">
+                          +{{ item.quantityReceived }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+                @if (rec.notes) {
+                  <div style="margin-top: 12px; padding: 8px; background: #f8fafc; border-radius: 4px; font-size: 0.85rem; color: #475569;">
+                    <strong>Notes:</strong> {{ rec.notes }}
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Side Column -->
+    <div class="side-column">
+      <div class="card summary-card">
+        <h3>Order Summary</h3>
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span>{{ (po()!.subtotalCents / 100) | currency:'CAD':'symbol-narrow' }}</span>
+        </div>
+        <div class="summary-row">
+          <span>Tax ({{ po()!.taxRatePercent }}%)</span>
+          <span>{{ (po()!.taxCents / 100) | currency:'CAD':'symbol-narrow' }}</span>
+        </div>
+        <div class="summary-row total">
+          <span>Total</span>
+          <span>{{ (po()!.totalCents / 100) | currency:'CAD':'symbol-narrow' }}</span>
+        </div>
+      </div>
+
+      <div class="card info-card">
+        <h3>Delivery To</h3>
+        <div class="info-item">
+          <strong>{{ po()!.warehouseName }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="error-state">
+    <h3>PO Not Found</h3>
+    <button class="btn-outline" routerLink="/admin/purchase-orders">Back to Purchase Orders</button>
+  </div>
+}

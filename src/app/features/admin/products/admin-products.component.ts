@@ -9,6 +9,7 @@ import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { where } from '@angular/fire/firestore';
 import { Product } from '../../../core/models/product.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { StockAvailabilityService } from '../../../core/services/stock-availability.service';
 
 interface Category {
   id: string;
@@ -158,8 +159,7 @@ type SortDirection = 'asc' | 'desc';
                   <div class="row-3">
   <span class="product-sku">{{ product.sku }}</span>
   <span class="stock-pill" [ngClass]="getStockClass(product)">
-    {{ product.stock === 0 ? 'Out of stock' : product.stock <= product.lowStockThreshold ? 'Low stock' : 'In stock' }}
-    &nbsp;·&nbsp;{{ product.stock }}
+    <strong>Avail {{ stockService.availableFor(product) }}</strong> · Comm {{ stockService.committedFor(product.id) }} · OH {{ stockService.onHandFor(product) }}
   </span>
 </div>
                 </div>
@@ -239,8 +239,8 @@ type SortDirection = 'asc' | 'desc';
                         <div class="cost">{{ formatCurrency(product.costCents) }}</div>
                       </td>
                       <td>
-                        <span class="stock-count" [ngClass]="getStockClass(product)">
-                          {{ product.stock }}
+                        <span class="stock-count" [ngClass]="getStockClass(product)" style="white-space: nowrap;">
+                          <strong>Avail {{ stockService.availableFor(product) }}</strong> · Comm {{ stockService.committedFor(product.id) }} · OH {{ stockService.onHandFor(product) }}
                         </span>
                       </td>
                       <td>
@@ -279,6 +279,7 @@ type SortDirection = 'asc' | 'desc';
 export class AdminProductsComponent {
   private readonly firestore = inject(FirestoreService);
   protected readonly router = inject(Router);
+  protected readonly stockService = inject(StockAvailabilityService);
 
   viewMode = signal<'grid' | 'table'>('grid');
 
