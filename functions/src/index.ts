@@ -230,6 +230,66 @@ export const sendPasswordResetEmail = onDocumentCreated(
   }
 );
 
+// ─── Admin-Triggered Password Reset ─────────────────────────────────────────
+export const onAdminPasswordReset = onDocumentCreated(
+  {
+    document: "adminPasswordResets/{id}",
+    database: DATABASE_ID,
+    region: "northamerica-northeast2",
+    secrets: [resendApiKey, fromEmail],
+  },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data || data.processed) return;
+
+    const {email} = data;
+    if (!email) {
+      await event.data?.ref.update({processed: true, error: "No email"});
+      return;
+    }
+
+    const resend = new Resend(resendApiKey.value());
+    const from = fromEmail.value();
+
+    let resetLink = "";
+    try {
+      resetLink = await admin.auth().generatePasswordResetLink(
+        email,
+        {url: "https://tropxwholesale.ca/login"}
+      );
+    } catch (err: any) {
+      console.error("Error generating reset link:", err);
+      await event.data?.ref.update({
+        processed: true,
+        error: err.message || "Failed to generate link",
+      });
+      return;
+    }
+
+    const html = passwordResetEmailHtml(resetLink);
+
+    try {
+      await resend.emails.send({
+        from: `Tropx Wholesale <${from}>`,
+        to: email,
+        subject: "Reset Your Tropx Wholesale Password",
+        html,
+      });
+      await event.data?.ref.update({
+        processed: true,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log(`Admin-triggered password reset sent to ${email}`);
+    } catch (err: any) {
+      console.error("Error sending admin password reset:", err);
+      await event.data?.ref.update({
+        processed: true,
+        error: err.message || "Failed to send email",
+      });
+    }
+  }
+);
+
 // ─── Contact Form Notification ──────────────────────────────────────────────
 export const onContactInquiry = onDocumentCreated(
   {

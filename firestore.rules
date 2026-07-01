@@ -13,6 +13,10 @@ service cloud.firestore {
       allow create: if true;
       allow read, update, delete: if request.auth != null;
     }
+    match /adminPasswordResets/{doc} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null;
+    }
     match /settings/{doc} {
       allow read: if true;
       allow write: if request.auth != null;

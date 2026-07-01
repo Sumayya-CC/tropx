@@ -124,6 +124,11 @@ export class AdminEmployeesComponent {
     const newStatus: UserStatus = employee.status === 'active' ? 'suspended' : 'active';
     const action = newStatus === 'suspended' ? 'disable' : 'enable';
 
+    // Confirmation only required when suspending
+    if (newStatus === 'suspended') {
+      if (!confirm(`Suspend ${employee.firstName} ${employee.lastName}? They will lose access immediately.`)) return;
+    }
+
     try {
       await this.firestore.updateDocument(`users/${employee.uid}`, {
         status: newStatus,
@@ -140,6 +145,24 @@ export class AdminEmployeesComponent {
       this.toast.success(`Employee ${newStatus === 'active' ? 'activated' : 'suspended'} successfully`);
     } catch (error: any) {
       this.toast.error(error.message || 'Failed to update status');
+    }
+  }
+
+  async resetPassword(employee: AppUser) {
+    if (!confirm(`Send password reset email to ${employee.firstName} ${employee.lastName}?`)) return;
+
+    try {
+      await this.firestore.addDocument('adminPasswordResets', {
+        email: employee.email,
+        uid: employee.uid,
+        triggeredBy: this.auth.getActionBy(),
+        processed: false,
+        tenantId: 1,
+        createdAt: serverTimestamp()
+      });
+      this.toast.success(`Password reset email sent to ${employee.email}`);
+    } catch (error: any) {
+      this.toast.error(error.message || 'Failed to send reset email');
     }
   }
 

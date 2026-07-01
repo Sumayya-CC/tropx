@@ -163,6 +163,13 @@ export class CustomerDetailComponent {
     }).format(date);
   }
 
+  toDate(value: any): Date | null {
+    if (!value) return null;
+    return value?.toDate ? value.toDate() : 
+           value instanceof Date ? value : 
+           new Date(value);
+  }
+
   async deleteCustomer() {
     const cust = this.customer();
     if (!cust) return;
@@ -182,6 +189,27 @@ export class CustomerDetailComponent {
     } catch (e) {
       console.error('Delete failed', e);
       this.toast.error('Failed to delete customer');
+    }
+  }
+
+  async resetPassword() {
+    const cust = this.customer();
+    if (!cust) return;
+
+    if (!confirm(`Send password reset email to ${cust.email}?`)) return;
+
+    try {
+      await this.firestore.addDocument('adminPasswordResets', {
+        email: cust.email,
+        customerId: cust.id,
+        triggeredBy: this.auth.getActionBy(),
+        processed: false,
+        tenantId: 1,
+        createdAt: serverTimestamp()
+      });
+      this.toast.success(`Password reset email sent to ${cust.email}`);
+    } catch (error: any) {
+      this.toast.error(error.message || 'Failed to send reset email');
     }
   }
 
