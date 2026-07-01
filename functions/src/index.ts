@@ -253,6 +253,63 @@ export const onAdminPasswordReset = onDocumentCreated(
 
     let resetLink = "";
     try {
+      // Ensure Auth user exists — create if not
+      let userRecord;
+      try {
+        userRecord = await admin.auth().getUserByEmail(email);
+      } catch {
+        // User doesn't exist in Auth yet — create them
+        userRecord = await admin.auth().createUser({
+          email,
+          emailVerified: false,
+        });
+        console.log(`Created Auth user for ${email}`);
+      }
+
+      // Ensure userProfiles doc exists
+      const userProfileRef = db.collection("users").doc(userRecord.uid);
+      const userProfileSnap = await userProfileRef.get();
+      if (!userProfileSnap.exists) {
+        // Try to get customer info to populate the profile
+        let firstName = "";
+        let lastName = null;
+        const customerId = data.customerId || null;
+
+        if (customerId) {
+          try {
+            const customerSnap = await db.collection("customers").doc(customerId).get();
+            if (customerSnap.exists) {
+              const customer = customerSnap.data()!;
+              firstName = customer.ownerFirstName || "";
+              lastName = customer.ownerLastName || null;
+
+              // Also patch externalCustomerId back on customer if missing
+              const customerData = customerSnap.data()!;
+              if (!customerData.linkedUserId) {
+                await db.collection("customers").doc(customerId).update({
+                  linkedUserId: userRecord.uid,
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Could not fetch customer for profile:", err);
+          }
+        }
+
+        await userProfileRef.set({
+          uid: userRecord.uid,
+          firstName,
+          lastName,
+          email,
+          role: "customer",
+          tenantId: data.tenantId ?? 1,
+          linkedCustomerId: customerId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          isDeleted: false,
+        });
+        console.log(`Created userProfiles doc for ${email}`);
+      }
+
       resetLink = await admin.auth().generatePasswordResetLink(
         email,
         {url: "https://tropxwholesale.ca/login"}

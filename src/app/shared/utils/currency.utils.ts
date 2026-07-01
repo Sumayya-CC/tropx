@@ -15,3 +15,5 @@ export function displayToCents(value: string | number): number {
   if (isNaN(parsed)) return 0;
   return Math.round(parsed * 100);
 }
+
+
