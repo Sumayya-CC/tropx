@@ -761,6 +761,13 @@ export const onAccessRequestApproved = onDocumentCreated(
         isDeleted: false,
       }, {merge: true});
 
+      // Stamp the role as a custom claim so Firestore
+      // security rules can check request.auth.token.role
+      // without an extra DB read.
+      await admin.auth().setCustomUserClaims(
+        userRecord.uid, {role: "customer", tenantId: 1}
+      );
+
       resetLink = await admin.auth().generatePasswordResetLink(
         email,
         {url: "https://tropxwholesale.ca/login"}
@@ -963,6 +970,13 @@ export const onAdminPasswordReset = onDocumentCreated(
         console.log(`Created userProfiles doc for ${email}`);
       }
 
+      // Stamp role claim — determines Firestore rule access.
+      // Always customer for admin-triggered resets since this
+      // path is used exclusively for customer account setup.
+      await admin.auth().setCustomUserClaims(
+        userRecord.uid, {role: "customer", tenantId: 1}
+      );
+
       resetLink = await admin.auth().generatePasswordResetLink(
         email,
         {url: "https://tropxwholesale.ca/login"}
@@ -1085,6 +1099,17 @@ export const onEmployeeInvitation = onDocumentCreated(
       isDeleted: false,
     });
 
+    // Stamp role as custom claim. Employee roles:
+    // admin | manager | sales_rep | warehouse.
+    // These map directly to Firestore rule checks.
+    await admin.auth().setCustomUserClaims(
+      userRecord.uid,
+      {role: role, tenantId: tenantId ?? 1}
+    );
+    console.log(
+      `Set custom claim role=${role} for ${email}`
+    );
+
     // Update invitation doc
     await event.data?.ref.update({
       status: "processed",
@@ -1166,6 +1191,31 @@ export const onAuthAction = onDocumentCreated(
       } else if (action === "enable") {
         await admin.auth().updateUser(uid, {disabled: false});
         console.log(`Enabled auth user: ${uid} (${email || ""})`);
+
+        // Re-stamp the claim on re-enable in case it was
+        // cleared. Look up role from the users collection.
+        try {
+          const userDocs = await db
+            .collection("users")
+            .where("uid", "==", uid)
+            .limit(1)
+            .get();
+          if (!userDocs.empty) {
+            const userData = userDocs.docs[0].data();
+            const role = userData.role || "customer";
+            const tenantId = userData.tenantId ?? 1;
+            await admin.auth().setCustomUserClaims(
+              uid, {role, tenantId}
+            );
+            console.log(
+              `Restored claim role=${role} for ${uid}`
+            );
+          }
+        } catch (claimErr) {
+          console.error(
+            "Could not restore claim on enable:", claimErr
+          );
+        }
       }
       await event.data?.ref.update({processed: true, resolvedUid: uid});
     } catch (err: any) {

@@ -2,146 +2,203 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Public (unauthenticated) ──────────────────────
-    // Access requests and contact forms can be created
-    // without login (public-facing forms).
+    // ── Helper functions ────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return request.auth.token.get('role', 'none');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function isStaff() {
+      return isSignedIn() && role() in [
+        'admin', 'manager', 'sales_rep', 'warehouse'
+      ];
+    }
+
+    function isCustomer() {
+      return isSignedIn() && role() == 'customer';
+    }
+
+    function isAdminOrStaff() {
+      return isStaff();
+    }
+
+    // ── Public collections (unauthenticated) ────────────
+
     match /accessRequests/{doc} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isSignedIn();
     }
 
     match /contactInquiries/{doc} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isSignedIn();
     }
 
     match /passwordResetRequests/{doc} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isSignedIn();
     }
 
-    // ── Settings ──────────────────────────────────────
-    // Storefront and ordering settings are read by the
-    // portal before login (banner, catalog, cart rules).
-    // All other settings docs are admin-only.
+    // ── Settings ────────────────────────────────────────
+    // storefront, ordering, business — public read so the
+    // portal can load catalog/cart rules before login.
+    // All other settings docs (invoice, notifications,
+    // reconciliation) are staff-only.
     match /settings/{doc} {
       allow read: if doc == 'storefront'
                   || doc == 'ordering'
                   || doc == 'business'
-                  || request.auth != null;
-      allow write: if request.auth != null;
+                  || isStaff();
+      allow write: if isStaff();
     }
 
-    // ── Customer portal collections ───────────────────
-    // Customers can read/write only their own data.
-    // Admins (server-side via Cloud Functions) handle
-    // writes to other customers' records.
-
-    match /portalCarts/{customerId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid != null;
-    }
-
-    match /orders/{orderId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if false;
-    }
-
-    match /payments/{paymentId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    match /returns/{returnId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // ── Reconciliation ────────────────────────────────
-    // Only readable/writable by authenticated admin
-    // users. Cloud Functions use Admin SDK (bypasses
-    // rules) for the reconciler writes.
-    match /reconciliationLog/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    // ── Admin-only collections ────────────────────────
-    match /customers/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
+    // ── Products, categories, brands, service areas ──────
+    // Public read (portal catalog). Staff write only.
     match /products/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
     }
 
     match /categories/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
     }
 
     match /brands/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
     }
 
     match /serviceAreas/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
     }
 
-    match /users/{doc} {
-      allow read, write: if request.auth != null;
+    // ── Orders ───────────────────────────────────────────
+    // Staff: full read/write on all orders.
+    // Customers: read/create their own orders only.
+    //   (Updates happen via Cloud Functions / admin UI.)
+    match /orders/{orderId} {
+      allow read: if isStaff()
+        || (isCustomer()
+            && resource.data.customerId
+               == request.auth.uid);
+      allow create: if isStaff() || isCustomer();
+      allow update: if isStaff()
+        || (isCustomer()
+            && resource.data.customerId
+               == request.auth.uid);
+      allow delete: if false;
     }
 
+    // ── Payments ─────────────────────────────────────────
+    // Staff: full access. Customers: read own only.
+    match /payments/{paymentId} {
+      allow read: if isStaff()
+        || (isCustomer()
+            && resource.data.customerId
+               == request.auth.uid);
+      allow write: if isStaff();
+    }
+
+    // ── Returns ──────────────────────────────────────────
+    // Staff: full access.
+    // Customers: read own + create (submit return).
+    match /returns/{returnId} {
+      allow read: if isStaff()
+        || (isCustomer()
+            && resource.data.customerId
+               == request.auth.uid);
+      allow create: if isStaff() || isCustomer();
+      allow update: if isStaff();
+      allow delete: if false;
+    }
+
+    // ── Portal carts ─────────────────────────────────────
+    // Each customer owns their own cart doc.
+    match /portalCarts/{customerId} {
+      allow read, write: if isStaff()
+        || (isCustomer()
+            && request.auth.uid != null);
+    }
+
+    // ── Customers ────────────────────────────────────────
+    // Staff only. Customers read their own record via
+    // the linked customerId on their profile, not directly.
+    match /customers/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    // ── User profiles ────────────────────────────────────
+    // Staff: full access.
+    // Any signed-in user: read their own profile.
+    match /users/{uid} {
+      allow read: if isStaff()
+        || (isSignedIn() && request.auth.uid == uid);
+      allow write: if isStaff();
+    }
+
+    // ── Reconciliation ────────────────────────────────────
+    // Admin only — this is financial integrity data.
+    // Cloud Functions use Admin SDK (bypasses rules).
+    match /reconciliationLog/{doc} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Admin-only collections ────────────────────────────
     match /stockAdjustments/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /invoiceRequests/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /adminPasswordResets/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /authActions/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /accessRequestApprovals/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /employeeInvitations/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isStaff();
     }
 
     match /suppliers/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isStaff();
     }
 
     match /purchaseOrders/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isStaff();
     }
 
     match /purchaseReceives/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isStaff();
+    }
+
+    match /invoiceRequests/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /adminPasswordResets/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /authActions/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /accessRequestApprovals/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /employeeInvitations/{doc} {
+      allow read, write: if isAdmin();
     }
 
     match /poRequests/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isStaff();
     }
 
-    // ── Fallback ──────────────────────────────────────
-    // Any collection not explicitly listed above
-    // requires authentication. This catches new
-    // collections added during development.
+    // ── Fallback ──────────────────────────────────────────
+    // Any unlisted collection requires staff access.
+    // Prevents new collections from being accidentally
+    // public during development.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isStaff();
     }
   }
 }
