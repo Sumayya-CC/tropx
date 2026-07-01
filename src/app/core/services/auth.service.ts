@@ -1,6 +1,7 @@
 import { Injectable, inject, computed, signal, effect } from '@angular/core';
 import { Auth, signInWithEmailAndPassword, signOut,
-  sendPasswordResetEmail, authState, getIdToken } from '@angular/fire/auth';
+  authState, getIdToken } from '@angular/fire/auth';
+import { serverTimestamp } from '@angular/fire/firestore';
 import { toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
 import { FirestoreService } from './firestore.service';
@@ -99,15 +100,17 @@ export class AuthService {
     return signOut(this._auth);
   }
 
-  resetPassword(email: string) {
-    return sendPasswordResetEmail(this._auth, email);
+  async resetPassword(email: string) {
+    await this.sendPasswordResetEmail(email);
   }
 
   async sendPasswordResetEmail(email: string) {
-    const { sendPasswordResetEmail } =
-      await import('@angular/fire/auth');
-    const auth = this._auth;
-    await sendPasswordResetEmail(auth, email);
+    await this._firestore.addDocument('passwordResetRequests', {
+      email: email.trim().toLowerCase(),
+      processed: false,
+      tenantId: 1,
+      createdAt: serverTimestamp()
+    });
   }
 
   getActionBy(): ActionBy | null {
