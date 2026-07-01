@@ -109,6 +109,22 @@ export const DEFAULT_INVENTORY: InventorySettings = {
   multiWarehouseEnabled: false,
 };
 
+export interface ReconciliationSettings {
+  notifyThresholdCents: number;
+  autoCorrectMaxCents: number;
+  autoCorrectEnabled: boolean;
+  notifyAdmin: boolean;
+  tenantId: number;
+}
+
+export const DEFAULT_RECONCILIATION: ReconciliationSettings = {
+  notifyThresholdCents: 100,
+  autoCorrectMaxCents: 5000,
+  autoCorrectEnabled: true,
+  notifyAdmin: true,
+  tenantId: 1,
+};
+
 export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   newOrderAlert: true,
   accessRequestAlert: true,
@@ -216,6 +232,7 @@ export class SettingsService {
   private _storefront = signal<StorefrontSettings | null>(null);
   private _notificationsData = signal<NotificationSettings | null>(null);
   private _inventory = signal<InventorySettings | null>(null);
+  private _reconciliation = signal<ReconciliationSettings | null>(null);
 
   constructor() {
     this.firestore.getDocument<BusinessSettings>('settings/business')
@@ -230,6 +247,8 @@ export class SettingsService {
       .subscribe(v => this._notificationsData.set(v));
     this.firestore.getDocument<InventorySettings>('settings/inventory')
       .subscribe(v => this._inventory.set(v));
+    this.firestore.getDocument<ReconciliationSettings>('settings/reconciliation')
+      .subscribe(v => this._reconciliation.set(v));
   }
 
   business = computed(() => ({
@@ -260,6 +279,11 @@ export class SettingsService {
   inventory = computed(() => ({
     ...DEFAULT_INVENTORY,
     ...(this._inventory() ?? {})
+  }));
+
+  reconciliation = computed(() => ({
+    ...DEFAULT_RECONCILIATION,
+    ...(this._reconciliation() ?? {})
   }));
 
 

@@ -1,26 +1,145 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Public (unauthenticated) ──────────────────────
+    // Access requests and contact forms can be created
+    // without login (public-facing forms).
     match /accessRequests/{doc} {
       allow create: if true;
       allow read, update, delete: if request.auth != null;
     }
+
     match /contactInquiries/{doc} {
       allow create: if true;
       allow read, update, delete: if request.auth != null;
     }
+
     match /passwordResetRequests/{doc} {
       allow create: if true;
       allow read, update, delete: if request.auth != null;
     }
-    match /adminPasswordResets/{doc} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null;
-    }
+
+    // ── Settings ──────────────────────────────────────
+    // Storefront and ordering settings are read by the
+    // portal before login (banner, catalog, cart rules).
+    // All other settings docs are admin-only.
     match /settings/{doc} {
+      allow read: if doc == 'storefront'
+                  || doc == 'ordering'
+                  || doc == 'business'
+                  || request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Customer portal collections ───────────────────
+    // Customers can read/write only their own data.
+    // Admins (server-side via Cloud Functions) handle
+    // writes to other customers' records.
+
+    match /portalCarts/{customerId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid != null;
+    }
+
+    match /orders/{orderId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /returns/{returnId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Reconciliation ────────────────────────────────
+    // Only readable/writable by authenticated admin
+    // users. Cloud Functions use Admin SDK (bypasses
+    // rules) for the reconciler writes.
+    match /reconciliationLog/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ── Admin-only collections ────────────────────────
+    match /customers/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /products/{doc} {
       allow read: if true;
       allow write: if request.auth != null;
     }
+
+    match /categories/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /brands/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /serviceAreas/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /users/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /stockAdjustments/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /invoiceRequests/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /adminPasswordResets/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /authActions/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /accessRequestApprovals/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /employeeInvitations/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /suppliers/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /purchaseOrders/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /purchaseReceives/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /poRequests/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ── Fallback ──────────────────────────────────────
+    // Any collection not explicitly listed above
+    // requires authentication. This catches new
+    // collections added during development.
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

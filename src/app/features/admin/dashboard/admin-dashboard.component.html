@@ -243,7 +243,7 @@
     </div>
 
     <!-- Action Required -->
-    @if (actionItems().hasItems) {
+    @if (actionItems().hasItems || reconciliationAlert().hasItems) {
       <div class="action-panel">
         <div class="action-panel-header">
           <svg xmlns="http://www.w3.org/2000/svg"
@@ -258,11 +258,42 @@
           </svg>
           <span>Action Required</span>
           <span class="action-total-badge">
-            {{ actionItems().totalCount }}
+            {{ actionItems().totalCount + reconciliationAlert().count }}
           </span>
         </div>
 
         <div class="action-list">
+
+          <!-- BALANCE DISCREPANCIES (integrity — highest priority) -->
+          @if (reconciliationAlert().hasItems) {
+            <div class="action-group">
+              <div class="action-row">
+                <div class="action-row-left">
+                  <span class="action-indicator recon"></span>
+                  <div class="action-row-text">
+                    <strong>
+                      {{ reconciliationAlert().count }}
+                      balance discrepanc{{
+                        reconciliationAlert().count === 1
+                          ? 'y needs' : 'ies need'
+                      }} review
+                    </strong>
+                    <span class="action-row-sub">
+                      {{ formatCurrency(
+                        reconciliationAlert().totalAbsDelta
+                      ) }} flagged · auto-correction withheld
+                    </span>
+                  </div>
+                </div>
+                <div class="action-row-right">
+                  <a routerLink="/admin/reconciliation"
+                    class="action-cta recon-cta">
+                    Review →
+                  </a>
+                </div>
+              </div>
+            </div>
+          }
 
           <!-- OVERDUE INVOICES -->
           @if (actionItems().overdueOrders.length > 0) {

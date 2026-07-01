@@ -13,7 +13,7 @@ import { where } from '@angular/fire/firestore';
 import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct } from '../../../core/models/storefront-settings.model';
 import { Product } from '../../../core/models/product.model';
 
-type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications';
+type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications' | 'system';
 
 @Component({
   selector: 'app-admin-settings',
@@ -31,7 +31,7 @@ export class AdminSettingsComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  readonly TABS = ['business', 'ordering', 'storefront', 'invoice', 'notifications'] as const;
+  readonly TABS = ['business', 'ordering', 'storefront', 'invoice', 'notifications', 'system'] as const;
   activeTab = signal<SettingsTab>('business');
 
 
@@ -48,6 +48,14 @@ export class AdminSettingsComponent {
   editingMinimumOrder = signal(false);
   editingClosure = signal(false);
   editingNotifications = signal(false);
+
+  editingReconciliation = signal(false);
+
+  // Reconciliation form signals
+  reconNotifyThresholdDollars = signal(1);
+  reconAutoCorrectMaxDollars = signal(50);
+  reconAutoCorrectEnabled = signal(true);
+  reconNotifyAdmin = signal(true);
 
   // Storefront — Featured Banner
   editingFeaturedBanner = signal(false);
@@ -345,6 +353,18 @@ export class AdminSettingsComponent {
       this.customerReturnApproved.set(n.customerReturnApproved);
       this.customerReturnRejected.set(n.customerReturnRejected);
       this.customerPaymentReceipt.set(n.customerPaymentReceipt);
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const r = this.settings.reconciliation();
+      this.reconNotifyThresholdDollars.set(
+        r.notifyThresholdCents / 100
+      );
+      this.reconAutoCorrectMaxDollars.set(
+        r.autoCorrectMaxCents / 100
+      );
+      this.reconAutoCorrectEnabled.set(r.autoCorrectEnabled);
+      this.reconNotifyAdmin.set(r.notifyAdmin);
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -1225,6 +1245,47 @@ export class AdminSettingsComponent {
     this.logoFile.set(null);
     this.logoPreview.set('');
     this.logoUrl.set('');
+  }
+
+  cancelReconciliation() {
+    const r = this.settings.reconciliation();
+    this.reconNotifyThresholdDollars.set(
+      r.notifyThresholdCents / 100
+    );
+    this.reconAutoCorrectMaxDollars.set(
+      r.autoCorrectMaxCents / 100
+    );
+    this.reconAutoCorrectEnabled.set(r.autoCorrectEnabled);
+    this.reconNotifyAdmin.set(r.notifyAdmin);
+    this.editingReconciliation.set(false);
+  }
+
+  async saveReconciliation() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument(
+        'settings/reconciliation', {
+          notifyThresholdCents: Math.round(
+            this.reconNotifyThresholdDollars() * 100
+          ),
+          autoCorrectMaxCents: Math.round(
+            this.reconAutoCorrectMaxDollars() * 100
+          ),
+          autoCorrectEnabled: this.reconAutoCorrectEnabled(),
+          notifyAdmin: this.reconNotifyAdmin(),
+          tenantId: 1,
+        }
+      );
+      this.toast.success('Reconciliation settings saved');
+      this.editingReconciliation.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error(
+        'Failed to save reconciliation settings'
+      );
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   exporting = signal<string | null>(null);

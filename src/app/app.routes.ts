@@ -270,6 +270,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'reconciliation',
+        loadComponent: () =>
+          import('./features/admin/reconciliation/admin-reconciliation.component')
+            .then(m => m.AdminReconciliationComponent),
+        data: { title: 'Reconciliation', roles: ['admin'] }
+      },
+      {
         path: 'content',
         data: { roles: ['admin'], title: 'Content' },
         loadComponent: () =>

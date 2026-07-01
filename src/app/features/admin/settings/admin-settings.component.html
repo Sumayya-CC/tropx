@@ -34,6 +34,12 @@
     (click)="setActiveTab('notifications')">
     Notifications
   </button>
+  <button type="button"
+    class="settings-tab"
+    [class.active]="activeTab() === 'system'"
+    (click)="setActiveTab('system')">
+    System
+  </button>
 </div>
 
 <div class="settings-page">
@@ -2576,6 +2582,329 @@
     }
   </div>
   </div>
+  }
+
+  @if (activeTab() === 'system') {
+    <div class="tab-panel">
+
+      <!-- ── RECONCILIATION SETTINGS CARD ──────────────── -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Balance Reconciliation</h2>
+            <p>
+              Controls how the nightly reconciler handles
+              counter drift. Thresholds are in dollars.
+            </p>
+          </div>
+          @if (!editingReconciliation()) {
+            <button class="btn-edit"
+              (click)="editingReconciliation.set(true)">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0
+                  0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3
+                  3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Edit
+            </button>
+          }
+        </div>
+
+        @if (!editingReconciliation()) {
+          <!-- VIEW MODE -->
+          <div class="card-body">
+            <div class="view-grid">
+
+              <div class="view-item">
+                <div class="view-label">
+                  Notify threshold
+                </div>
+                <div class="view-value">
+                  ${{
+                    (settings.reconciliation()
+                      .notifyThresholdCents / 100)
+                      .toFixed(2)
+                  }}
+                </div>
+                <div class="view-hint" style="margin:0;">
+                  Drift below this is silently corrected,
+                  not reported
+                </div>
+              </div>
+
+              <div class="view-item">
+                <div class="view-label">
+                  Auto-correct up to
+                </div>
+                <div class="view-value">
+                  ${{
+                    (settings.reconciliation()
+                      .autoCorrectMaxCents / 100)
+                      .toFixed(2)
+                  }}
+                </div>
+                <div class="view-hint" style="margin:0;">
+                  Drift above this is frozen for review,
+                  not auto-corrected
+                </div>
+              </div>
+
+              <div class="view-item">
+                <div class="view-label">Auto-correction</div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="
+                      settings.reconciliation()
+                        .autoCorrectEnabled"
+                    [class.no]="
+                      !settings.reconciliation()
+                        .autoCorrectEnabled">
+                    {{
+                      settings.reconciliation()
+                        .autoCorrectEnabled
+                        ? 'On' : 'Off (detect only)'
+                    }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="view-item">
+                <div class="view-label">
+                  Admin email on drift
+                </div>
+                <div class="view-value">
+                  <span class="bool-badge"
+                    [class.yes]="
+                      settings.reconciliation()
+                        .notifyAdmin"
+                    [class.no]="
+                      !settings.reconciliation()
+                        .notifyAdmin">
+                    {{
+                      settings.reconciliation()
+                        .notifyAdmin
+                        ? 'Enabled' : 'Disabled'
+                    }}
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Three-band summary -->
+            <div class="recon-band-summary">
+              <div class="recon-band recon-band-ignore">
+                <span class="recon-band-label">
+                  Below ${{
+                    (settings.reconciliation()
+                      .notifyThresholdCents / 100)
+                      .toFixed(2)
+                  }}
+                </span>
+                <span class="recon-band-desc">
+                  Silently corrected, no report
+                </span>
+              </div>
+              <div class="recon-band-arrow">→</div>
+              <div class="recon-band recon-band-auto">
+                <span class="recon-band-label">
+                  ${{
+                    (settings.reconciliation()
+                      .notifyThresholdCents / 100)
+                      .toFixed(2)
+                  }} – ${{
+                    (settings.reconciliation()
+                      .autoCorrectMaxCents / 100)
+                      .toFixed(2)
+                  }}
+                </span>
+                <span class="recon-band-desc">
+                  Auto-corrected + email report
+                </span>
+              </div>
+              <div class="recon-band-arrow">→</div>
+              <div class="recon-band recon-band-freeze">
+                <span class="recon-band-label">
+                  Above ${{
+                    (settings.reconciliation()
+                      .autoCorrectMaxCents / 100)
+                      .toFixed(2)
+                  }}
+                </span>
+                <span class="recon-band-desc">
+                  Frozen for manual review
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+        } @else {
+          <!-- EDIT MODE -->
+          <div class="card-body edit-mode">
+            <div class="edit-section">
+              <h3>Drift thresholds</h3>
+              <p class="section-desc">
+                Enter amounts in dollars. The reconciler
+                runs nightly and whenever an order or
+                payment is written.
+              </p>
+              <div class="form-grid">
+
+                <div class="form-group">
+                  <label>
+                    Notify threshold ($)
+                  </label>
+                  <input type="number"
+                    min="0" step="0.01"
+                    [value]="reconNotifyThresholdDollars()"
+                    (input)="reconNotifyThresholdDollars.set(
+                      +$any($event.target).value
+                    )">
+                  <span class="hint">
+                    Drift below this is silently corrected
+                    with no email. Default $1.00.
+                  </span>
+                </div>
+
+                <div class="form-group">
+                  <label>
+                    Auto-correct limit ($)
+                  </label>
+                  <input type="number"
+                    min="0" step="0.01"
+                    [value]="reconAutoCorrectMaxDollars()"
+                    (input)="reconAutoCorrectMaxDollars.set(
+                      +$any($event.target).value
+                    )">
+                  <span class="hint">
+                    Drift above this is frozen for manual
+                    review instead of auto-corrected.
+                    Default $50.00.
+                  </span>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="edit-section">
+              <h3>Behaviour</h3>
+              <div class="toggle-list">
+
+                <div class="toggle-item">
+                  <div class="toggle-info">
+                    <span class="toggle-title">
+                      Auto-correction enabled
+                    </span>
+                    <span class="toggle-desc">
+                      When off, all drift (above notify
+                      threshold) is frozen for review
+                      regardless of size — detect-only mode
+                    </span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [checked]="reconAutoCorrectEnabled()"
+                      (change)="reconAutoCorrectEnabled.set(
+                        $any($event.target).checked
+                      )">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="toggle-item">
+                  <div class="toggle-info">
+                    <span class="toggle-title">
+                      Email admin on drift
+                    </span>
+                    <span class="toggle-desc">
+                      Send a summary email when the sweep
+                      finds or corrects material drift.
+                      Silent when nothing is above the
+                      notify threshold.
+                    </span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox"
+                      [checked]="reconNotifyAdmin()"
+                      (change)="reconNotifyAdmin.set(
+                        $any($event.target).checked
+                      )">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+              </div>
+
+              <!-- Live band preview in edit mode -->
+              @if (reconAutoCorrectEnabled()) {
+                <div class="recon-band-summary"
+                  style="margin-top:1.25rem;">
+                  <div class="recon-band recon-band-ignore">
+                    <span class="recon-band-label">
+                      Below
+                      ${{ reconNotifyThresholdDollars()
+                            .toFixed(2) }}
+                    </span>
+                    <span class="recon-band-desc">
+                      Silent fix
+                    </span>
+                  </div>
+                  <div class="recon-band-arrow">→</div>
+                  <div class="recon-band recon-band-auto">
+                    <span class="recon-band-label">
+                      ${{ reconNotifyThresholdDollars()
+                            .toFixed(2) }} –
+                      ${{ reconAutoCorrectMaxDollars()
+                            .toFixed(2) }}
+                    </span>
+                    <span class="recon-band-desc">
+                      Auto-correct + email
+                    </span>
+                  </div>
+                  <div class="recon-band-arrow">→</div>
+                  <div class="recon-band recon-band-freeze">
+                    <span class="recon-band-label">
+                      Above
+                      ${{ reconAutoCorrectMaxDollars()
+                            .toFixed(2) }}
+                    </span>
+                    <span class="recon-band-desc">
+                      Freeze + review
+                    </span>
+                  </div>
+                </div>
+              } @else {
+                <div class="recon-detect-only-notice">
+                  Auto-correction is off — all drift above
+                  ${{ reconNotifyThresholdDollars().toFixed(2) }}
+                  will be flagged for manual review.
+                </div>
+              }
+            </div>
+
+            <div class="edit-actions">
+              <button class="btn-cancel-edit"
+                (click)="cancelReconciliation()"
+                [disabled]="isSaving()">
+                Cancel
+              </button>
+              <button class="btn-save-edit"
+                (click)="saveReconciliation()"
+                [disabled]="isSaving()">
+                @if (isSaving()) { Saving... }
+                @else { Save Reconciliation Settings }
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+    </div>
   }
 
   @if (lightboxImageUrl()) {

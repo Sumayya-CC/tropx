@@ -933,3 +933,71 @@
   border-radius: 6px;
   border: 1px solid var(--color-border);
 }
+// ── Reconciliation band summary ───────────────────────
+
+.recon-band-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.recon-band {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0.625rem 1rem;
+  border-radius: 8px;
+  flex: 1;
+  min-width: 120px;
+
+  &.recon-band-ignore {
+    background: rgba(138, 148, 166, 0.08);
+    border: 1px solid rgba(138, 148, 166, 0.2);
+  }
+
+  &.recon-band-auto {
+    background: rgba(201, 149, 42, 0.08);
+    border: 1px solid rgba(201, 149, 42, 0.2);
+  }
+
+  &.recon-band-freeze {
+    background: rgba(231, 34, 46, 0.06);
+    border: 1px solid rgba(231, 34, 46, 0.15);
+  }
+}
+
+.recon-band-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+}
+
+.recon-band-desc {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.recon-band-arrow {
+  font-size: 1rem;
+  color: var(--gray);
+  flex-shrink: 0;
+}
+
+.recon-detect-only-notice {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  background: rgba(201, 149, 42, 0.08);
+  border: 1px solid rgba(201, 149, 42, 0.2);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #b45309;
+  font-weight: 500;
+}
+
+.view-hint {
+  font-size: 0.75rem;
+  color: var(--gray);
+  margin-top: 2px;
+}

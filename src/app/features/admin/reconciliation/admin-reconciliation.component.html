@@ -1,0 +1,304 @@
+<app-page-header title="Balance Reconciliation">
+  <span class="header-sub">
+    Frozen discrepancies requiring manual review
+  </span>
+</app-page-header>
+
+<div class="recon-layout">
+
+  <!-- LEFT: lists -->
+  <div class="recon-list-col">
+
+    <!-- Needs review -->
+    <div class="recon-section">
+      <div class="recon-section-header">
+        <span class="recon-section-title">
+          Needs review
+        </span>
+        @if (needsReviewSorted().length > 0) {
+          <span class="recon-count-badge red">
+            {{ needsReviewSorted().length }}
+          </span>
+        }
+      </div>
+
+      @if (needsReviewSorted().length === 0) {
+        <div class="recon-empty">
+          <span>✅ No discrepancies pending review</span>
+        </div>
+      } @else {
+        @for (entry of needsReviewSorted(); track entry.id) {
+          <div class="recon-item"
+            [class.selected]="
+              selectedEntry()?.id === entry.id
+            "
+            (click)="selectEntry(entry)">
+            <div class="recon-item-left">
+              <span class="recon-indicator red"></span>
+              <div class="recon-item-body">
+                <span class="recon-item-name">
+                  {{ entry.businessName }}
+                </span>
+                <span class="recon-item-sub">
+                  {{ reasonLabel(entry.reason) }} ·
+                  {{ formatDate(entry.detectedAt) }}
+                </span>
+              </div>
+            </div>
+            <span class="recon-item-delta red">
+              {{ formatCurrency(entry.maxAbsDelta) }}
+            </span>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Dismissed -->
+    @if (dismissedSorted().length > 0) {
+      <div class="recon-section">
+        <div class="recon-section-header">
+          <span class="recon-section-title muted">
+            Dismissed / investigating
+          </span>
+          <span class="recon-count-badge gray">
+            {{ dismissedSorted().length }}
+          </span>
+        </div>
+        @for (entry of dismissedSorted(); track entry.id) {
+          <div class="recon-item dismissed"
+            [class.selected]="
+              selectedEntry()?.id === entry.id
+            "
+            (click)="selectEntry(entry)">
+            <div class="recon-item-left">
+              <span class="recon-indicator gray"></span>
+              <div class="recon-item-body">
+                <span class="recon-item-name">
+                  {{ entry.businessName }}
+                </span>
+                <span class="recon-item-sub">
+                  Dismissed ·
+                  {{ formatDate(entry.dismissedAt) }}
+                  @if (entry.dismissNote) {
+                    · "{{ entry.dismissNote }}"
+                  }
+                </span>
+              </div>
+            </div>
+            <span class="recon-item-delta gray">
+              {{ formatCurrency(entry.maxAbsDelta) }}
+            </span>
+          </div>
+        }
+      </div>
+    }
+
+  </div>
+
+  <!-- RIGHT: detail panel -->
+  <div class="recon-detail-col">
+    @if (!selectedEntry()) {
+      <div class="recon-detail-empty">
+        <span>← Select an item to review</span>
+      </div>
+    } @else {
+      @let entry = selectedEntry()!;
+      <div class="recon-detail-panel">
+
+        <!-- Panel header -->
+        <div class="recon-detail-header">
+          <div>
+            <h2 class="recon-detail-name">
+              {{ entry.businessName }}
+            </h2>
+            <span class="recon-detail-reason">
+              {{ reasonLabel(entry.reason) }}
+            </span>
+          </div>
+          <button class="recon-close-btn"
+            (click)="closePanel()">✕</button>
+        </div>
+
+        <!-- Counter drifts -->
+        <div class="recon-drift-table">
+          <div class="recon-drift-header">
+            <span>Counter</span>
+            <span>Stored (wrong)</span>
+            <span>Correct</span>
+            <span>Delta</span>
+          </div>
+          @for (d of entry.drifts; track d.counter) {
+            <div class="recon-drift-row">
+              <span class="recon-drift-label">
+                {{ counterLabel(d.counter) }}
+              </span>
+              <span class="recon-drift-stored">
+                {{ formatCurrency(d.stored) }}
+              </span>
+              <span class="recon-drift-correct">
+                {{ formatCurrency(d.correct) }}
+              </span>
+              <span class="recon-drift-delta"
+                [style.color]="
+                  d.delta < 0
+                    ? 'var(--red)'
+                    : 'var(--green)'
+                ">
+                {{ d.delta >= 0 ? '+' : '' }}
+                {{ formatCurrency(d.delta) }}
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- Actions -->
+        @if (entry.status === 'needs_review' ||
+             entry.status === 'dismissed') {
+          <div class="recon-actions">
+            <button
+              class="btn-primary recon-apply-btn"
+              [disabled]="isApplying()"
+              (click)="applyCorrection()">
+              @if (isApplying()) {
+                Applying…
+              } @else {
+                Apply correction
+              }
+            </button>
+            @if (!showDismissForm()) {
+              <button
+                class="btn-secondary"
+                [disabled]="isDismissing()"
+                (click)="showDismissForm.set(true)">
+                Investigate first / dismiss
+              </button>
+            } @else {
+              <div class="recon-dismiss-form">
+                <textarea
+                  placeholder="Optional note about what you're investigating…"
+                  rows="2"
+                  [value]="dismissNote()"
+                  (input)="dismissNote.set(
+                    $any($event.target).value
+                  )">
+                </textarea>
+                <div class="recon-dismiss-btns">
+                  <button
+                    class="btn-secondary"
+                    (click)="showDismissForm.set(false)">
+                    Cancel
+                  </button>
+                  <button
+                    class="btn-warning"
+                    [disabled]="isDismissing()"
+                    (click)="confirmDismiss()">
+                    @if (isDismissing()) {
+                      Dismissing…
+                    } @else {
+                      Confirm dismiss
+                    }
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Detected / dismissed metadata -->
+        <div class="recon-meta">
+          <div class="recon-meta-row">
+            <span class="recon-meta-label">
+              Detected
+            </span>
+            <span>{{ formatDate(entry.detectedAt) }}</span>
+          </div>
+          @if (entry.dismissedAt) {
+            <div class="recon-meta-row">
+              <span class="recon-meta-label">
+                Dismissed
+              </span>
+              <span>
+                {{ formatDate(entry.dismissedAt) }}
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- Customer orders (investigation) -->
+        <div class="recon-investigation">
+          <h3 class="recon-invest-title">
+            Recent unpaid orders
+            <a [routerLink]="[
+              '/admin/customers',
+              entry.customerId
+            ]" class="recon-invest-link">
+              View customer →
+            </a>
+          </h3>
+
+          @if (isLoadingDetail()) {
+            <app-loading-spinner></app-loading-spinner>
+          } @else if (customerOrders().length === 0) {
+            <div class="recon-invest-empty">
+              No unpaid orders
+            </div>
+          } @else {
+            @for (o of customerOrders(); track o.id) {
+              <a [routerLink]="['/admin/orders', o.id]"
+                class="recon-order-row">
+                <div class="recon-order-left">
+                  <span class="recon-order-num">
+                    {{ o.orderNumber }}
+                  </span>
+                  <span class="recon-order-status"
+                    [style.color]="
+                      getOrderStatusColor(o.status)
+                    ">
+                    {{ o.status | titlecase }}
+                  </span>
+                </div>
+                <div class="recon-order-right">
+                  @if ((o.balanceCents || 0) > 0) {
+                    <span class="recon-order-owing">
+                      {{ formatCurrency(o.balanceCents) }}
+                      owing
+                    </span>
+                  }
+                  <span class="recon-order-total">
+                    {{ formatCurrency(o.totalCents) }}
+                  </span>
+                </div>
+              </a>
+            }
+          }
+
+          <!-- Customer payments -->
+          @if (customerPayments().length > 0) {
+            <h3 class="recon-invest-title"
+              style="margin-top:1.25rem;">
+              Recent payments
+            </h3>
+            @for (p of customerPayments(); track p.id) {
+              <div class="recon-payment-row">
+                <div class="recon-order-left">
+                  <span class="recon-order-num">
+                    {{ p.paymentNumber }}
+                  </span>
+                  <span class="recon-order-status"
+                    style="color:var(--gray)">
+                    {{ p.orderNumber }}
+                  </span>
+                </div>
+                <span class="recon-order-total green">
+                  {{ formatCurrency(p.amountCents) }}
+                </span>
+              </div>
+            }
+          }
+        </div>
+
+      </div>
+    }
+  </div>
+
+</div>

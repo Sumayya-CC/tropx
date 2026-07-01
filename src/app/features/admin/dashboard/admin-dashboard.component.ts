@@ -63,6 +63,11 @@ export class AdminDashboardComponent {
   private accessRequests$ = this.firestore.getCollection<any>(
     'accessRequests', where('tenantId', '==', 1)
   );
+  private reconciliationLog$ = this.firestore.getCollection<any>(
+    'reconciliationLog',
+    where('tenantId', '==', 1),
+    where('status', '==', 'needs_review')
+  );
 
   allOrders = toSignal(this.orders$, { initialValue: [] as Order[] });
   allPayments = toSignal(this.payments$, { initialValue: [] as Payment[] });
@@ -70,6 +75,7 @@ export class AdminDashboardComponent {
   allProducts = toSignal(this.products$, { initialValue: [] as Product[] });
   allReturns = toSignal(this.returns$, { initialValue: [] as Return[] });
   allAccessRequests = toSignal(this.accessRequests$, { initialValue: [] as any[] });
+  needsReviewDiscrepancies = toSignal(this.reconciliationLog$, { initialValue: [] as any[] });
 
   expandedActions = signal<Set<string>>(new Set());
 
@@ -242,6 +248,17 @@ export class AdminDashboardComponent {
   });
 
   // ── ACTION REQUIRED ──────────────────────────────────
+  // Reconciliation discrepancies frozen for manual review —
+  // highest-priority integrity alert.
+  reconciliationAlert = computed(() => {
+    const items = this.needsReviewDiscrepancies();
+    const count = items.length;
+    const totalAbsDelta = items.reduce(
+      (sum, r) => sum + Math.abs(r.maxAbsDelta || 0), 0
+    );
+    return { count, totalAbsDelta, hasItems: count > 0 };
+  });
+
   actionItems = computed(() => {
     const overdueDays = this.settingsService
       .ordering().overdueAfterDays || 30;
