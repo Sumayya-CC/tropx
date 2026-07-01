@@ -13,6 +13,7 @@ import { Payment, PaymentMethod, PAYMENT_METHOD_LABELS } from '../../../../core/
 import { Return } from '../../../../core/models/return.model';
 import { where, orderBy, limit, serverTimestamp } from '@angular/fire/firestore';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { take } from 'rxjs/operators';
 
 import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
 
@@ -41,6 +42,7 @@ export class CustomerDetailComponent {
   serviceAreaName = signal<string>('Loading...');
   recentOrders = signal<Order[]>([]);
   isLoading = signal(true);
+  isTogglingStatus = signal(false);
 
   private customerId = this.route.snapshot.paramMap.get('id') || '';
 
@@ -170,10 +172,95 @@ export class CustomerDetailComponent {
            new Date(value);
   }
 
+  async toggleSuspension() {
+    const cust = this.customer();
+    if (!cust) return;
+
+    const isSuspending = cust.status !== 'suspended';
+    const newStatus = isSuspending ? 'suspended' : 'active';
+
+    const msg = isSuspending
+      ? `Suspend ${cust.businessName}?\n\n` +
+        `They will be blocked from logging in and placing ` +
+        `orders. Their orders, balance, and history stay intact.`
+      : `Reactivate ${cust.businessName}?\n\n` +
+        `They will regain access to the portal.`;
+
+    if (!confirm(msg)) return;
+
+    this.isTogglingStatus.set(true);
+    try {
+      // 1. Flip the customer status (orders/debt untouched).
+      await this.firestore.updateDocument(`customers/${cust.id}`, {
+        status: newStatus,
+      });
+
+      // 2. Disable/enable the Firebase Auth account. Send email as
+      //    the identifier — the Cloud Function resolves the uid
+      //    server-side via getUserByEmail, since linkedUserId is not
+      //    reliably populated. If no Auth account exists for the
+      //    email, the function no-ops and the status flip alone
+      //    blocks the customer.
+      await this.firestore.addDocument('authActions', {
+        action: isSuspending ? 'disable' : 'enable',
+        email: cust.email,
+        uid: cust.linkedUserId ?? null,
+        triggeredBy: this.auth.getActionBy(),
+        processed: false,
+        tenantId: 1,
+        createdAt: serverTimestamp(),
+      });
+
+      this.customer.set({ ...cust, status: newStatus });
+      this.toast.success(
+        isSuspending
+          ? `${cust.businessName} suspended`
+          : `${cust.businessName} reactivated`
+      );
+    } catch (e) {
+      console.error('Failed to toggle suspension', e);
+      this.toast.error(
+        `Failed to ${isSuspending ? 'suspend' : 'reactivate'} customer`
+      );
+    } finally {
+      this.isTogglingStatus.set(false);
+    }
+  }
+
   async deleteCustomer() {
     const cust = this.customer();
     if (!cust) return;
-    
+
+    // Guard: block deletion while the customer has any outstanding
+    // balance. Compute from live order balances (source of truth),
+    // not the denormalized totalOwingCents counter which can drift.
+    let outstandingCents = 0;
+    try {
+      const orders = await this.firestore.getCollection<Order>(
+        'orders',
+        where('customerId', '==', cust.id),
+        where('tenantId', '==', 1)
+      ).pipe(take(1)).toPromise();
+
+      outstandingCents = (orders || [])
+        .filter(o => !o.isDeleted && o.status !== 'cancelled')
+        .reduce((sum, o) => sum + (o.balanceCents || 0), 0);
+    } catch (e) {
+      console.error('Failed to verify outstanding balance', e);
+      this.toast.error('Could not verify balance. Please try again.');
+      return;
+    }
+
+    if (outstandingCents > 0) {
+      alert(
+        `Cannot delete ${cust.businessName}\n\n` +
+        `This customer has ${this.formatCurrency(outstandingCents)} ` +
+        `outstanding across unpaid orders.\n\n` +
+        `Settle or cancel their unpaid orders before deleting.`
+      );
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete ${cust.businessName}?`)) {
       return;
     }

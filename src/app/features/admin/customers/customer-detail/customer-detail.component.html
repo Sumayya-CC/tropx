@@ -44,6 +44,19 @@
         Reset Password
       </button>
 
+      @if (customer()) {
+        <button
+          class="btn btn-outline"
+          [disabled]="isTogglingStatus()"
+          (click)="toggleSuspension()">
+          @if (customer()!.status === 'suspended') {
+            Reactivate
+          } @else {
+            Suspend
+          }
+        </button>
+      }
+
       <!-- Delete button — same outlined red style as product Delete -->
       <button class="btn btn-outline btn-danger" (click)="deleteCustomer()">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"

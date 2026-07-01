@@ -476,19 +476,51 @@ export const onAuthAction = onDocumentCreated(
     const data = event.data?.data();
     if (!data) return;
 
-    const {action, uid} = data;
+    const {action, email} = data;
+    let {uid} = data;
 
     try {
+      // Resolve uid from email if uid not provided. Email is the
+      // reliable identifier since linkedUserId is not always
+      // populated on customer docs.
+      if (!uid && email) {
+        try {
+          const userRecord = await admin.auth().getUserByEmail(email);
+          uid = userRecord.uid;
+        } catch {
+          // No Auth account exists for this email — nothing to
+          // disable. The customer status flip alone blocks them.
+          console.log(`No Auth user for ${email}, skipping`);
+          await event.data?.ref.update({
+            processed: true,
+            note: "no-auth-account",
+          });
+          return;
+        }
+      }
+
+      if (!uid) {
+        await event.data?.ref.update({
+          processed: true,
+          error: "No uid or email provided",
+        });
+        return;
+      }
+
       if (action === "disable") {
         await admin.auth().updateUser(uid, {disabled: true});
-        console.log(`Disabled auth user: ${uid}`);
+        console.log(`Disabled auth user: ${uid} (${email || ""})`);
       } else if (action === "enable") {
         await admin.auth().updateUser(uid, {disabled: false});
-        console.log(`Enabled auth user: ${uid}`);
+        console.log(`Enabled auth user: ${uid} (${email || ""})`);
       }
-      await event.data?.ref.update({processed: true});
-    } catch (err) {
+      await event.data?.ref.update({processed: true, resolvedUid: uid});
+    } catch (err: any) {
       console.error("Error processing auth action:", err);
+      await event.data?.ref.update({
+        processed: true,
+        error: err.message || "Failed",
+      });
     }
   }
 );
