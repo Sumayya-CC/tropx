@@ -230,15 +230,25 @@ export class AdminDashboardComponent {
   liveKpis = computed(() => {
     const customers = this.allCustomers()
       .filter(c => !c.isDeleted);
-    const outstandingBalance = customers.reduce(
-      (sum, c) => sum + (c.totalOwingCents || 0), 0
-    );
     const activeCustomers = customers
       .filter(c => c.status === 'active').length;
+
+    // Compute outstanding from live order balanceCents
+    // (source of truth) not the denormalized counter
+    // which can drift. Mirrors the aging report exactly.
+    const outstandingBalance = this.allOrders()
+      .filter(o =>
+        !o.isDeleted &&
+        o.status !== 'cancelled' &&
+        (o.balanceCents || 0) > 0
+      )
+      .reduce((sum, o) => sum + (o.balanceCents || 0), 0);
+
     const pendingReturns = this.notificationService
       .pendingReturnsCount();
     const lowStockItems = this.notificationService
       .lowStockCount();
+
     return {
       outstandingBalance,
       activeCustomers,
@@ -465,6 +475,67 @@ export class AdminDashboardComponent {
       )
       .slice(0, 5)
   );
+
+  // Weekly revenue buckets for the Overview trend line.
+  // Uses all orders regardless of the date-range picker —
+  // always shows the last 8 weeks for context.
+  weeklyRevenueBuckets = computed(() => {
+    const now = new Date();
+    const buckets: {
+      label: string;
+      revenueCents: number;
+    }[] = [];
+
+    for (let w = 7; w >= 0; w--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (w * 7) - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const label = weekStart.toLocaleDateString('en-CA', {
+        month: 'short', day: 'numeric'
+      });
+
+      const revenueCents = this.allOrders()
+        .filter(o => {
+          if (o.isDeleted || o.status === 'cancelled') {
+            return false;
+          }
+          const d = this.toDate(o.confirmedAt);
+          return d >= weekStart && d <= weekEnd;
+        })
+        .reduce((sum, o) => sum + o.totalCents, 0);
+
+      buckets.push({ label, revenueCents });
+    }
+    return buckets;
+  });
+
+  weeklyChartMax = computed(() => {
+    const b = this.weeklyRevenueBuckets();
+    return Math.max(...b.map(x => x.revenueCents), 1);
+  });
+
+  weeklyChartPolygonPoints = computed(() => {
+    const buckets = this.weeklyRevenueBuckets();
+    const max = this.weeklyChartMax();
+    if (buckets.length === 0) return '';
+    const pts = buckets.map((b, i) =>
+      `${i * (700 / (buckets.length - 1))},${140 - (b.revenueCents / max) * 140}`
+    ).join(' ');
+    return `${pts} 700,140 0,140`;
+  });
+
+  weeklyChartPolylinePoints = computed(() => {
+    const buckets = this.weeklyRevenueBuckets();
+    const max = this.weeklyChartMax();
+    if (buckets.length === 0) return '';
+    return buckets.map((b, i) =>
+      `${i * (700 / (buckets.length - 1))},${140 - (b.revenueCents / max) * 140}`
+    ).join(' ');
+  });
 
   // ── FINANCIALS ───────────────────────────────────────
   periodAnalytics = computed(() => {

@@ -144,584 +144,436 @@
   <!-- ══ TAB 1: OVERVIEW ══════════════════════════════ -->
   @if (activeTab() === 'overview') {
 
-    <!-- Live KPIs -->
-    <div class="kpi-grid">
+    <!-- KPI row — live numbers, no period filter -->
+    <div class="ov-kpi-row">
 
-      <div class="kpi-card">
-        <div class="kpi-icon-box outstanding">
-          <svg xmlns="http://www.w3.org/2000/svg"
-            width="22" height="22" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor"
-            stroke-width="2">
-            <line x1="12" y1="1" x2="12" y2="23"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5
-              3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Outstanding Balance</span>
-          <span class="kpi-value red">
-            {{ formatCurrency(
-              liveKpis().outstandingBalance
-            ) }}
-          </span>
-          <span class="kpi-sub">across all customers</span>
-        </div>
+      <div class="ov-kpi-card">
+        <span class="ov-kpi-label">Revenue</span>
+        <span class="ov-kpi-value">
+          {{ formatCurrency(periodAnalytics().revenue) }}
+        </span>
+        <span class="ov-kpi-sub">
+          {{ periodAnalytics().ordersCount }}
+          order{{ periodAnalytics().ordersCount === 1
+            ? '' : 's' }} this period
+        </span>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon-box customers">
-          <svg xmlns="http://www.w3.org/2000/svg"
-            width="22" height="22" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor"
-            stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0
-              0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Active Customers</span>
-          <span class="kpi-value navy">
-            {{ liveKpis().activeCustomers }}
-          </span>
-          <span class="kpi-sub">wholesale accounts</span>
-        </div>
+      <div class="ov-kpi-card ov-kpi-card--alert"
+        [class.ov-kpi-card--danger]="
+          liveKpis().outstandingBalance > 0">
+        <span class="ov-kpi-label">Outstanding</span>
+        <span class="ov-kpi-value"
+          [class.ov-val--danger]="
+            liveKpis().outstandingBalance > 0">
+          {{ formatCurrency(liveKpis().outstandingBalance) }}
+        </span>
+        <span class="ov-kpi-sub"
+          [class.ov-sub--danger]="
+            actionItems().overdueOrders.length > 0">
+          @if (actionItems().overdueOrders.length > 0) {
+            {{ actionItems().overdueOrders.length }}
+            invoice{{
+              actionItems().overdueOrders.length === 1
+                ? '' : 's'
+            }} overdue
+          } @else {
+            across all customers
+          }
+        </span>
       </div>
 
-      <div class="kpi-card"
-        [class.kpi-alert]="liveKpis().pendingReturns > 0">
-        <div class="kpi-icon-box returns"
-          [class.alert]="liveKpis().pendingReturns > 0">
-          <svg xmlns="http://www.w3.org/2000/svg"
-            width="22" height="22" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor"
-            stroke-width="2">
-            <polyline points="1 4 1 10 7 10"/>
-            <path d="M3.51 15a9 9 0 1 0 .49-3.6"/>
-          </svg>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Pending Returns</span>
-          <span class="kpi-value"
-            [class.gold]="liveKpis().pendingReturns > 0"
-            [class.navy]="
-              liveKpis().pendingReturns === 0">
-            {{ liveKpis().pendingReturns }}
-          </span>
-          <span class="kpi-sub">awaiting review</span>
-        </div>
+      <div class="ov-kpi-card">
+        <span class="ov-kpi-label">Active customers</span>
+        <span class="ov-kpi-value ov-val--navy">
+          {{ liveKpis().activeCustomers }}
+        </span>
+        <span class="ov-kpi-sub"
+          [class.ov-sub--accent]="
+            actionItems().pendingAccessRequests.length > 0">
+          @if (actionItems().pendingAccessRequests.length > 0) {
+            {{ actionItems().pendingAccessRequests.length }}
+            new request{{
+              actionItems().pendingAccessRequests.length === 1
+                ? '' : 's'
+            }}
+          } @else {
+            wholesale accounts
+          }
+        </span>
       </div>
 
-      <div class="kpi-card"
-        [class.kpi-alert]="liveKpis().lowStockItems > 0">
-        <div class="kpi-icon-box stock"
-          [class.alert]="liveKpis().lowStockItems > 0">
-          <svg xmlns="http://www.w3.org/2000/svg"
-            width="22" height="22" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor"
-            stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2
-              2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0
-              0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0
-              0 0 21 16z"/>
-          </svg>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Low Stock Items</span>
-          <span class="kpi-value"
-            [class.red]="liveKpis().lowStockItems > 0"
-            [class.navy]="liveKpis().lowStockItems === 0">
-            {{ liveKpis().lowStockItems }}
-          </span>
-          <span class="kpi-sub">below threshold</span>
-        </div>
+      <div class="ov-kpi-card"
+        [class.ov-kpi-card--warn]="
+          liveKpis().lowStockItems > 0">
+        <span class="ov-kpi-label">Low stock</span>
+        <span class="ov-kpi-value"
+          [class.ov-val--warn]="liveKpis().lowStockItems > 0"
+          [class.ov-val--navy]="liveKpis().lowStockItems === 0">
+          {{ liveKpis().lowStockItems }}
+        </span>
+        <span class="ov-kpi-sub"
+          [class.ov-sub--warn]="liveKpis().lowStockItems > 0">
+          @if (liveKpis().lowStockItems > 0) {
+            {{ lowStockProducts()[0]?.stock === 0
+              ? 'including 1 out of stock'
+              : 'below threshold' }}
+          } @else {
+            all products stocked
+          }
+        </span>
       </div>
 
     </div>
 
-    <!-- Action Required -->
-    @if (actionItems().hasItems || reconciliationAlert().hasItems) {
-      <div class="action-panel">
-        <div class="action-panel-header">
-          <svg xmlns="http://www.w3.org/2000/svg"
-            width="20" height="20" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor"
-            stroke-width="2.5">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0
-              1.71 3h16.94a2 2 0 0 0 1.71-3L13.71
-              3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          <span>Action Required</span>
-          <span class="action-total-badge">
-            {{ actionItems().totalCount + reconciliationAlert().count }}
+    <!-- Needs attention — consolidated, ranked by severity -->
+    @if (actionItems().hasItems ||
+         reconciliationAlert().hasItems) {
+      <div class="ov-attention">
+
+        <div class="ov-attention-header">
+          <span class="ov-attention-title">
+            Needs attention
+          </span>
+          <span class="ov-attention-count">
+            {{
+              actionItems().totalCount +
+              reconciliationAlert().count
+            }}
           </span>
         </div>
 
-        <div class="action-list">
+        <div class="ov-attention-list">
 
-          <!-- BALANCE DISCREPANCIES (integrity — highest priority) -->
+          <!-- 1. Balance discrepancies (data integrity) -->
           @if (reconciliationAlert().hasItems) {
-            <div class="action-group">
-              <div class="action-row">
-                <div class="action-row-left">
-                  <span class="action-indicator recon"></span>
-                  <div class="action-row-text">
-                    <strong>
-                      {{ reconciliationAlert().count }}
-                      balance discrepanc{{
-                        reconciliationAlert().count === 1
-                          ? 'y needs' : 'ies need'
-                      }} review
-                    </strong>
-                    <span class="action-row-sub">
-                      {{ formatCurrency(
+            <a routerLink="/admin/reconciliation"
+              class="ov-attn-row ov-attn-row--danger">
+              <div class="ov-attn-left">
+                <span class="ov-attn-dot ov-attn-dot--danger">
+                </span>
+                <div class="ov-attn-text">
+                  <span class="ov-attn-main">
+                    {{ reconciliationAlert().count }}
+                    balance discrepanc{{
+                      reconciliationAlert().count === 1
+                        ? 'y' : 'ies'
+                    }} need review
+                  </span>
+                  <span class="ov-attn-sub">
+                    {{ formatCurrency(
                         reconciliationAlert().totalAbsDelta
-                      ) }} flagged · auto-correction withheld
-                    </span>
-                  </div>
-                </div>
-                <div class="action-row-right">
-                  <a routerLink="/admin/reconciliation"
-                    class="action-cta recon-cta">
-                    Review →
-                  </a>
+                       ) }}
+                    flagged · auto-correction withheld
+                  </span>
                 </div>
               </div>
-            </div>
+              <span class="ov-attn-arrow">→</span>
+            </a>
           }
 
-          <!-- OVERDUE INVOICES -->
+          <!-- 2. Overdue invoices (money) -->
           @if (actionItems().overdueOrders.length > 0) {
-            <div class="action-group">
-              <div class="action-row"
-                (click)="toggleAction('overdue')">
-                <div class="action-row-left">
-                  <span class="action-indicator red"></span>
-                  <div class="action-row-text">
-                    <strong>
-                      {{ actionItems().overdueOrders.length }}
-                      overdue invoice{{
-                        actionItems().overdueOrders.length > 1
-                          ? 's' : ''
-                      }}
-                    </strong>
-                    <span class="action-row-sub">
-                      {{ formatCurrency(actionItems().overdueTotalBalance) }} outstanding ·
-                      click to {{ isExpanded('overdue') 
-                        ? 'collapse' : 'expand' }}
-                    </span>
-                  </div>
-                </div>
-                <div class="action-row-right">
-                  <a routerLink="/admin/orders"
-                    class="action-cta"
-                    (click)="$event.stopPropagation()">
-                    View All →
-                  </a>
-                  <span class="expand-chevron"
-                    [class.open]="isExpanded('overdue')">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                      width="16" height="16"
-                      viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2.5">
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
+            <a routerLink="/admin/orders"
+              class="ov-attn-row ov-attn-row--danger">
+              <div class="ov-attn-left">
+                <span class="ov-attn-dot ov-attn-dot--danger">
+                </span>
+                <div class="ov-attn-text">
+                  <span class="ov-attn-main">
+                    {{ actionItems().overdueOrders.length }}
+                    overdue invoice{{
+                      actionItems().overdueOrders.length === 1
+                        ? '' : 's'
+                    }}
+                  </span>
+                  <span class="ov-attn-sub">
+                    {{ formatCurrency(
+                        actionItems().overdueTotalBalance
+                       ) }}
+                    outstanding
                   </span>
                 </div>
               </div>
-
-              @if (isExpanded('overdue')) {
-                <div class="action-expanded">
-                  @for (o of actionItems().overdueOrders;
-                    track o.id) {
-                    <a [routerLink]="['/admin/orders', o.id]"
-                      class="action-sub-item">
-                      <div class="action-sub-left">
-                        <span class="action-sub-num">
-                          {{ o.orderNumber }}
-                        </span>
-                        <span class="action-sub-name">
-                          {{ o.customerName }}
-                        </span>
-                      </div>
-                      <div class="action-sub-right">
-                        <span class="action-sub-date">
-                          {{ formatShortDate(o.confirmedAt) }}
-                        </span>
-                        <span class="action-sub-amount red">
-                          {{ formatCurrency(o.balanceCents) }}
-                          owing
-                        </span>
-                        <span class="action-sub-arrow">→</span>
-                      </div>
-                    </a>
-                  }
-                </div>
-              }
-            </div>
+              <span class="ov-attn-arrow">→</span>
+            </a>
           }
 
-          <!-- PENDING RETURNS -->
-          @if (actionItems().pendingReturns.length > 0) {
-            <div class="action-group">
-              <div class="action-row"
-                (click)="toggleAction('returns')">
-                <div class="action-row-left">
-                  <span class="action-indicator gold"></span>
-                  <div class="action-row-text">
-                    <strong>
-                      {{ actionItems().pendingReturns.length }}
-                      return{{
-                        actionItems().pendingReturns.length > 1
-                          ? 's' : ''
-                      }} pending review
-                    </strong>
-                    <span class="action-row-sub">
-                      Awaiting approval ·
-                      click to {{ isExpanded('returns')
-                        ? 'collapse' : 'expand' }}
-                    </span>
-                  </div>
-                </div>
-                <div class="action-row-right">
-                  <a routerLink="/admin/returns"
-                    class="action-cta"
-                    (click)="$event.stopPropagation()">
-                    Review All →
-                  </a>
-                  <span class="expand-chevron"
-                    [class.open]="isExpanded('returns')">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                      width="16" height="16"
-                      viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2.5">
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                  </span>
-                </div>
-              </div>
-
-              @if (isExpanded('returns')) {
-                <div class="action-expanded">
-                  @for (r of actionItems().pendingReturns;
-                    track r.id) {
-                    <a routerLink="/admin/returns"
-                      class="action-sub-item">
-                      <div class="action-sub-left">
-                        <span class="action-sub-num">
-                          {{ r.returnNumber }}
-                        </span>
-                        <span class="action-sub-name">
-                          {{ r.customerName }} ·
-                          {{ r.orderNumber }}
-                        </span>
-                      </div>
-                      <div class="action-sub-right">
-                        <span class="action-sub-type"
-                          [class.credit]="
-                            r.type === 'credit_note'"
-                          [class.refund]="
-                            r.type === 'refund'">
-                          {{ r.type === 'credit_note' 
-                            ? 'Credit Note' : 'Refund' }}
-                        </span>
-                        <span class="action-sub-amount">
-                          {{ formatCurrency(r.amountCents) }}
-                        </span>
-                        <span class="action-sub-arrow">→</span>
-                      </div>
-                    </a>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-          <!-- LOW STOCK -->
+          <!-- 3. Low stock (operational) -->
           @if (actionItems().lowStockProducts.length > 0) {
-            <div class="action-group">
-              <div class="action-row"
-                (click)="toggleAction('stock')">
-                <div class="action-row-left">
-                  <span class="action-indicator red"></span>
-                  <div class="action-row-text">
-                    <strong>
-                      {{ actionItems().lowStockProducts.length }}
-                      product{{
-                        actionItems().lowStockProducts.length > 1
-                          ? 's' : ''
-                      }} low on stock
-                    </strong>
-                    <span class="action-row-sub">
-                      Needs restocking ·
-                      click to {{ isExpanded('stock')
-                        ? 'collapse' : 'expand' }}
-                    </span>
-                  </div>
-                </div>
-                <div class="action-row-right">
-                  <a routerLink="/admin/products"
-                    class="action-cta"
-                    (click)="$event.stopPropagation()">
-                    View Products →
-                  </a>
-                  <span class="expand-chevron"
-                    [class.open]="isExpanded('stock')">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                      width="16" height="16"
-                      viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2.5">
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
+            <a routerLink="/admin/products"
+              class="ov-attn-row ov-attn-row--warn">
+              <div class="ov-attn-left">
+                <span class="ov-attn-dot ov-attn-dot--warn">
+                </span>
+                <div class="ov-attn-text">
+                  <span class="ov-attn-main">
+                    {{ actionItems().lowStockProducts.length }}
+                    product{{
+                      actionItems().lowStockProducts.length === 1
+                        ? '' : 's'
+                    }} low on stock
+                  </span>
+                  <span class="ov-attn-sub">
+                    @if (
+                      actionItems().lowStockProducts[0]
+                        ?.stock === 0
+                    ) {
+                      1 out of stock · needs restocking
+                    } @else {
+                      needs restocking
+                    }
                   </span>
                 </div>
               </div>
-
-              @if (isExpanded('stock')) {
-                <div class="action-expanded">
-                  @for (p of actionItems().lowStockProducts;
-                    track p.id) {
-                    <a [routerLink]="['/admin/products', p.id]"
-                      class="action-sub-item">
-                      <div class="action-sub-left">
-                        <span class="action-sub-num">
-                          {{ p.sku }}
-                        </span>
-                        <span class="action-sub-name">
-                          {{ p.name }}
-                        </span>
-                      </div>
-                      <div class="action-sub-right">
-                        <span class="stock-chip"
-                          [class.out]="p.stock === 0"
-                          [class.low]="p.stock > 0">
-                          @if (p.stock === 0) {
-                            Out of Stock
-                          } @else {
-                            {{ p.stock }} left
-                          }
-                        </span>
-                        <span class="action-sub-arrow">→</span>
-                      </div>
-                    </a>
-                  }
-                </div>
-              }
-            </div>
+              <span class="ov-attn-arrow">→</span>
+            </a>
           }
 
-          <!-- PENDING ACCESS REQUESTS -->
-          @if (actionItems().pendingAccessRequests.length > 0) {
-            <div class="action-group">
-              <div class="action-row"
-                (click)="toggleAction('access')">
-                <div class="action-row-left">
-                  <span class="action-indicator gold"></span>
-                  <div class="action-row-text">
-                    <strong>
-                      {{ actionItems()
-                        .pendingAccessRequests.length }}
-                      access request{{
-                        actionItems()
-                          .pendingAccessRequests.length > 1
-                          ? 's' : ''
-                      }} pending
-                    </strong>
-                    <span class="action-row-sub">
-                      New businesses requesting access ·
-                      click to {{ isExpanded('access')
-                        ? 'collapse' : 'expand' }}
-                    </span>
-                  </div>
-                </div>
-                <div class="action-row-right">
-                  <a routerLink="/admin/access-requests"
-                    class="action-cta"
-                    (click)="$event.stopPropagation()">
-                    Review All →
-                  </a>
-                  <span class="expand-chevron"
-                    [class.open]="isExpanded('access')">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                      width="16" height="16"
-                      viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2.5">
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
+          <!-- 4. Pending returns (operational) -->
+          @if (actionItems().pendingReturns.length > 0) {
+            <a routerLink="/admin/returns"
+              class="ov-attn-row ov-attn-row--warn">
+              <div class="ov-attn-left">
+                <span class="ov-attn-dot ov-attn-dot--warn">
+                </span>
+                <div class="ov-attn-text">
+                  <span class="ov-attn-main">
+                    {{ actionItems().pendingReturns.length }}
+                    return{{
+                      actionItems().pendingReturns.length === 1
+                        ? '' : 's'
+                    }} pending review
+                  </span>
+                  <span class="ov-attn-sub">
+                    Awaiting approval
                   </span>
                 </div>
               </div>
+              <span class="ov-attn-arrow">→</span>
+            </a>
+          }
 
-              @if (isExpanded('access')) {
-                <div class="action-expanded">
-                  @for (r of actionItems()
-                    .pendingAccessRequests; track r.id) {
-                    <a routerLink="/admin/access-requests"
-                      class="action-sub-item">
-                      <div class="action-sub-left">
-                        <span class="action-sub-num">
-                          {{ r.businessName }}
-                        </span>
-                        <span class="action-sub-name">
-                          {{ r | ownerFullName }} · {{ r.email }}
-                        </span>
-                      </div>
-                      <div class="action-sub-right">
-                        <span class="action-sub-date">
-                          {{ formatShortDate(r.submittedAt) }}
-                        </span>
-                        <span class="action-sub-arrow">→</span>
-                      </div>
-                    </a>
-                  }
+          <!-- 5. Access requests (growth) -->
+          @if (actionItems().pendingAccessRequests.length > 0) {
+            <a routerLink="/admin/access-requests"
+              class="ov-attn-row ov-attn-row--accent">
+              <div class="ov-attn-left">
+                <span class="ov-attn-dot ov-attn-dot--accent">
+                </span>
+                <div class="ov-attn-text">
+                  <span class="ov-attn-main">
+                    {{ actionItems()
+                        .pendingAccessRequests.length }}
+                    new access request{{
+                      actionItems()
+                        .pendingAccessRequests.length === 1
+                        ? '' : 's'
+                    }}
+                  </span>
+                  <span class="ov-attn-sub">
+                    New businesses requesting an account
+                  </span>
                 </div>
-              }
-            </div>
+              </div>
+              <span class="ov-attn-arrow">→</span>
+            </a>
           }
 
         </div>
       </div>
     }
 
-    <!-- Revenue Chart + Order Status -->
-    <div class="two-col-row">
+    <!-- Charts row -->
+    <div class="ov-charts-row">
 
-      <!-- Revenue vs Collected -->
-      <div class="dash-card wide">
+      <!-- Revenue trend — weekly line chart -->
+      <div class="dash-card ov-chart-card">
         <div class="dash-card-header">
-          <h3>Revenue vs Collected</h3>
-          <div class="chart-legend">
-            <span class="legend-item">
-              <span class="legend-dot navy"></span>
-              Revenue
-            </span>
-            <span class="legend-item">
-              <span class="legend-dot green"></span>
-              Collected
-            </span>
-          </div>
+          <h3>Revenue trend</h3>
+          <span class="header-sub">Last 8 weeks</span>
         </div>
-        <div class="dash-card-body chart-scroll">
-          @if (chartBuckets().length === 0 ||
-               getChartMax() === 1) {
+        <div class="dash-card-body ov-chart-body">
+          @let buckets = weeklyRevenueBuckets();
+
+          @if (weeklyChartMax() <= 0) {
             <div class="empty-chart">
-              No data for selected period
+              No revenue data yet
             </div>
           } @else {
-            <svg class="bar-chart-svg"
-              [attr.viewBox]="'0 0 ' + 
-                (chartBuckets().length * 52 + 40) + 
-                ' 180'">
-              @for (b of chartBuckets();
-                track b.label; let i = $index) {
-                @let x = i * 52 + 20;
-                @let max = getChartMax();
-                @let rh = (b.revenue / max) * 130;
-                @let ch = (b.collected / max) * 130;
-                <rect [attr.x]="x" 
-                  [attr.y]="140 - rh"
-                  width="16" [attr.height]="rh || 1"
-                  fill="var(--navy-deep)" rx="2"/>
-                <rect [attr.x]="x + 18"
-                  [attr.y]="140 - ch"
-                  width="16" [attr.height]="ch || 1"
-                  fill="var(--green)" rx="2"/>
-                <text [attr.x]="x + 16" y="156"
-                  text-anchor="middle"
-                  font-size="8" fill="var(--gray)">
-                  {{ b.label }}
-                </text>
-              }
-              <line x1="10" y1="140"
-                [attr.x2]="chartBuckets().length * 52 + 30"
-                y2="140"
-                stroke="var(--color-border)"
-                stroke-width="1"/>
-            </svg>
+            <div class="ov-line-chart">
+              <!-- Y axis labels -->
+              <div class="ov-y-axis">
+                <span>${{
+                  (weeklyChartMax() / 100 / 1000).toFixed(0)
+                }}k</span>
+                <span>${{
+                  (weeklyChartMax() / 100 / 2000).toFixed(0)
+                }}k</span>
+                <span>$0</span>
+              </div>
+              <!-- SVG line -->
+              <div class="ov-chart-area">
+                <svg viewBox="0 0 700 140"
+                  preserveAspectRatio="none"
+                  class="ov-line-svg">
+                  <!-- Gridlines -->
+                  <line x1="0" y1="0"
+                    x2="700" y2="0"
+                    stroke="var(--color-border)"
+                    stroke-width="1"/>
+                  <line x1="0" y1="70"
+                    x2="700" y2="70"
+                    stroke="var(--color-border)"
+                    stroke-width="1"
+                    stroke-dasharray="4 4"/>
+                  <line x1="0" y1="140"
+                    x2="700" y2="140"
+                    stroke="var(--color-border)"
+                    stroke-width="1"/>
+
+                  <!-- Area fill -->
+                  <polygon
+                    [attr.points]="weeklyChartPolygonPoints()"
+                    fill="rgba(10,45,74,0.06)"/>
+
+                  <!-- Line -->
+                  <polyline
+                    [attr.points]="weeklyChartPolylinePoints()"
+                    fill="none"
+                    stroke="var(--navy-deep)"
+                    stroke-width="2.5"
+                    stroke-linejoin="round"
+                    stroke-linecap="round"/>
+
+                  <!-- Dots -->
+                  @for (b of buckets; track b.label;
+                    let i = $index) {
+                    <circle
+                      [attr.cx]="
+                        i * (700 / (buckets.length - 1))
+                      "
+                      [attr.cy]="
+                        140 - (b.revenueCents / weeklyChartMax()) * 140
+                      "
+                      r="4"
+                      fill="white"
+                      stroke="var(--navy-deep)"
+                      stroke-width="2"/>
+                  }
+                </svg>
+
+                <!-- X axis labels -->
+                <div class="ov-x-axis">
+                  @for (b of buckets; track b.label) {
+                    <span>{{ b.label }}</span>
+                  }
+                </div>
+              </div>
+            </div>
           }
         </div>
       </div>
 
-      <!-- Order Status Donut -->
-      <div class="dash-card">
+      <!-- Order status breakdown -->
+      <div class="dash-card ov-status-card">
         <div class="dash-card-header">
-          <h3>Order Status</h3>
+          <h3>Order status</h3>
         </div>
-        <div class="dash-card-body donut-layout">
-          @let total = orderStatusBreakdown().confirmed +
+        <div class="dash-card-body">
+
+          @let total =
+            orderStatusBreakdown().confirmed +
             orderStatusBreakdown().outForDelivery +
             orderStatusBreakdown().delivered +
             orderStatusBreakdown().cancelled;
+
           @if (total === 0) {
             <div class="empty-chart">No orders</div>
           } @else {
-            <svg viewBox="0 0 120 120" 
-              class="donut-svg">
-              @for (seg of getDonutSegments();
-                track seg.label) {
-                <path [attr.d]="seg.path"
-                  [attr.fill]="seg.color"/>
+            <!-- Progress bar -->
+            <div class="ov-status-bar">
+              @if (orderStatusBreakdown().confirmed > 0) {
+                <div class="ov-status-seg ov-seg--confirmed"
+                  [style.width.%]="
+                    (orderStatusBreakdown().confirmed
+                      / total) * 100
+                  ">
+                </div>
               }
-              <circle cx="60" cy="60" r="32"
-                fill="white"/>
-              <text x="60" y="56"
-                text-anchor="middle"
-                font-size="16" font-weight="800"
-                fill="var(--navy-deep)">
-                {{ total }}
-              </text>
-              <text x="60" y="69"
-                text-anchor="middle"
-                font-size="8" fill="var(--gray)">
-                orders
-              </text>
-            </svg>
-            <div class="donut-legend">
-              <div class="donut-row">
-                <span class="donut-dot navy"></span>
-                <span>Confirmed</span>
-                <strong>
-                  {{ orderStatusBreakdown().confirmed }}
-                </strong>
-              </div>
-              <div class="donut-row">
-                <span class="donut-dot gold"></span>
-                <span>Out for Delivery</span>
-                <strong>
-                  {{ orderStatusBreakdown()
-                    .outForDelivery }}
-                </strong>
-              </div>
-              <div class="donut-row">
-                <span class="donut-dot green"></span>
-                <span>Delivered</span>
-                <strong>
-                  {{ orderStatusBreakdown().delivered }}
-                </strong>
-              </div>
-              <div class="donut-row">
-                <span class="donut-dot red"></span>
-                <span>Cancelled</span>
-                <strong>
-                  {{ orderStatusBreakdown().cancelled }}
-                </strong>
-              </div>
+              @if (orderStatusBreakdown().outForDelivery > 0) {
+                <div class="ov-status-seg ov-seg--delivery"
+                  [style.width.%]="
+                    (orderStatusBreakdown().outForDelivery
+                      / total) * 100
+                  ">
+                </div>
+              }
+              @if (orderStatusBreakdown().delivered > 0) {
+                <div class="ov-status-seg ov-seg--delivered"
+                  [style.width.%]="
+                    (orderStatusBreakdown().delivered
+                      / total) * 100
+                  ">
+                </div>
+              }
+              @if (orderStatusBreakdown().cancelled > 0) {
+                <div class="ov-status-seg ov-seg--cancelled"
+                  [style.width.%]="
+                    (orderStatusBreakdown().cancelled
+                      / total) * 100
+                  ">
+                </div>
+              }
             </div>
           }
+
+          <!-- Status list -->
+          <div class="ov-status-list">
+            <div class="ov-status-row">
+              <span class="ov-status-dot
+                ov-status-dot--confirmed"></span>
+              <span class="ov-status-label">Confirmed</span>
+              <span class="ov-status-val">
+                {{ orderStatusBreakdown().confirmed }}
+              </span>
+            </div>
+            <div class="ov-status-row">
+              <span class="ov-status-dot
+                ov-status-dot--delivery"></span>
+              <span class="ov-status-label">
+                Out for delivery
+              </span>
+              <span class="ov-status-val">
+                {{ orderStatusBreakdown().outForDelivery }}
+              </span>
+            </div>
+            <div class="ov-status-row">
+              <span class="ov-status-dot
+                ov-status-dot--delivered"></span>
+              <span class="ov-status-label">Delivered</span>
+              <span class="ov-status-val">
+                {{ orderStatusBreakdown().delivered }}
+              </span>
+            </div>
+            <div class="ov-status-row">
+              <span class="ov-status-dot
+                ov-status-dot--cancelled"></span>
+              <span class="ov-status-label">Cancelled</span>
+              <span class="ov-status-val">
+                {{ orderStatusBreakdown().cancelled }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
     </div>
 
-    <!-- Delivery Schedule -->
+    <!-- Delivery schedule -->
     <div class="dash-card full-width">
       <div class="dash-card-header">
-        <h3>Delivery Schedule</h3>
+        <h3>Delivery schedule</h3>
         <span class="header-sub">Next 7 days</span>
       </div>
       <div class="dash-card-body">
@@ -735,8 +587,8 @@
           @if (deliverySchedule().delayed.length > 0) {
             <div class="delivery-section">
               <div class="delivery-section-label delayed">
-                ⚠️ Delayed ({{ 
-                  deliverySchedule().delayed.length 
+                Delayed ({{
+                  deliverySchedule().delayed.length
                 }})
               </div>
               @for (o of deliverySchedule().delayed;
@@ -754,14 +606,12 @@
                   <div class="delivery-row-right">
                     <span class="delivery-date-badge red">
                       {{ formatShortDate(
-                        o.expectedDeliveryDate
-                      ) }}
+                          o.expectedDeliveryDate
+                         ) }}
                     </span>
                     <app-status-badge
                       [status]="o.status"
-                      [color]="getOrderStatusColor(
-                        o.status
-                      )">
+                      [color]="getOrderStatusColor(o.status)">
                     </app-status-badge>
                   </div>
                 </a>
@@ -772,7 +622,7 @@
           @if (deliverySchedule().scheduled.length > 0) {
             <div class="delivery-section">
               <div class="delivery-section-label upcoming">
-                📅 Upcoming ({{
+                Upcoming ({{
                   deliverySchedule().scheduled.length
                 }})
               </div>
@@ -791,19 +641,65 @@
                   <div class="delivery-row-right">
                     <span class="delivery-date-badge">
                       {{ formatShortDate(
-                        o.expectedDeliveryDate
-                      ) }}
+                          o.expectedDeliveryDate
+                         ) }}
                     </span>
                     <app-status-badge
                       [status]="o.status"
-                      [color]="getOrderStatusColor(
-                        o.status
-                      )">
+                      [color]="getOrderStatusColor(o.status)">
                     </app-status-badge>
                   </div>
                 </a>
               }
             </div>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Recent orders -->
+    <div class="dash-card full-width">
+      <div class="dash-card-header">
+        <h3>Recent orders</h3>
+        <a routerLink="/admin/orders"
+          class="header-link">View all →</a>
+      </div>
+      <div class="dash-card-body no-pad">
+        @if (recentOrdersOverview().length === 0) {
+          <div class="empty-state-sm">
+            No orders in this period
+          </div>
+        } @else {
+          @for (o of recentOrdersOverview(); track o.id) {
+            <a [routerLink]="['/admin/orders', o.id]"
+              class="list-row">
+              <div class="list-row-left">
+                <span class="mono-num">
+                  {{ o.orderNumber }}
+                </span>
+                <span class="list-sub">
+                  {{ o.customerName }}
+                </span>
+              </div>
+              <div class="list-row-right">
+                <app-status-badge
+                  [status]="o.status"
+                  [color]="getOrderStatusColor(o.status)">
+                </app-status-badge>
+                @if ((o.balanceCents || 0) > 0) {
+                  <span class="owing-chip">
+                    {{ formatCurrency(o.balanceCents) }}
+                    owing
+                  </span>
+                }
+                <span class="amount-text">
+                  {{ formatCurrency(o.totalCents) }}
+                </span>
+                <span class="date-text">
+                  {{ formatShortDate(o.confirmedAt) }}
+                </span>
+              </div>
+            </a>
           }
         }
       </div>

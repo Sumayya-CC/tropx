@@ -4,6 +4,7 @@ import {defineSecret} from "firebase-functions/params";
 import {Resend} from "resend";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 
+
 admin.initializeApp();
 
 // Database name resolves based on which
