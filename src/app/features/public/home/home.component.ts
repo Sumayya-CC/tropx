@@ -264,38 +264,47 @@ import { PortalNavbarComponent } from '../../../shared/components/portal-navbar/
             <!-- Info Cards -->
             <div class="contact-info">
               <div class="info-cards">
-                <div class="info-card">
-                  <span class="icon">📞</span>
-                  <div>
-                    <label>Phone</label>
-                    <p>{{ settingsService.business().phone || 'Coming soon' }}</p>
+
+                @if (contactPhone()) {
+                  <div class="info-card">
+                    <span class="icon">📞</span>
+                    <div>
+                      <label>Phone</label>
+                      <p>{{ contactPhone() }}</p>
+                    </div>
                   </div>
-                </div>
-                <div class="info-card">
-                  <span class="icon">✉️</span>
-                  <div>
-                    <label>Email</label>
-                    <p>{{ settingsService.business().email || 'Coming soon' }}</p>
+                }
+
+                @if (contactEmail()) {
+                  <div class="info-card">
+                    <span class="icon">✉️</span>
+                    <div>
+                      <label>Email</label>
+                      <p>{{ contactEmail() }}</p>
+                    </div>
                   </div>
-                </div>
-                <div class="info-card">
-                  <span class="icon">📍</span>
-                  <div>
-                    <label>Address</label>
-                    <p>{{ [settingsService.business().street, 
-                           settingsService.business().city, 
-                           settingsService.business().province]
-                          .filter(Boolean).join(', ') 
-                          || content().publicContactInfo.address }}</p>
+                }
+
+                @if (contactAddress()) {
+                  <div class="info-card">
+                    <span class="icon">📍</span>
+                    <div>
+                      <label>Address</label>
+                      <p>{{ contactAddress() }}</p>
+                    </div>
                   </div>
-                </div>
-                <div class="info-card">
-                  <span class="icon">🕐</span>
-                  <div>
-                    <label>Hours</label>
-                    <p>{{ content().publicContactInfo.hours }}</p>
+                }
+
+                @if (contactHours()) {
+                  <div class="info-card">
+                    <span class="icon">🕐</span>
+                    <div>
+                      <label>Hours</label>
+                      <p>{{ contactHours() }}</p>
+                    </div>
                   </div>
-                </div>
+                }
+
               </div>
 
               <div class="partner-note">
@@ -350,6 +359,27 @@ export class HomeComponent implements OnInit {
 
   tradingName = computed(() =>
     this.settingsService.business().tradingName || 'Tropx'
+  );
+
+  // Contact info — only non-empty fields are shown.
+  // If nothing is configured, the card is hidden entirely.
+  contactPhone = computed(() =>
+    this.settingsService.business().phone?.trim() || null
+  );
+
+  contactEmail = computed(() =>
+    this.settingsService.business().email?.trim() || null
+  );
+
+  contactAddress = computed(() => {
+    const b = this.settingsService.business();
+    const parts = [b.street, b.city, b.province]
+      .filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : null;
+  });
+
+  contactHours = computed(() =>
+    this.content().publicContactInfo?.hours?.trim() || null
   );
 
   isSubmitting = signal(false);

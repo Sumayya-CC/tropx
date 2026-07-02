@@ -32,8 +32,7 @@ import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
     FormsModule,
     RouterModule,
     StatusBadgeComponent,
-    LoadingSpinnerComponent,
-    OwnerFullNamePipe
+    LoadingSpinnerComponent
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'
@@ -149,7 +148,7 @@ export class AdminDashboardComponent {
       now.getFullYear(), now.getMonth(), now.getDate()
     );
     const todayEnd = new Date(
-      now.getFullYear(), now.getMonth(), 
+      now.getFullYear(), now.getMonth(),
       now.getDate(), 23, 59, 59
     );
 
@@ -220,7 +219,7 @@ export class AdminDashboardComponent {
   }
 
   private inRange(
-    date: Date, 
+    date: Date,
     range: { from: Date; to: Date }
   ): boolean {
     return date >= range.from && date <= range.to;
@@ -297,9 +296,9 @@ export class AdminDashboardComponent {
     const pendingAccessRequests = this.allAccessRequests()
       .filter(r => r.status === 'pending')
       .sort((a: any, b: any) => {
-        const at = a.submittedAt?.toDate?.() ?? 
+        const at = a.submittedAt?.toDate?.() ??
           new Date(a.submittedAt ?? 0);
-        const bt = b.submittedAt?.toDate?.() ?? 
+        const bt = b.submittedAt?.toDate?.() ??
           new Date(b.submittedAt ?? 0);
         return bt.getTime() - at.getTime();
       });
@@ -340,7 +339,7 @@ export class AdminDashboardComponent {
       .filter(o =>
         !o.isDeleted &&
         (o.status === 'confirmed' ||
-         o.status === 'out_for_delivery') &&
+          o.status === 'out_for_delivery') &&
         o.expectedDeliveryDate
       )
       .map(o => ({
@@ -420,12 +419,12 @@ export class AdminDashboardComponent {
         r => r.status === 'rejected'
       ).length,
       creditNotes: returns.filter(
-        r => r.status === 'approved' && 
-             r.type === 'credit_note'
+        r => r.status === 'approved' &&
+          r.type === 'credit_note'
       ).reduce((s, r) => s + r.amountCents, 0),
       refunds: returns.filter(
-        r => r.status === 'approved' && 
-             r.type === 'refund'
+        r => r.status === 'approved' &&
+          r.type === 'refund'
       ).reduce((s, r) => s + r.amountCents, 0),
     };
   });
@@ -841,14 +840,22 @@ export class AdminDashboardComponent {
     if (total === 0) return [];
 
     const data = [
-      { label: 'Confirmed', count: b.confirmed,
-        color: 'var(--navy)' },
-      { label: 'Out for Delivery', count: b.outForDelivery,
-        color: 'var(--gold)' },
-      { label: 'Delivered', count: b.delivered,
-        color: 'var(--green)' },
-      { label: 'Cancelled', count: b.cancelled,
-        color: 'var(--red)' },
+      {
+        label: 'Confirmed', count: b.confirmed,
+        color: 'var(--navy)'
+      },
+      {
+        label: 'Out for Delivery', count: b.outForDelivery,
+        color: 'var(--gold)'
+      },
+      {
+        label: 'Delivered', count: b.delivered,
+        color: 'var(--green)'
+      },
+      {
+        label: 'Cancelled', count: b.cancelled,
+        color: 'var(--red)'
+      },
     ];
 
     let angle = -Math.PI / 2;
@@ -873,14 +880,22 @@ export class AdminDashboardComponent {
   getMethodBars() {
     const pm = this.paymentMethodBreakdown();
     return [
-      { label: 'Cash', value: pm.cash,
-        color: 'var(--green)' },
-      { label: 'E-Transfer', value: pm.etransfer,
-        color: 'var(--navy)' },
-      { label: 'Cheque', value: pm.cheque,
-        color: 'var(--gold)' },
-      { label: 'Other', value: pm.other,
-        color: 'var(--gray)' },
+      {
+        label: 'Cash', value: pm.cash,
+        color: 'var(--green)'
+      },
+      {
+        label: 'E-Transfer', value: pm.etransfer,
+        color: 'var(--navy)'
+      },
+      {
+        label: 'Cheque', value: pm.cheque,
+        color: 'var(--gold)'
+      },
+      {
+        label: 'Other', value: pm.other,
+        color: 'var(--gray)'
+      },
     ];
   }
 

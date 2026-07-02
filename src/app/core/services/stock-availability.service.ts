@@ -1,18 +1,31 @@
 import { Injectable, inject, computed } from '@angular/core';
 import { FirestoreService } from './firestore.service';
+import { AuthService } from './auth.service';
 import { Order } from '../models/order.model';
 import { Product } from '../models/product.model';
 import { where } from '@angular/fire/firestore';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toSignal, toObservable } from '@angular/core/rxjs-interop';
+import { switchMap, of } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class StockAvailabilityService {
   private firestore = inject(FirestoreService);
+  private auth = inject(AuthService);
 
-  private openOrders$ = this.firestore.getCollection<Order>(
-    'orders',
-    where('tenantId', '==', 1),
-    where('status', 'in', ['confirmed', 'out_for_delivery'])
+  // Only read open orders when staff is logged in.
+  // This collection is not accessible to customers
+  // or unauthenticated users under Firestore rules.
+  private openOrders$ = toObservable(
+    computed(() => this.auth.isStaff())
+  ).pipe(
+    switchMap(isStaff => isStaff
+      ? this.firestore.getCollection<Order>(
+          'orders',
+          where('tenantId', '==', 1),
+          where('status', 'in', ['confirmed', 'out_for_delivery'])
+        )
+      : of([] as Order[])
+    )
   );
 
   private openOrders = toSignal(this.openOrders$, { initialValue: [] as Order[] });

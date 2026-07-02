@@ -1,5 +1,6 @@
-import { Injectable, inject, computed, signal } from '@angular/core';
+import { Injectable, inject, computed, signal, effect } from '@angular/core';
 import { FirestoreService } from './firestore.service';
+import { AuthService } from './auth.service';
 import { SettingsService } from './settings.service';
 import { Return } from '../models/return.model';
 import { Order } from '../models/order.model';
@@ -10,6 +11,7 @@ import { where } from '@angular/fire/firestore';
 export class NotificationService {
   private readonly firestore = inject(FirestoreService);
   private readonly settingsService = inject(SettingsService);
+  private readonly auth = inject(AuthService);
 
   allReturns = signal<Return[]>([]);
   allOrders = signal<Order[]>([]);
@@ -17,21 +19,36 @@ export class NotificationService {
   allAccessRequests = signal<any[]>([]);
 
   constructor() {
-    this.firestore.getCollection<Return>(
-      'returns', where('tenantId', '==', 1)
-    ).subscribe(v => this.allReturns.set(v));
+    // Only subscribe to admin collections when the
+    // current user is staff. Customers and unauthenticated
+    // visitors must not trigger these reads — they will
+    // get permission errors from Firestore rules.
+    effect(() => {
+      const profile = this.auth.currentProfile();
+      const role = profile?.role;
+      const isStaff = role === 'admin' ||
+        role === 'manager' ||
+        role === 'sales_rep' ||
+        role === 'warehouse';
 
-    this.firestore.getCollection<Order>(
-      'orders', where('tenantId', '==', 1)
-    ).subscribe(v => this.allOrders.set(v));
+      if (!isStaff) return;
 
-    this.firestore.getCollection<Product>(
-      'products', where('tenantId', '==', 1)
-    ).subscribe(v => this.allProducts.set(v));
+      this.firestore.getCollection<Return>(
+        'returns', where('tenantId', '==', 1)
+      ).subscribe(v => this.allReturns.set(v));
 
-    this.firestore.getCollection<any>(
-      'accessRequests', where('tenantId', '==', 1)
-    ).subscribe(v => this.allAccessRequests.set(v));
+      this.firestore.getCollection<Order>(
+        'orders', where('tenantId', '==', 1)
+      ).subscribe(v => this.allOrders.set(v));
+
+      this.firestore.getCollection<Product>(
+        'products', where('tenantId', '==', 1)
+      ).subscribe(v => this.allProducts.set(v));
+
+      this.firestore.getCollection<any>(
+        'accessRequests', where('tenantId', '==', 1)
+      ).subscribe(v => this.allAccessRequests.set(v));
+    });
   }
 
   pendingReturnsCount = computed(() =>

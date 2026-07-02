@@ -55,6 +55,7 @@ service cloud.firestore {
       allow read: if doc == 'storefront'
                   || doc == 'ordering'
                   || doc == 'business'
+                  || doc == 'content'
                   || isStaff();
       allow write: if isStaff();
     }
@@ -177,6 +178,10 @@ service cloud.firestore {
     }
 
     match /poRequests/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /warehouses/{doc} {
       allow read, write: if isStaff();
     }
 
