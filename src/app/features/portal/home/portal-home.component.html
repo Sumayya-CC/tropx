@@ -279,7 +279,9 @@
         <div class="product-grid">
           @for (product of newArrivals(); track product.id) {
             <div class="product-card"
-              [class.out-of-stock]="product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder'">
+              [class.out-of-stock]="product.stock <= 0 && getEffectiveOutOfStockBehavior(product) !== 'allow_backorder'"
+              (mouseenter)="hoveredProductId.set(product.id)"
+              (mouseleave)="hoveredProductId.set(null)">
 
               <!-- Image -->
               <a [routerLink]="['/portal/catalog', product.id]" class="product-image-link">
@@ -352,7 +354,7 @@
                     </div>
                     <div class="qty-picker-wrap" (click)="$event.stopPropagation()">
                       <div class="qty-picker">
-                        <button class="qp-btn" (click)="decrement(product)">−</button>
+                        <button class="qp-btn" (click)="decrement(product); onStepperButtonClick(product.id, $event)">−</button>
                         <input
                           type="number"
                           class="qp-input"
@@ -360,13 +362,12 @@
                           min="1"
                           [max]="getEffectiveOutOfStockBehavior(product) === 'allow_backorder' ? 999999 : product.stock"
                           (change)="portal.updateCartQty(product.id, +$any($event.target).value)"
-                          (focus)="hasQuickQtys(product) ? showQtyDropdown.set(product.id + '_c') : null"
-                          (click)="hasQuickQtys(product) ? showQtyDropdown.set(product.id + '_c') : null; $any($event.target).select()">
+                          (click)="$any($event.target).select()">
                         <button class="qp-btn"
-                          (click)="increment(product)"
+                          (click)="increment(product); onStepperButtonClick(product.id, $event)"
                           [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getCartQty(product.id) >= product.stock">+</button>
                       </div>
-                      @if (showQtyDropdown() === product.id + '_c' && hasQuickQtys(product)) {
+                      @if (shouldShowQuickSelect(product.id)) {
                         <div class="qty-dropdown">
                           <div class="qty-dropdown-label">Quick select</div>
                           @for (q of quickQtys; track q) {
@@ -393,7 +394,7 @@
 
                       <div class="qty-picker-wrap" (click)="$event.stopPropagation()">
                         <div class="qty-picker">
-                          <button class="qp-btn" (click)="setQty(product.id, getQty(product.id) - 1)" [disabled]="getQty(product.id) <= 1">
+                          <button class="qp-btn" (click)="setQty(product.id, getQty(product.id) - 1); onStepperButtonClick(product.id, $event)" [disabled]="getQty(product.id) <= 1">
                             −
                           </button>
 
@@ -404,17 +405,16 @@
                             min="1"
                             [max]="getEffectiveOutOfStockBehavior(product) === 'allow_backorder' ? 999999 : product.stock"
                             (input)="setQty(product.id, +$any($event.target).value)"
-                            (focus)="hasQuickQtys(product) ? showQtyDropdown.set(product.id) : null"
-                            (click)="hasQuickQtys(product) ? showQtyDropdown.set(product.id) : null; $any($event.target).select()">
+                            (click)="$any($event.target).select()">
 
-                          <button class="qp-btn" (click)="setQty(product.id, getQty(product.id) + 1)"
+                          <button class="qp-btn" (click)="setQty(product.id, getQty(product.id) + 1); onStepperButtonClick(product.id, $event)"
                             [disabled]="getEffectiveOutOfStockBehavior(product) !== 'allow_backorder' && getQty(product.id) >= product.stock">
                             +
                           </button>
                         </div>
 
                         <!-- Dropdown appears below input -->
-                        @if (showQtyDropdown() === product.id && hasQuickQtys(product)) {
+                        @if (shouldShowQuickSelect(product.id)) {
                           <div class="qty-dropdown">
                             <div class="qty-dropdown-label">Quick select</div>
                             @for (q of quickQtys; track q) {

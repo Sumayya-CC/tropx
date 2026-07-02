@@ -28,6 +28,13 @@ export class PortalProductDetailComponent implements OnInit {
   quantity = signal(1);
   submittedNotifications = signal<Record<string, boolean>>({});
   showQtyDropdown = signal(false);
+  isHoveringQty = signal(false);
+
+  shouldShowQtyDropdown = computed(() =>
+    (this.isHoveringQty() || this.showQtyDropdown()) &&
+    this.hasQuickQtys()
+  );
+
   quickQtys = [5, 10, 20, 30, 50, 100];
 
   hasQuickQtys(): boolean {
@@ -41,6 +48,15 @@ export class PortalProductDetailComponent implements OnInit {
   @HostListener('document:click')
   onDocumentClick() {
     this.showQtyDropdown.set(false);
+    this.isHoveringQty.set(false);
+  }
+
+  onStepperButtonClick() {
+    // On touch devices, hover doesn't exist.
+    // Tapping + or − toggles the quick select.
+    if (!this.isHoveringQty()) {
+      this.showQtyDropdown.set(!this.showQtyDropdown());
+    }
   }
 
   getEffectiveOutOfStockBehavior(product: any): 'hide' | 'show_disabled' | 'allow_backorder' {

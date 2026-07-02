@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -397,7 +397,34 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
   }
 
   showQtyDropdown = signal<string | null>(null);
+  hoveredProductId = signal<string | null>(null);
+  openQtyProductId = signal<string | null>(null);
   quickQtys = [5, 10, 20, 30, 50, 100];
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    this.openQtyProductId.set(null);
+    this.hoveredProductId.set(null);
+  }
+
+  onStepperButtonClick(productId: string, event: Event) {
+    event.stopPropagation();
+    // Only toggle explicit open on touch (no hover available).
+    // On desktop, hover already handles it.
+    if (!this.hoveredProductId()) {
+      this.openQtyProductId.set(
+        this.openQtyProductId() === productId ? null : productId
+      );
+    }
+  }
+
+  shouldShowQuickSelect(productId: string): boolean {
+    const product = this.portal.allProducts().find((p: any) => p.id === productId);
+    return (
+      this.hoveredProductId() === productId ||
+      this.openQtyProductId() === productId
+    ) && (product ? this.hasQuickQtys(product) : false);
+  }
 
   toggleQtyDropdown(productId: string) {
     this.showQtyDropdown.update(current =>

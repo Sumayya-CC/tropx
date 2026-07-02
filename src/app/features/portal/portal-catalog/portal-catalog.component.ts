@@ -151,8 +151,27 @@ export class PortalCatalogComponent {
   }
 
   showQtyDropdown = signal<string | null>(null);
+  hoveredProductId = signal<string | null>(null);
+  openQtyProductId = signal<string | null>(null);
 
   quickQtys = [5, 10, 20, 30, 50, 100];
+
+  onStepperButtonClick(productId: string, event: Event) {
+    event.stopPropagation();
+    if (!this.hoveredProductId()) {
+      this.openQtyProductId.set(
+        this.openQtyProductId() === productId ? null : productId
+      );
+    }
+  }
+
+  shouldShowQuickSelect(productId: string): boolean {
+    const product = this.filteredProducts().find(p => p.id === productId);
+    return (
+      this.hoveredProductId() === productId ||
+      this.openQtyProductId() === productId
+    ) && (product ? this.hasQuickQtys(product) : false);
+  }
 
   toggleQtyDropdown(productId: string) {
     this.showQtyDropdown.update(current =>
@@ -176,6 +195,8 @@ export class PortalCatalogComponent {
     const target = event.target as HTMLElement;
     if (!target.closest('.qty-picker-wrap')) {
       this.showQtyDropdown.set(null);
+      this.openQtyProductId.set(null);
+      this.hoveredProductId.set(null);
     }
   }
 

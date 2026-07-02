@@ -124,9 +124,12 @@
     </div>
 
     <div class="cart-update-row">
-      <div class="qty-picker-wrap" (click)="$event.stopPropagation()">
+      <div class="qty-picker-wrap"
+        (click)="$event.stopPropagation()"
+        (mouseenter)="isHoveringQty.set(true)"
+        (mouseleave)="isHoveringQty.set(false)">
         <div class="qty-picker large">
-          <button class="qp-btn large-btn" (click)="updateCartQty(cartQty()-1)" [disabled]="cartQty() <= 1">−</button>
+          <button class="qp-btn large-btn" (click)="updateCartQty(cartQty()-1); onStepperButtonClick()" [disabled]="cartQty() <= 1">−</button>
           <input
             type="number"
             class="qp-input large-input"
@@ -134,13 +137,13 @@
             min="1"
             [max]="getEffectiveOutOfStockBehavior(product()) === 'allow_backorder' ? 999999 : product().stock"
             (change)="updateCartQty(+$any($event.target).value)"
-            (focus)="hasQuickQtys() ? showQtyDropdown.set(true) : null"
-            (click)="hasQuickQtys() ? showQtyDropdown.set(true) : null; $any($event.target).select()">
+            (focus)="showQtyDropdown.set(true)"
+            (click)="showQtyDropdown.set(true); $any($event.target).select()">
           <button class="qp-btn large-btn"
-            (click)="updateCartQty(cartQty()+1)"
+            (click)="updateCartQty(cartQty()+1); onStepperButtonClick()"
             [disabled]="getEffectiveOutOfStockBehavior(product()) !== 'allow_backorder' && cartQty() >= product().stock">+</button>
         </div>
-        @if (showQtyDropdown() && hasQuickQtys()) {
+        @if (shouldShowQtyDropdown()) {
           <div class="qty-dropdown detail-dropdown">
             <div class="qty-dropdown-label">Quick select</div>
             @for (q of quickQtys; track q) {
@@ -186,9 +189,13 @@
           <div class="add-to-cart-section">
             <div class="qty-row">
               <label class="qty-label">Quantity</label>
-              <div class="qty-picker-wrap" (click)="$event.stopPropagation()" style="position: relative;">
+              <div class="qty-picker-wrap"
+                (click)="$event.stopPropagation()"
+                (mouseenter)="isHoveringQty.set(true)"
+                (mouseleave)="isHoveringQty.set(false)"
+                style="position: relative;">
                 <div class="qty-picker" style="display: flex; align-items: center; gap: 0;">
-                  <button class="qp-btn" style="width: 40px; height: 44px; font-size: 1.25rem;" (click)="decrementQty()" [disabled]="quantity() <= 1">−</button>
+                  <button class="qp-btn" style="width: 40px; height: 44px; font-size: 1.25rem;" (click)="decrementQty(); onStepperButtonClick()" [disabled]="quantity() <= 1">−</button>
                   <input
                     type="number"
                     class="qp-input"
@@ -197,13 +204,13 @@
                     min="1"
                     [max]="getEffectiveOutOfStockBehavior(product()) === 'allow_backorder' ? 999999 : product().stock"
                     (change)="quantity.set(+$any($event.target).value)"
-                    (focus)="hasQuickQtys() ? showQtyDropdown.set(true) : null"
-                    (click)="hasQuickQtys() ? showQtyDropdown.set(true) : null; $any($event.target).select()">
+                    (focus)="showQtyDropdown.set(true)"
+                    (click)="showQtyDropdown.set(true); $any($event.target).select()">
                   <button class="qp-btn" style="width: 40px; height: 44px; font-size: 1.25rem;"
-                    (click)="incrementQty()"
+                    (click)="incrementQty(); onStepperButtonClick()"
                     [disabled]="getEffectiveOutOfStockBehavior(product()) !== 'allow_backorder' && quantity() >= product().stock">+</button>
                 </div>
-                @if (showQtyDropdown() && hasQuickQtys()) {
+                @if (shouldShowQtyDropdown()) {
                   <div class="qty-dropdown" style="position: absolute; top: calc(100% + 4px); left: 0; z-index: 9999; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); min-width: 150px;">
                     <div class="qty-dropdown-label">Quick select</div>
                     @for (q of quickQtys; track q) {
