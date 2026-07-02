@@ -146,7 +146,7 @@ export class AdminSettingsComponent {
   logoPreview = signal('');
   street = signal('');
   city = signal('');
-  province = signal('ON');
+  province = signal('');
   postalCode = signal('');
   country = signal('Canada');
   phone = signal('');
@@ -252,7 +252,7 @@ export class AdminSettingsComponent {
       this.logoPreview.set(b.logoUrl || '');
       this.street.set(b.street || '');
       this.city.set(b.city || '');
-      this.province.set(b.province || 'ON');
+      this.province.set(b.province ?? '');
       this.postalCode.set(b.postalCode || '');
       this.country.set(b.country || 'Canada');
       this.phone.set(b.phone || '');
@@ -756,7 +756,7 @@ export class AdminSettingsComponent {
     this.logoFile.set(null);
     this.street.set(b.street || '');
     this.city.set(b.city || '');
-    this.province.set(b.province || 'ON');
+    this.province.set(b.province ?? '');
     this.postalCode.set(b.postalCode || '');
     this.country.set(b.country || 'Canada');
     this.phone.set(b.phone || '');

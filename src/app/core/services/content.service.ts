@@ -13,7 +13,6 @@ export interface ContentData {
     phone: string;
     email: string;
     address: string;
-    hours: string;
   };
   footerText: string;
   footerTagline: string;
@@ -60,7 +59,6 @@ const DEFAULT_CONTENT: ContentData = {
     phone: '',
     email: '',
     address: 'Kitchener, Ontario, Canada',
-    hours: 'Monday–Friday, 9am–5pm EST'
   },
   footerText: '© 2026 Tropx Enterprises Inc. All rights reserved.',
   footerTagline: 'Your Wholesale Partner',

@@ -148,7 +148,7 @@ export const DEFAULT_BUSINESS: BusinessSettings = {
   logoUrl: '',
   street: '',
   city: 'Kitchener',
-  province: 'ON',
+  province: '',
   postalCode: '',
   country: 'Canada',
   phone: '',

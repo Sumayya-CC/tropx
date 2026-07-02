@@ -295,15 +295,7 @@ import { PortalNavbarComponent } from '../../../shared/components/portal-navbar/
                   </div>
                 }
 
-                @if (contactHours()) {
-                  <div class="info-card">
-                    <span class="icon">🕐</span>
-                    <div>
-                      <label>Hours</label>
-                      <p>{{ contactHours() }}</p>
-                    </div>
-                  </div>
-                }
+
 
               </div>
 
@@ -378,9 +370,7 @@ export class HomeComponent implements OnInit {
     return parts.length > 0 ? parts.join(', ') : null;
   });
 
-  contactHours = computed(() =>
-    this.content().publicContactInfo?.hours?.trim() || null
-  );
+
 
   isSubmitting = signal(false);
   isSubmitted = signal(false);
