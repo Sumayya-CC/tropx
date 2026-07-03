@@ -235,10 +235,16 @@ export class PortalService {
     const id = this.customerId();
     if (!id) return;
     try {
+      // Strip any undefined field values before writing —
+      // Firestore rejects them outright. JSON round-trip
+      // is the simplest reliable way to drop undefined keys.
+      const cleanItems = JSON.parse(
+        JSON.stringify(this.cartItems())
+      );
       await this.firestoreService.setDocument(
         `portalCarts/${id}`, {
           customerId: id,
-          items: this.cartItems(),
+          items: cleanItems,
           lastUpdatedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           tenantId: 1,
@@ -268,15 +274,20 @@ export class PortalService {
             : i
         );
       }
+      // Every field must be a concrete value — Firestore
+      // rejects undefined anywhere in the document, and
+      // a missing field on the source product (name, sku,
+      // priceCents, stock) would otherwise silently break
+      // both cart save and order placement.
       return [...items, {
         productId: product.id,
-        productName: product.name,
-        productSku: product.sku,
-        priceCents: product.priceCents,
+        productName: product.name || 'Unnamed product',
+        productSku: product.sku || '',
+        priceCents: product.priceCents ?? 0,
         quantity: allowBackorder
           ? quantity
           : Math.min(quantity, product.stock || 0),
-        stock: product.stock,
+        stock: product.stock ?? 0,
         imageUrl: product.imageUrl || null,
         outOfStockBehaviorOverride: product.outOfStockBehaviorOverride ?? null,
       }];
@@ -386,11 +397,11 @@ export class PortalService {
 
     const orderItems = items.map(i => ({
       productId: i.productId,
-      productName: i.productName,
-      productSku: i.productSku,
-      quantity: i.quantity,
-      unitPriceCents: i.priceCents,
-      lineTotalCents: i.priceCents * i.quantity,
+      productName: i.productName || 'Unnamed product',
+      productSku: i.productSku || '',
+      quantity: i.quantity ?? 1,
+      unitPriceCents: i.priceCents ?? 0,
+      lineTotalCents: (i.priceCents ?? 0) * (i.quantity ?? 1),
       costCents: 0,
       lineMarginCents: 0,
     }));

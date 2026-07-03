@@ -199,7 +199,7 @@
                     </div>
                   } @else {
                     <button class="oa-add-btn"
-                      (click)="addToCart(item)">
+                      (click)="addToCart(item, item.quantity)">
                       + Add ×{{ item.quantity }}
                     </button>
                   }

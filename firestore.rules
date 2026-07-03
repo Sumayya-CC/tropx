@@ -56,15 +56,19 @@ service cloud.firestore {
                   || doc == 'ordering'
                   || doc == 'business'
                   || doc == 'content'
+                  || isCustomer()
                   || isStaff();
-      allow write: if isStaff();
+      allow write: if doc == 'orderSequence'
+                   ? (isCustomer() || isStaff())
+                   : isStaff();
     }
+
 
     // ── Products, categories, brands, service areas ──────
     // Public read (portal catalog). Staff write only.
     match /products/{doc} {
       allow read: if true;
-      allow write: if isStaff();
+      allow write: if isStaff() || isCustomer();
     }
 
     match /categories/{doc} {
@@ -121,7 +125,7 @@ service cloud.firestore {
     // the linked customerId on their profile, not directly.
     match /customers/{doc} {
       allow read: if isStaff() || isCustomer();
-      allow write: if isStaff();
+      allow write: if isStaff() || isCustomer();
     }
 
     // ── User profiles ────────────────────────────────────
@@ -142,7 +146,8 @@ service cloud.firestore {
 
     // ── Admin-only collections ────────────────────────────
     match /stockAdjustments/{doc} {
-      allow read, write: if isStaff();
+      allow read: if isStaff();
+      allow write: if isStaff() || isCustomer();
     }
 
     match /suppliers/{doc} {

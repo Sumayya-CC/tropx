@@ -187,33 +187,53 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
     return this.settingsService.ordering().outOfStockBehavior || 'show_disabled';
   }
 
-  addToCart(product: any) {
-    const behavior = this.getEffectiveOutOfStockBehavior(product);
-    if (product.stock <= 0 && behavior !== 'allow_backorder') return;
-    const qty = this.getQty(product.id);
-    this.portal.addToCart(product, qty);
+  // Order Again items come from lastOrderProducts() and are
+  // shaped like {productId, productName, productSku, ...}
+  // (order-item shape) while catalog products are shaped
+  // {id, name, sku, ...}. Every call site below needs the
+  // catalog shape — normalize so product.id is never
+  // undefined, which otherwise causes every Order Again
+  // item to collide on a single undefined-keyed cart entry.
+  private toProductShape(item: any): any {
+    if (item.id) return item; // already product-shaped
+    return {
+      ...item,
+      id: item.productId,
+      name: item.productName,
+      sku: item.productSku,
+    };
+  }
+
+  addToCart(product: any, qtyOverride?: number) {
+    const p = this.toProductShape(product);
+    const behavior = this.getEffectiveOutOfStockBehavior(p);
+    if (p.stock <= 0 && behavior !== 'allow_backorder') return;
+    const qty = qtyOverride ?? this.getQty(p.id);
+    this.portal.addToCart(p, qty);
     // Reset qty input after adding
     this.qtyInputs.update(q => ({
       ...q,
-      [product.id]: 1
+      [p.id]: 1
     }));
-    this.toast.success(`${product.name} ×${qty} added to cart`);
+    this.toast.success(`${p.name} ×${qty} added to cart`);
   }
 
   increment(product: any) {
-    const current = this.getCartQty(product.id);
-    const behavior = this.getEffectiveOutOfStockBehavior(product);
+    const p = this.toProductShape(product);
+    const current = this.getCartQty(p.id);
+    const behavior = this.getEffectiveOutOfStockBehavior(p);
     const allowBackorder = behavior === 'allow_backorder';
-    if (!allowBackorder && current >= product.stock) return;
-    this.portal.updateCartQty(product.id, current + 1);
+    if (!allowBackorder && current >= p.stock) return;
+    this.portal.updateCartQty(p.id, current + 1);
   }
 
   decrement(product: any) {
-    const current = this.getCartQty(product.id);
+    const p = this.toProductShape(product);
+    const current = this.getCartQty(p.id);
     if (current <= 1) {
-      this.portal.removeFromCart(product.id);
+      this.portal.removeFromCart(p.id);
     } else {
-      this.portal.updateCartQty(product.id, current - 1);
+      this.portal.updateCartQty(p.id, current - 1);
     }
   }
 
@@ -276,10 +296,10 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
           .find((p: any) => p.id === item.productId);
         return {
           productId: item.productId,
-          productName: item.productName,
-          productSku: item.productSku,
-          quantity: item.quantity,
-          priceCents: live?.priceCents ?? item.unitPriceCents,
+          productName: item.productName || live?.name || 'Unnamed product',
+          productSku: item.productSku || live?.sku || '',
+          quantity: item.quantity ?? 1,
+          priceCents: live?.priceCents ?? item.unitPriceCents ?? 0,
           imageUrl: live?.imageUrl || null,
           stock: live?.stock ?? 0,
           active: live?.active ?? false,
