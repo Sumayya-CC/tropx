@@ -519,6 +519,34 @@
       </section>
     }
 
+    <!-- Client Showcase -->
+    @if (content().clientShowcaseEnabled &&
+         content().clients.length > 0) {
+      <section class="home-section client-showcase-section">
+        <div class="client-showcase-header">
+          <span class="client-showcase-label">
+            {{ content().clientShowcaseSectionLabel }}
+          </span>
+          <h3 class="section-title">
+            {{ content().clientShowcaseSectionTitle }}
+          </h3>
+        </div>
+
+        <div class="client-marquee-wrap">
+          <div class="client-marquee-track"
+            [style.animation-duration.s]="
+              content().clientShowcaseScrollSeconds">
+            @for (c of clientShowcaseTrack(); track $index) {
+              <div class="client-logo-item">
+                <img [src]="c.logoUrl" [alt]="c.name">
+                <span class="client-logo-name">{{ c.name }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
   }
 
   <!-- FLOATING CART BAR (shows when cart has items) -->

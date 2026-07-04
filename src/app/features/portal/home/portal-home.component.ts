@@ -7,6 +7,7 @@ import { PortalService } from '../../../core/services/portal.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { ContentService } from '../../../core/services/content.service';
 
 @Component({
   selector: 'app-portal-home',
@@ -21,6 +22,7 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
   private readonly firestore = inject(FirestoreService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  protected readonly contentService = inject(ContentService);
 
   homeSearchQuery = signal('');
 
@@ -153,6 +155,23 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
   });
 
   storefront = this.settingsService.storefront;
+
+  content = this.contentService.content;
+
+  clientShowcaseTrack = computed(() => {
+    const clients = this.content().clients || [];
+    if (clients.length === 0) return [];
+    // Repeat the list enough times to comfortably fill
+    // the viewport width, then duplicate that exact same
+    // block for the loop. Both halves must be identical
+    // in length and order for the -50% translate to land
+    // on a true repeat boundary.
+    const minRepeats = Math.max(
+      1, Math.ceil(8 / clients.length)
+    );
+    const block = Array(minRepeats).fill(clients).flat();
+    return [...block, ...block];
+  });
 
   // Quantity inputs per product, for "Add" steppers on cards
   qtyInputs = signal<Record<string, number>>({});
