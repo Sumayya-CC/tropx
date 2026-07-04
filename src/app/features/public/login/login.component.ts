@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { ToastService } from '../../../shared/services/toast.service';
 import { SettingsService } from '../../../core/services/settings.service';
+import { ContentService } from '../../../core/services/content.service';
 
 @Component({
   selector: 'app-login',
@@ -29,7 +30,7 @@ import { SettingsService } from '../../../core/services/settings.service';
                 </h1>
               }
             </a>
-            <p class="tagline">Premium Wholesale Distribution</p>
+            <p class="tagline">{{ content().heroBadgeText }}</p>
           </div>
         </div>
       </div>
@@ -189,8 +190,8 @@ import { SettingsService } from '../../../core/services/settings.service';
     }
 
     .login-logo {
-      max-height: 140px;
-      max-width: 280px;
+      max-height: 220px;
+      max-width: 380px;
       object-fit: contain;
       margin-bottom: 1.5rem;
     }
@@ -228,8 +229,8 @@ import { SettingsService } from '../../../core/services/settings.service';
       }
 
       .login-logo-mobile {
-        max-height: 60px;
-        max-width: 200px;
+        max-height: 90px;
+        max-width: 260px;
         object-fit: contain;
       }
     }
@@ -445,6 +446,9 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly settingsService = inject(SettingsService);
+  private readonly contentService = inject(ContentService);
+
+  content = this.contentService.content;
 
   businessSettings = computed(() => this.settingsService.business());
 
