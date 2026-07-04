@@ -47,6 +47,18 @@ export interface ContentData {
   contactSectionLabel: string; // "Get In Touch"
   contactSectionTitle: string; // "Contact Us"
   contactPartnerNote: string;  // "Looking to become..."
+
+  // Client showcase section
+  clientShowcaseEnabled: boolean;
+  clientShowcaseSectionLabel: string;
+  clientShowcaseSectionTitle: string;
+  clientShowcaseScrollSeconds: number; // full loop duration
+  clients: {
+    id: string;
+    name: string;
+    logoUrl: string;
+    createdAt: number;
+  }[];
 }
 
 const DEFAULT_CONTENT: ContentData = {
@@ -111,6 +123,12 @@ const DEFAULT_CONTENT: ContentData = {
   contactSectionLabel: 'Get In Touch',
   contactSectionTitle: 'Contact Us',
   contactPartnerNote: 'Looking to become a wholesale partner? Use our Request Access form for faster onboarding.',
+
+  clientShowcaseEnabled: false,
+  clientShowcaseSectionLabel: 'Trusted By',
+  clientShowcaseSectionTitle: 'Businesses That Trust Tropx',
+  clientShowcaseScrollSeconds: 30,
+  clients: [],
 };
 
 

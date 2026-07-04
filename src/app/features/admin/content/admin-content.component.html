@@ -1014,4 +1014,239 @@
     }
   </div>
 
+  <!-- ── CLIENT SHOWCASE ───────────────────────────── -->
+  <div class="content-card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <h2>Client Showcase</h2>
+        <p>Scrolling logo strip shown on the public homepage</p>
+      </div>
+      @if (!editingClientShowcase()) {
+        <button class="btn-edit"
+          (click)="editingClientShowcase.set(true)">
+          <svg xmlns="http://www.w3.org/2000/svg"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14
+              a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1
+              1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      }
+    </div>
+
+    @if (!editingClientShowcase()) {
+      <div class="card-body">
+        <div class="view-grid">
+          <div class="view-item">
+            <div class="view-label">Status</div>
+            <div class="view-value">
+              <span class="badge-preview"
+                [style.background]="
+                  content.content().clientShowcaseEnabled
+                    ? 'rgba(26,124,74,0.1)' : 'rgba(138,148,166,0.1)'"
+                [style.color]="
+                  content.content().clientShowcaseEnabled
+                    ? 'var(--green)' : 'var(--gray)'">
+                {{ content.content().clientShowcaseEnabled
+                  ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Scroll Duration</div>
+            <div class="view-value">
+              {{ content.content().clientShowcaseScrollSeconds }}s
+              per loop
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Section Label</div>
+            <div class="view-value">
+              {{ content.content().clientShowcaseSectionLabel }}
+            </div>
+          </div>
+          <div class="view-item">
+            <div class="view-label">Title</div>
+            <div class="view-value headline-preview">
+              {{ content.content().clientShowcaseSectionTitle }}
+            </div>
+          </div>
+          <div class="view-item full-width">
+            <div class="view-label">
+              Clients ({{ content.content().clients.length }})
+            </div>
+            <div class="view-value">
+              @if (content.content().clients.length === 0) {
+                <span style="color:var(--gray);font-style:italic;">
+                  No clients added yet
+                </span>
+              } @else {
+                <div style="display:flex;flex-wrap:wrap;gap:0.75rem;
+                  margin-top:0.5rem;">
+                  @for (c of content.content().clients; track c.id) {
+                    <div style="display:flex;align-items:center;gap:0.5rem;
+                      padding:0.5rem 0.75rem;background:var(--cream);
+                      border-radius:8px;border:1px solid var(--color-border);">
+                      <img [src]="c.logoUrl" [alt]="c.name"
+                        style="width:32px;height:32px;object-fit:contain;
+                          border-radius:4px;background:white;">
+                      <span style="font-size:0.8125rem;font-weight:600;
+                        color:var(--charcoal);">{{ c.name }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="card-body edit-mode">
+        <div class="edit-section">
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:0.5rem;">
+              <input type="checkbox"
+                [checked]="clientShowcaseEnabled()"
+                (change)="clientShowcaseEnabled.set(
+                  $any($event.target).checked
+                )"
+                style="width:auto;">
+              Show client showcase on homepage
+            </label>
+          </div>
+
+          <div class="form-grid" style="margin-top:1rem;">
+            <div class="form-group">
+              <label>Section Label</label>
+              <input type="text"
+                [value]="clientShowcaseSectionLabel()"
+                (input)="clientShowcaseSectionLabel.set(
+                  $any($event.target).value
+                )"
+                placeholder="Trusted By">
+            </div>
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text"
+                [value]="clientShowcaseSectionTitle()"
+                (input)="clientShowcaseSectionTitle.set(
+                  $any($event.target).value
+                )"
+                placeholder="Businesses That Trust Tropx">
+            </div>
+            <div class="form-group">
+              <label>Scroll Duration (seconds)</label>
+              <input type="number" min="5" max="120"
+                [value]="clientShowcaseScrollSeconds()"
+                (input)="clientShowcaseScrollSeconds.set(
+                  +$any($event.target).value
+                )">
+              <span class="hint">
+                Time for the logo strip to complete one full loop
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <h3 style="font-size:0.9375rem;font-weight:700;
+            color:var(--navy-deep);margin:0 0 1rem;">
+            Existing Clients
+          </h3>
+          @if (clients().length === 0) {
+            <p class="section-desc">No clients added yet.</p>
+          } @else {
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+              @for (c of clients(); track c.id) {
+                <div style="display:flex;align-items:center;gap:1rem;
+                  padding:0.75rem;background:var(--cream);
+                  border-radius:8px;border:1px solid var(--color-border);">
+                  <img [src]="c.logoUrl" [alt]="c.name"
+                    style="width:48px;height:48px;object-fit:contain;
+                      border-radius:6px;background:white;
+                      border:1px solid var(--color-border);">
+                  <span style="flex:1;font-size:0.9rem;font-weight:600;
+                    color:var(--charcoal);">{{ c.name }}</span>
+                  <button type="button"
+                    (click)="removeClient(c.id)"
+                    style="background:none;border:none;color:var(--red);
+                      font-weight:600;cursor:pointer;padding:0.5rem;">
+                    Remove
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="edit-section">
+          <h3 style="font-size:0.9375rem;font-weight:700;
+            color:var(--navy-deep);margin:0 0 1rem;">
+            Add New Client
+          </h3>
+          <div class="form-group">
+            <label>Client / Business Name</label>
+            <input type="text"
+              [value]="newClientName()"
+              (input)="newClientName.set(
+                $any($event.target).value
+              )"
+              placeholder="e.g. Farah Foods">
+          </div>
+          <div class="form-group" style="margin-top:0.75rem;">
+            <label>Logo (square recommended · Max 1MB)</label>
+            <input type="file" accept="image/*"
+              (change)="onClientLogoSelected($event)">
+            @if (newClientLogoPreview()) {
+              <div style="margin-top:0.75rem;display:flex;
+                align-items:center;gap:0.75rem;">
+                <img [src]="newClientLogoPreview()"
+                  style="width:64px;height:64px;object-fit:contain;
+                    border-radius:8px;background:white;
+                    border:1px solid var(--color-border);">
+                <button type="button" class="btn-remove-logo"
+                  (click)="newClientLogoFile.set(null);
+                    newClientLogoPreview.set('')">
+                  Remove
+                </button>
+              </div>
+            }
+          </div>
+          <button type="button"
+            (click)="addClient()"
+            [disabled]="isUploadingClientLogo() ||
+              !newClientName().trim() || !newClientLogoFile()"
+            style="margin-top:1rem;width:auto;padding:0.625rem 1.5rem;
+              background:white;border:1.5px solid var(--navy);
+              border-radius:8px;font-size:0.9rem;font-weight:700;
+              color:var(--navy);cursor:pointer;"
+            [style.opacity]="(isUploadingClientLogo() ||
+              !newClientName().trim() || !newClientLogoFile())
+              ? '0.45' : '1'">
+            @if (isUploadingClientLogo()) {
+              Uploading...
+            } @else {
+              + Add Client
+            }
+          </button>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn-cancel-edit"
+            (click)="cancelClientShowcase()"
+            [disabled]="isSaving()">Cancel</button>
+          <button class="btn-save-edit"
+            (click)="saveClientShowcase()"
+            [disabled]="isSaving()">
+            @if (isSaving()) { Saving... }
+            @else { Save Client Showcase }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
 </div>

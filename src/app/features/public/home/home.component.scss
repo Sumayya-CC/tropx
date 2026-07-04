@@ -599,3 +599,90 @@
   max-width: 300px;
   object-fit: contain;
 }
+
+.client-showcase {
+  overflow: hidden;
+  background: var(--cream, #f7f6f3);
+}
+
+.client-marquee-wrap {
+  overflow: hidden;
+  width: 100%;
+  margin-top: 2.5rem;
+  padding: 1rem 0;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
+.client-marquee-track {
+  display: flex;
+  align-items: stretch;
+  gap: 1.25rem;
+  width: max-content;
+  animation: marquee-scroll linear infinite;
+  will-change: transform;
+
+  &:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.client-logo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-shrink: 0;
+  width: 200px;
+  padding: 2rem 1.25rem;
+  background: white;
+  border: 1px solid var(--color-border, #e5e2db);
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(10, 45, 74, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+
+  &:hover {
+    transform: scale(1.08);
+    box-shadow: 0 8px 24px rgba(10, 45, 74, 0.12);
+    z-index: 2;
+    position: relative;
+  }
+
+  img {
+    height: 84px;
+    width: 84px;
+    object-fit: contain;
+    border-radius: 14px;
+    flex-shrink: 0;
+  }
+
+  .client-logo-name {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--navy-deep, #0a2d4a);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+}

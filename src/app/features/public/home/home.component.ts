@@ -187,6 +187,34 @@ import { PortalNavbarComponent } from '../../../shared/components/portal-navbar/
         </div>
       </section>
 
+      <!-- Client Showcase -->
+      @if (content().clientShowcaseEnabled &&
+           content().clients.length > 0) {
+        <section id="clients" class="client-showcase section-padding white-bg">
+          <div class="container">
+            <div class="section-header">
+              <span class="section-label">
+                {{ content().clientShowcaseSectionLabel }}
+              </span>
+              <h2>{{ content().clientShowcaseSectionTitle }}</h2>
+            </div>
+          </div>
+
+          <div class="client-marquee-wrap">
+            <div class="client-marquee-track"
+              [style.animation-duration.s]="
+                content().clientShowcaseScrollSeconds">
+              @for (c of clientShowcaseTrack(); track $index) {
+                <div class="client-logo-item">
+                  <img [src]="c.logoUrl" [alt]="c.name">
+                  <span class="client-logo-name">{{ c.name }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
       <!-- Section 5: Contact -->
       <section id="contact" class="contact section-padding">
         <div class="container">
@@ -368,6 +396,21 @@ export class HomeComponent implements OnInit {
     const parts = [b.street, b.city, b.province]
       .filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : null;
+  });
+
+  clientShowcaseTrack = computed(() => {
+    const clients = this.content().clients || [];
+    if (clients.length === 0) return [];
+    // Repeat the list enough times to comfortably fill
+    // the viewport width, then duplicate that exact same
+    // block for the loop. Both halves must be byte-for-byte
+    // identical in length and order, or -50% won't land on
+    // a true repeat boundary and the loop will visibly hitch.
+    const minRepeats = Math.max(
+      1, Math.ceil(8 / clients.length)
+    );
+    const block = Array(minRepeats).fill(clients).flat();
+    return [...block, ...block];
   });
 
 

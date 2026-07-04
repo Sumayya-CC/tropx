@@ -5,6 +5,7 @@ import { FirestoreService } from '../../../core/services/firestore.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { ContentService, ContentData } from '../../../core/services/content.service';
+import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 
 @Component({
   selector: 'app-admin-content',
@@ -17,6 +18,7 @@ export class AdminContentComponent {
   protected readonly content = inject(ContentService);
   private readonly firestore = inject(FirestoreService);
   private readonly toast = inject(ToastService);
+  private readonly storage = inject(Storage);
 
   // Edit state per section
   editingHero = signal(false);
@@ -85,6 +87,21 @@ export class AdminContentComponent {
   contactPartnerNote = signal('');
   editingContactSection = signal(false);
 
+  // Client Showcase
+  editingClientShowcase = signal(false);
+  clientShowcaseEnabled = signal(false);
+  clientShowcaseSectionLabel = signal('');
+  clientShowcaseSectionTitle = signal('');
+  clientShowcaseScrollSeconds = signal(30);
+  clients = signal<{
+    id: string; name: string; logoUrl: string; createdAt: number;
+  }[]>([]);
+
+  newClientName = signal('');
+  newClientLogoFile = signal<File | null>(null);
+  newClientLogoPreview = signal('');
+  isUploadingClientLogo = signal(false);
+
   constructor() {
     effect(() => {
       const c = this.content.content();
@@ -115,6 +132,22 @@ export class AdminContentComponent {
       this.contactSectionLabel.set(c.contactSectionLabel || '');
       this.contactSectionTitle.set(c.contactSectionTitle || '');
       this.contactPartnerNote.set(c.contactPartnerNote || '');
+
+      this.clientShowcaseEnabled.set(
+        c.clientShowcaseEnabled ?? false
+      );
+      this.clientShowcaseSectionLabel.set(
+        c.clientShowcaseSectionLabel || ''
+      );
+      this.clientShowcaseSectionTitle.set(
+        c.clientShowcaseSectionTitle || ''
+      );
+      this.clientShowcaseScrollSeconds.set(
+        c.clientShowcaseScrollSeconds ?? 30
+      );
+      this.clients.set(
+        c.clients?.map(cl => ({ ...cl })) || []
+      );
     }, { allowSignalWrites: true });
   }
 
@@ -434,6 +467,109 @@ export class AdminContentComponent {
     this.contactSectionTitle.set(c.contactSectionTitle || '');
     this.contactPartnerNote.set(c.contactPartnerNote || '');
     this.editingContactSection.set(false);
+  }
+
+  cancelClientShowcase() {
+    const c = this.content.content();
+    this.clientShowcaseEnabled.set(
+      c.clientShowcaseEnabled ?? false
+    );
+    this.clientShowcaseSectionLabel.set(
+      c.clientShowcaseSectionLabel || ''
+    );
+    this.clientShowcaseSectionTitle.set(
+      c.clientShowcaseSectionTitle || ''
+    );
+    this.clientShowcaseScrollSeconds.set(
+      c.clientShowcaseScrollSeconds ?? 30
+    );
+    this.clients.set(
+      c.clients?.map(cl => ({ ...cl })) || []
+    );
+    this.newClientName.set('');
+    this.newClientLogoFile.set(null);
+    this.newClientLogoPreview.set('');
+    this.editingClientShowcase.set(false);
+  }
+
+  async saveClientShowcase() {
+    this.isSaving.set(true);
+    try {
+      await this.saveContent({
+        clientShowcaseEnabled: this.clientShowcaseEnabled(),
+        clientShowcaseSectionLabel: this.clientShowcaseSectionLabel(),
+        clientShowcaseSectionTitle: this.clientShowcaseSectionTitle(),
+        clientShowcaseScrollSeconds: this.clientShowcaseScrollSeconds(),
+        clients: this.clients(),
+      });
+      this.toast.success('Client showcase saved');
+      this.editingClientShowcase.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to save client showcase');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  onClientLogoSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 1 * 1024 * 1024) {
+      this.toast.error('Logo must be under 1MB');
+      return;
+    }
+    this.newClientLogoFile.set(file);
+    const reader = new FileReader();
+    reader.onload = (e) =>
+      this.newClientLogoPreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async addClient() {
+    const name = this.newClientName().trim();
+    const file = this.newClientLogoFile();
+    if (!name) {
+      this.toast.error('Enter a client name');
+      return;
+    }
+    if (!file) {
+      this.toast.error('Upload a logo first');
+      return;
+    }
+
+    this.isUploadingClientLogo.set(true);
+    try {
+      const path = `content/clients/${Date.now()}_${file.name}`;
+      const storageRef = ref(this.storage, path);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      this.clients.update(list => [...list, {
+        id: crypto.randomUUID(),
+        name,
+        logoUrl: url,
+        createdAt: Date.now(),
+      }]);
+
+      this.newClientName.set('');
+      this.newClientLogoFile.set(null);
+      this.newClientLogoPreview.set('');
+      this.toast.success('Client added — click Save to publish');
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to upload logo');
+    } finally {
+      this.isUploadingClientLogo.set(false);
+    }
+  }
+
+  removeClient(id: string) {
+    this.clients.update(list => list.filter(c => c.id !== id));
   }
 }
 
