@@ -205,11 +205,118 @@
   display: block;
 }
 
-/* Product cards — 2x2 grid on right side */
+/* Bottom-only subtle darkening — just enough for the
+   dots/arrows to stay visible, not a full-image dim. */
+.featured-banner-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    0deg,
+    rgba(0,0,0,0.28) 0%,
+    rgba(0,0,0,0) 35%
+  );
+  pointer-events: none;
+}
+
+// ── Banner text overlay ──────────────────────────────────
+
+.banner-text-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  pointer-events: none;
+
+  &.align-left { justify-content: flex-start; }
+  &.align-center { justify-content: center; }
+  &.align-right { justify-content: flex-end; }
+}
+
+.banner-text-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.banner-text-content {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  padding: 2rem 4.5rem;
+  pointer-events: auto;
+
+  .align-center & {
+    text-align: center;
+    max-width: 560px;
+    padding: 2rem 4.5rem;
+  }
+
+  .align-right & {
+    text-align: right;
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.25rem 3.25rem;
+    max-width: 90%;
+  }
+}
+
+.banner-text-title {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+
+  .text-light & { color: white; }
+  .text-dark & { color: var(--navy-deep); }
+}
+
+.banner-text-description {
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+
+  .text-light & { color: rgba(255, 255, 255, 0.9); }
+  .text-dark & { color: rgba(10, 45, 74, 0.85); }
+}
+
+.banner-text-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.75rem;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  .text-light & {
+    background: white;
+    color: var(--navy-deep);
+    &:hover { box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3); }
+  }
+
+  .text-dark & {
+    background: var(--navy-deep);
+    color: white;
+    &:hover { box-shadow: 0 6px 20px rgba(10, 45, 74, 0.3); }
+  }
+}
+
+// ── Product placement variants ───────────────────────────
+
+/* Product cards — 2x2 grid on right side (base style) */
 .featured-banner-products {
   position: absolute;
   top: 50%;
-  right: 3.5rem;
+  right: 4.5rem;
   transform: translateY(-50%);
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -219,9 +326,40 @@
   max-width: 320px;
 
   @media (max-width: 768px) {
-    right: 3rem;
+    right: 3.75rem;
     width: 48%;
     gap: 0.375rem;
+  }
+
+  &.placement-left {
+    left: 4.5rem;
+    right: auto;
+    justify-content: flex-start;
+  }
+
+  &.placement-right {
+    right: 4.5rem;
+    left: auto;
+    justify-content: flex-end;
+  }
+
+  &.placement-center {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    justify-content: center;
+  }
+
+  &.placement-both {
+    left: 4.5rem;
+    right: 4.5rem;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 768px) {
+    &.placement-left { left: 3.75rem; }
+    &.placement-right { right: 3.75rem; }
+    &.placement-both { left: 3.75rem; right: 3.75rem; }
   }
 }
 
@@ -326,29 +464,48 @@
   }
 }
 
-/* Dots */
+/* Dots — overlaid on the banner, bottom-center */
 .banner-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
+  align-items: center;
   gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-left: 0.25rem;
+  z-index: 5;
+  padding: 0.375rem 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+  backdrop-filter: blur(2px);
 }
 
 .banner-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--color-border);
+  background: rgba(255, 255, 255, 0.5);
   border: none;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
   transition: all 0.2s;
 
+  &:hover {
+    background: rgba(255, 255, 255, 0.8);
+  }
+
   &.active {
-    background: var(--navy-deep);
-    width: 24px;
-    border-radius: 4px;
+    background: white;
+    width: 28px;
+    border-radius: 5px;
+  }
+}
+
+@media (max-width: 768px) {
+  .banner-dots {
+    bottom: 0.75rem;
   }
 }
 

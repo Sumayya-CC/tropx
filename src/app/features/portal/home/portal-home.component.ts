@@ -8,6 +8,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { ContentService } from '../../../core/services/content.service';
+import { resolveHidePrice } from '../../../core/models/storefront-settings.model';
 
 @Component({
   selector: 'app-portal-home',
@@ -91,13 +92,61 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
     this.galleryIndex.set(index);
   }
 
+  async onBannerButtonClick(slide: any) {
+    const overlay = slide.overlay;
+    if (!overlay?.buttonLink) return;
+
+    const profile = this.portal.customerProfile() as any;
+    const customerId = this.portal.customerId();
+
+    // Fire-and-forget click log — don't block navigation
+    // on it, and don't let a logging failure break the
+    // button's actual purpose.
+    try {
+      await this.firestore.addDocument('bannerClicks', {
+        slideId: slide.id,
+        buttonLabel: overlay.buttonLabel || '',
+        buttonLink: overlay.buttonLink,
+        customerId: customerId || null,
+        businessName: profile?.businessName || null,
+        clickedAt: new Date(),
+        tenantId: 1,
+      });
+    } catch (err) {
+      console.error('Failed to log banner click:', err);
+    }
+
+    const link = overlay.buttonLink as string;
+    if (link.startsWith('http')) {
+      window.open(link, '_blank');
+    } else {
+      this.router.navigateByUrl(link);
+    }
+  }
+
+  getOverlayGradientDirection(textAlign: string): string {
+    // Gradient direction leans toward the text side so the
+    // scrim is strongest exactly where the text sits,
+    // fading out toward the rest of the image.
+    if (textAlign === 'right') return 'to left';
+    if (textAlign === 'center') return 'to top';
+    return 'to right';
+  }
+
   // Resolve product details for a slide's product list
   getSlideProducts(slide: any): any[] {
     return slide.products
       .map((sp: any) => {
         const product = this.portal.allProducts()
           .find((p: any) => p.id === sp.productId);
-        return product ? { ...product, showPrice: sp.showPrice } : null;
+        // Support both old (showPrice) and new (hidePrice)
+        // field names on stored slide product entries.
+        const hidePrice = sp.hidePrice !== undefined
+          ? sp.hidePrice
+          : (sp.showPrice !== undefined ? !sp.showPrice : false);
+        return product
+          ? { ...product, showPrice: !hidePrice }
+          : null;
       })
       .filter(Boolean);
   }

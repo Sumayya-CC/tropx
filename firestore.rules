@@ -46,6 +46,11 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn();
     }
 
+    match /bannerClicks/{doc} {
+      allow create: if true;
+      allow read, update, delete: if isStaff();
+    }
+
     // ── Settings ────────────────────────────────────────
     // storefront, ordering, business — public read so the
     // portal can load catalog/cart rules before login.

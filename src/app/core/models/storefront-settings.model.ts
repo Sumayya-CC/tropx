@@ -5,15 +5,40 @@ export interface StorefrontGalleryImage {
   createdAt: any;
 }
 
+export type BannerTextAlign = 'left' | 'center' | 'right';
+export type BannerTextColor = 'light' | 'dark';
+export type BannerProductPlacement = 'left' | 'right' | 'center' | 'both';
+
+export const MAX_BANNER_PRODUCTS = 8;
+
+export function resolveHidePrice(p: FeaturedBannerProduct): boolean {
+  if (p.hidePrice !== undefined) return p.hidePrice;
+  if (p.showPrice !== undefined) return !p.showPrice;
+  return false;
+}
+
 export interface FeaturedBannerProduct {
   productId: string;
-  showPrice: boolean;
+  hidePrice?: boolean;
+  /** @deprecated Use hidePrice instead. Kept for backward compatibility. */
+  showPrice?: boolean;
+}
+
+export interface FeaturedBannerOverlay {
+  title?: string;
+  description?: string;
+  buttonLabel?: string;
+  buttonLink?: string;
+  textAlign: BannerTextAlign;
+  textColor: BannerTextColor;
 }
 
 export interface FeaturedBannerSlide {
   id: string;
   imageUrl: string;
   products: FeaturedBannerProduct[];
+  overlay?: FeaturedBannerOverlay;
+  productPlacement?: BannerProductPlacement;
   createdAt?: number;
 }
 

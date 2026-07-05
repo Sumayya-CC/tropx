@@ -1618,7 +1618,7 @@
                                   background: white; border: 1px solid var(--color-border);
                                   border-radius: 12px; color: var(--charcoal); font-weight: 500;">
                                   {{ getSlideProductName(sp.productId) }}
-                                  @if (!sp.showPrice) {
+                                  @if (resolveHidePrice(sp)) {
                                     <span style="color: var(--gray);">(price hidden)</span>
                                   }
                                 </span>
@@ -1695,24 +1695,66 @@
                       <div class="slide-row" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--cream); border-radius: 8px; border: 1px solid var(--color-border);">
                         <img [src]="slide.imageUrl" alt="Slide" style="width: 60px; height: 40px; object-fit: cover; border-radius: 4px;">
                         <div style="flex: 1;">
-                          <div style="font-size: 0.875rem; font-weight: 600; color: var(--navy-deep);
-                            margin-bottom: 0.25rem;">Slide {{ i + 1 }}</div>
+                          <div style="font-size: 0.875rem; font-weight: 600; color: var(--navy-deep); margin-bottom: 0.25rem;">
+                            Slide {{ i + 1 }}
+                            @if (slide.overlay?.title) {
+                              <span style="font-weight: 400; color: var(--gray); margin-left: 0.5rem;">"{{ slide.overlay?.title }}"</span>
+                            }
+                          </div>
                           <div style="display: flex; flex-wrap: wrap; gap: 0.375rem;">
                             @for (sp of slide.products; track sp.productId) {
-                              <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem;
-                                background: white; border: 1px solid var(--color-border);
-                                border-radius: 12px; color: var(--charcoal);">
+                              <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: white; border: 1px solid var(--color-border); border-radius: 12px; color: var(--charcoal);">
                                 {{ getSlideProductName(sp.productId) }}
-                                @if (!sp.showPrice) {
+                                @if (resolveHidePrice(sp)) {
                                   <span style="color: var(--gray);">(price hidden)</span>
                                 }
                               </span>
                             }
                           </div>
                         </div>
-                        <button type="button" class="btn-remove" (click)="removeSlide(slide.id)" style="background: none; border: none; color: var(--red); font-weight: 600; cursor: pointer; padding: 0.5rem;">
-                          Remove
-                        </button>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem; flex-shrink: 0;">
+                          <div style="display: flex; gap: 0.25rem;">
+                            <button type="button"
+                              (click)="moveSlide(i, -1)"
+                              [disabled]="i === 0"
+                              title="Move up"
+                              style="background: white; border: 1px solid var(--color-border);
+                                border-radius: 6px; width: 28px; height: 28px; cursor: pointer;
+                                display: flex; align-items: center; justify-content: center;
+                                color: var(--navy-deep);"
+                              [style.opacity]="i === 0 ? '0.35' : '1'">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="18 15 12 9 6 15"/>
+                              </svg>
+                            </button>
+                            <button type="button"
+                              (click)="moveSlide(i, 1)"
+                              [disabled]="i === featuredBannerSlides().length - 1"
+                              title="Move down"
+                              style="background: white; border: 1px solid var(--color-border);
+                                border-radius: 6px; width: 28px; height: 28px; cursor: pointer;
+                                display: flex; align-items: center; justify-content: center;
+                                color: var(--navy-deep);"
+                              [style.opacity]="i === featuredBannerSlides().length - 1 ? '0.35' : '1'">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="6 9 12 15 18 9"/>
+                              </svg>
+                            </button>
+                          </div>
+                          <button type="button" (click)="editSlide(slide)"
+                            style="background: white; border: 1px solid var(--navy); color: var(--navy);
+                              font-weight: 600; cursor: pointer; padding: 0.375rem 0.5rem;
+                              font-size: 0.75rem; border-radius: 6px;">
+                            Edit
+                          </button>
+                          <button type="button" class="btn-remove" (click)="removeSlide(slide.id)"
+                            style="background: none; border: none; color: var(--red); font-weight: 600;
+                              cursor: pointer; padding: 0.5rem; font-size: 0.8125rem;">
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     }
                   </div>
@@ -1720,7 +1762,19 @@
               </div>
 
               <div class="edit-section">
-                <h3>Add New Slide</h3>
+                <h3>
+                  @if (editingExistingSlideId()) {
+                    Edit Slide
+                  } @else {
+                    Add New Slide
+                  }
+                </h3>
+                @if (editingExistingSlideId()) {
+                  <p class="section-desc" style="color: var(--navy); font-weight: 600;">
+                    Editing an existing slide. Changes apply when you click
+                    "Update this slide" below.
+                  </p>
+                }
                 
                 <div style="margin-bottom: 1.25rem;">
                   <label style="font-size: 0.8125rem; font-weight: 600; color: var(--charcoal);
@@ -1745,19 +1799,44 @@
                 </div>
 
                 <div class="form-group full-width">
-                  <label>Products on this slide (Max 4)</label>
-                  <div class="products-picker" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
-                    @for (p of activeProducts(); track p.id) {
+                  <label>Products on this slide (Max 8)</label>
+                  
+                  <div style="margin-bottom: 0.5rem; position: relative;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--gray);">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text"
+                      placeholder="Search products by name or SKU..."
+                      [ngModel]="productSearchQuery()"
+                      (ngModelChange)="productSearchQuery.set($event)"
+                      style="width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.875rem;">
+                  </div>
+
+                  <div class="products-picker" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                    @if (filteredProductsForSlide().length === 0) {
+                      <div style="padding: 1rem; text-align: center; color: var(--gray); font-size: 0.875rem;">
+                        No products found matching "{{ productSearchQuery() }}"
+                      </div>
+                    }
+                    
+                    @for (p of filteredProductsForSlide(); track p.id) {
                       <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-radius: 6px;" [style.background]="isProductSelectedForSlide(p.id) ? 'var(--cream)' : 'transparent'">
                         <input type="checkbox" 
                           [checked]="isProductSelectedForSlide(p.id)"
+                          [disabled]="!isProductSelectedForSlide(p.id) && slideSelectedProducts().length >= 8"
                           (change)="toggleSlideProduct(p.id)">
-                        <span style="flex: 1; font-size: 0.9rem;">{{ p.name }}</span>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                          <span style="font-size: 0.9rem;">{{ p.name }}</span>
+                          @if (p.sku) {
+                            <span style="font-size: 0.75rem; color: var(--gray);">SKU: {{ p.sku }}</span>
+                          }
+                        </div>
                         
                         @if (isProductSelectedForSlide(p.id)) {
                           <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; margin: 0; color: var(--gray);">
                             <input type="checkbox"
-                              [checked]="!getProductShowPrice(p.id)"
+                              [checked]="getProductHidePrice(p.id)"
                               (change)="toggleSlideProductPrice(p.id)">
                             Hide price
                           </label>
@@ -1765,33 +1844,115 @@
                       </div>
                     }
                   </div>
-                  <div class="hint" style="margin-top: 0.5rem; font-weight: 600;">
-                    {{ slideSelectedProducts().length }} of 4 products selected
+                  <div class="hint" style="margin-top: 0.5rem; font-weight: 600; display: flex; justify-content: space-between;">
+                    <span>{{ slideSelectedProducts().length }} of 8 products selected</span>
+                    @if (slideSelectedProducts().length > 0) {
+                      <button type="button" style="background: none; border: none; color: var(--navy); font-size: 0.75rem; cursor: pointer;" (click)="slideSelectedProducts.set([])">
+                        Clear selection
+                      </button>
+                    }
                   </div>
                 </div>
 
-                <button type="button"
-                  (click)="addSlide()"
-                  [disabled]="isUploadingSlideImage() ||
-                    (!slideUploadFile() && !slideImageUrl()) ||
-                    slideSelectedProducts().length === 0"
-                  style="margin-top: 1rem; width: auto; padding: 0.625rem 1.5rem;
-                    background: white; border: 1.5px solid var(--navy); border-radius: 8px;
-                    font-size: 0.9rem; font-weight: 700; color: var(--navy); cursor: pointer;
-                    opacity: 1; transition: opacity 0.15s;"
-                  [style.opacity]="(isUploadingSlideImage() ||
-                    (!slideUploadFile() && !slideImageUrl()) ||
-                    slideSelectedProducts().length === 0) ? '0.45' : '1'">
-                  @if (isUploadingSlideImage()) {
-                    Uploading image...
-                  } @else if (!slideUploadFile() && !slideImageUrl()) {
-                    + Add this slide (select an image first)
-                  } @else if (slideSelectedProducts().length === 0) {
-                    + Add this slide (select at least one product)
-                  } @else {
-                    + Add this slide to the list
+                <!-- TEXT OVERLAY & PLACEMENT SECTION -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border);">
+                  <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--navy-deep);">Text Overlay (Optional)</h4>
+                  
+                  <div class="form-grid">
+                    <div class="form-group full-width">
+                      <label>Headline</label>
+                      <input type="text" 
+                        [ngModel]="slideOverlayTitle()" 
+                        (ngModelChange)="slideOverlayTitle.set($event)"
+                        placeholder="e.g. Summer Collection">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                      <label>Description</label>
+                      <textarea rows="2" 
+                        [ngModel]="slideOverlayDescription()" 
+                        (ngModelChange)="slideOverlayDescription.set($event)"
+                        placeholder="e.g. Discover our newest arrivals..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Button Label</label>
+                      <input type="text" 
+                        [ngModel]="slideOverlayButtonLabel()" 
+                        (ngModelChange)="slideOverlayButtonLabel.set($event)"
+                        placeholder="e.g. Shop Now">
+                    </div>
+
+                    <div class="form-group">
+                      <label>Button Link</label>
+                      <input type="text" 
+                        [ngModel]="slideOverlayButtonLink()" 
+                        (ngModelChange)="slideOverlayButtonLink.set($event)"
+                        placeholder="e.g. /portal/catalog?category=summer">
+                    </div>
+
+                    <div class="form-group">
+                      <label>Text Alignment</label>
+                      <select [ngModel]="slideOverlayTextAlign()" (ngModelChange)="slideOverlayTextAlign.set($event)">
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Text Color Theme</label>
+                      <select [ngModel]="slideOverlayTextColor()" (ngModelChange)="slideOverlayTextColor.set($event)">
+                        <option value="light">Light (for dark backgrounds)</option>
+                        <option value="dark">Dark (for light backgrounds)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border); margin-bottom: 1.5rem;">
+                  <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--navy-deep);">Product Placement</h4>
+                  <div class="form-group">
+                    <select [ngModel]="slideProductPlacement()" (ngModelChange)="slideProductPlacement.set($event)">
+                      <option value="center">Center (Overlay below text)</option>
+                      <option value="left">Left Aligned</option>
+                      <option value="right">Right Aligned</option>
+                      <option value="both">Split (Left/Right if multiple products)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                  <button type="button"
+                    (click)="editingExistingSlideId() ? saveEditedSlide() : addSlide()"
+                    [disabled]="isUploadingSlideImage() ||
+                      (!slideUploadFile() && !slideImageUrl())"
+                    style="width: auto; padding: 0.625rem 1.5rem;
+                      background: white; border: 1.5px solid var(--navy); border-radius: 8px;
+                      font-size: 0.9rem; font-weight: 700; color: var(--navy); cursor: pointer;
+                      opacity: 1; transition: opacity 0.15s;"
+                    [style.opacity]="(isUploadingSlideImage() ||
+                      (!slideUploadFile() && !slideImageUrl())) ? '0.45' : '1'">
+                    @if (isUploadingSlideImage()) {
+                      Uploading image...
+                    } @else if (!slideUploadFile() && !slideImageUrl()) {
+                      + Add this slide (select an image first)
+                    } @else if (editingExistingSlideId()) {
+                      Update this slide
+                    } @else {
+                      + Add this slide to the list
+                    }
+                  </button>
+
+                  @if (editingExistingSlideId()) {
+                    <button type="button" (click)="cancelEditSlide()"
+                      style="width: auto; padding: 0.625rem 1.5rem;
+                        background: white; border: 1px solid var(--color-border); border-radius: 8px;
+                        font-size: 0.9rem; font-weight: 600; color: var(--charcoal); cursor: pointer;">
+                      Cancel Edit
+                    </button>
                   }
-                </button>
+                </div>
               </div>
 
             <div class="edit-actions">

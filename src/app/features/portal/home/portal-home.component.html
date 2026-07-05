@@ -64,38 +64,81 @@
                 alt="Featured products"
                 class="featured-banner-img">
 
-              <!-- Dark gradient overlay -->
+              <!-- Dark gradient overlay (base darkening) -->
               <div class="featured-banner-overlay"></div>
 
-              <!-- Product cards overlaid at bottom -->
-              <div class="featured-banner-products">
-                @for (product of getSlideProducts(slide); track product.id) {
-                  <a [routerLink]="['/portal/catalog', product.id]"
-                    class="featured-product-card">
-                    <div class="featured-product-img-wrap">
-                      @if (product.imageUrl) {
-                        <img [src]="product.imageUrl"
-                          [alt]="product.name"
-                          class="featured-product-img">
-                      } @else {
-                        <div class="featured-product-placeholder">
-                          {{ getProductInitial(product.name) }}
-                        </div>
-                      }
-                    </div>
-                    <div class="featured-product-info">
-                      <span class="featured-product-name">
-                        {{ product.name }}
-                      </span>
-                      @if (product.showPrice) {
-                        <span class="featured-product-price">
-                          {{ formatCurrency(product.priceCents) }}
+              <!-- Text overlay (title/description/button) -->
+              @if (slide.overlay &&
+                   (slide.overlay.title || slide.overlay.description || slide.overlay.buttonLabel)) {
+                <div class="banner-text-overlay"
+                  [class.align-left]="slide.overlay.textAlign === 'left'"
+                  [class.align-center]="slide.overlay.textAlign === 'center'"
+                  [class.align-right]="slide.overlay.textAlign === 'right'"
+                  [class.text-light]="slide.overlay.textColor === 'light'"
+                  [class.text-dark]="slide.overlay.textColor === 'dark'">
+
+                  <div class="banner-text-scrim"
+                    [style.background]="
+                      'linear-gradient(' +
+                      getOverlayGradientDirection(slide.overlay.textAlign) + ', ' +
+                      (slide.overlay.textColor === 'light'
+                        ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.65)') +
+                      ' 0%, transparent 70%)'
+                    ">
+                  </div>
+
+                  <div class="banner-text-content">
+                    @if (slide.overlay.title) {
+                      <h2 class="banner-text-title">{{ slide.overlay.title }}</h2>
+                    }
+                    @if (slide.overlay.description) {
+                      <p class="banner-text-description">{{ slide.overlay.description }}</p>
+                    }
+                    @if (slide.overlay.buttonLabel && slide.overlay.buttonLink) {
+                      <button type="button" class="banner-text-btn"
+                        (click)="onBannerButtonClick(slide); $event.stopPropagation()">
+                        {{ slide.overlay.buttonLabel }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Product cards, positioned per slide.productPlacement -->
+              @if (getSlideProducts(slide).length > 0) {
+                <div class="featured-banner-products"
+                  [class.placement-left]="(slide.productPlacement || 'right') === 'left'"
+                  [class.placement-right]="(slide.productPlacement || 'right') === 'right'"
+                  [class.placement-center]="(slide.productPlacement || 'right') === 'center'"
+                  [class.placement-both]="(slide.productPlacement || 'right') === 'both'">
+                  @for (product of getSlideProducts(slide); track product.id) {
+                    <a [routerLink]="['/portal/catalog', product.id]"
+                      class="featured-product-card">
+                      <div class="featured-product-img-wrap">
+                        @if (product.imageUrl) {
+                          <img [src]="product.imageUrl"
+                            [alt]="product.name"
+                            class="featured-product-img">
+                        } @else {
+                          <div class="featured-product-placeholder">
+                            {{ getProductInitial(product.name) }}
+                          </div>
+                        }
+                      </div>
+                      <div class="featured-product-info">
+                        <span class="featured-product-name">
+                          {{ product.name }}
                         </span>
-                      }
-                    </div>
-                  </a>
-                }
-              </div>
+                        @if (product.showPrice) {
+                          <span class="featured-product-price">
+                            {{ formatCurrency(product.priceCents) }}
+                          </span>
+                        }
+                      </div>
+                    </a>
+                  }
+                </div>
+              }
 
               <!-- Arrows -->
               @if (storefront().featuredBannerSlides.length > 1) {
@@ -113,7 +156,7 @@
                   (click)="bannerNext(); $event.stopPropagation()"
                   aria-label="Next slide">
                   <svg xmlns="http://www.w3.org/2000/svg"
-                    width="20" height="20" viewBox="0 0 24 24"
+                    width="20" height="20" viewBox="0 24 24"
                     fill="none" stroke="currentColor"
                     stroke-width="2.5">
                     <polyline points="9 18 15 12 9 6"/>
