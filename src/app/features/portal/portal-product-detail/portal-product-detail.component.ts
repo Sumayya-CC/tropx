@@ -94,7 +94,7 @@ export class PortalProductDetailComponent implements OnInit {
   stockStatus = computed(() => {
     const p = this.product();
     if (!p) return { label: '', class: '' };
-    
+
     const behavior = this.getEffectiveOutOfStockBehavior(p);
     if (p.stock <= 0) {
       if (behavior === 'allow_backorder') {
@@ -118,17 +118,7 @@ export class PortalProductDetailComponent implements OnInit {
       }
     }
 
-    if (settings.lowStockVisibility === 'none') {
-      return {
-        label: 'In Stock',
-        class: 'in'
-      };
-    }
-
-    return {
-      label: `In Stock (${p.stock} available)`,
-      class: 'in'
-    };
+    return { label: 'In Stock', class: 'in' };
   });
 
   marginPercent = computed(() => 0);
