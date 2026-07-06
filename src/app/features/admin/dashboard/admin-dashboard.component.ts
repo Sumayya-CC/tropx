@@ -11,7 +11,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 
-import { Order } from '../../../core/models/order.model';
+import { Order, OrderStatus, ORDER_STATUS_LABELS } from '../../../core/models/order.model';
 import { Payment } from '../../../core/models/payment.model';
 import { Return } from '../../../core/models/return.model';
 import { Customer } from '../../../core/models/customer.model';
@@ -352,41 +352,47 @@ export class AdminDashboardComponent {
   });
 
   // ── DELIVERY SCHEDULE ────────────────────────────────
-  deliverySchedule = computed(() => {
+  ordersToFulfill = computed(() => {
     const now = new Date();
     const today = new Date(
       now.getFullYear(), now.getMonth(), now.getDate()
     );
-    const in7 = new Date(today);
-    in7.setDate(in7.getDate() + 7);
 
-    const relevant = this.allOrders()
+    return this.allOrders()
       .filter(o =>
         !o.isDeleted &&
         (o.status === 'confirmed' ||
-          o.status === 'preparing' ||
-          o.status === 'out_for_delivery') &&
-        o.expectedDeliveryDate
+          o.status === 'preparing')
       )
       .map(o => ({
         ...o,
-        deliveryDate: this.toDate(o.expectedDeliveryDate)
+        deliveryDate: o.expectedDeliveryDate
+          ? this.toDate(o.expectedDeliveryDate)
+          : null,
+        isDelayed: o.expectedDeliveryDate
+          ? this.toDate(o.expectedDeliveryDate) < today
+          : false,
+        isPortal: o.source === 'customer_portal',
       }))
-      .filter(o => o.deliveryDate <= in7);
-
-    return {
-      delayed: relevant
-        .filter(o => o.deliveryDate < today)
-        .sort((a, b) =>
-          a.deliveryDate.getTime() - b.deliveryDate.getTime()
-        ),
-      scheduled: relevant
-        .filter(o => o.deliveryDate >= today)
-        .sort((a, b) =>
-          a.deliveryDate.getTime() - b.deliveryDate.getTime()
-        )
-    };
+      .sort((a, b) => {
+        // Delayed first, then by delivery date,
+        // then unscheduled by confirmed date.
+        if (a.isDelayed && !b.isDelayed) return -1;
+        if (!a.isDelayed && b.isDelayed) return 1;
+        if (a.deliveryDate && b.deliveryDate) {
+          return a.deliveryDate.getTime() -
+            b.deliveryDate.getTime();
+        }
+        if (a.deliveryDate) return -1;
+        if (b.deliveryDate) return 1;
+        return this.toDate(b.confirmedAt).getTime() -
+          this.toDate(a.confirmedAt).getTime();
+      });
   });
+
+  delayedOrdersCount = computed(() =>
+    this.ordersToFulfill().filter(o => o.isDelayed).length
+  );
 
   // ── PERIOD FILTERS ───────────────────────────────────
   periodOrders = computed(() => {
@@ -967,6 +973,10 @@ export class AdminDashboardComponent {
       cancelled: 'danger'
     };
     return map[status] || 'info';
+  }
+
+  getStatusLabel(status: string): string {
+    return ORDER_STATUS_LABELS[status as OrderStatus] || status;
   }
 
   getMethodLabel(method: string): string {

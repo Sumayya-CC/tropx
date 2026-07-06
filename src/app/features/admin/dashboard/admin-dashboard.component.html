@@ -615,135 +615,92 @@
 
     </div>
 
-    <!-- Delivery schedule -->
+    <!-- Orders to fulfill -->
     <div class="dash-card full-width">
       <div class="dash-card-header">
-        <h3>Delivery schedule</h3>
-        <span class="header-sub">Next 7 days</span>
-      </div>
-      <div class="dash-card-body">
-        @if (deliverySchedule().delayed.length === 0 &&
-             deliverySchedule().scheduled.length === 0) {
-          <div class="empty-state-sm">
-            No deliveries scheduled for the next 7 days
-          </div>
-        } @else {
-
-          @if (deliverySchedule().delayed.length > 0) {
-            <div class="delivery-section">
-              <div class="delivery-section-label delayed">
-                Delayed ({{
-                  deliverySchedule().delayed.length
-                }})
-              </div>
-              @for (o of deliverySchedule().delayed;
-                track o.id) {
-                <a [routerLink]="['/admin/orders', o.id]"
-                  class="delivery-row delayed-row">
-                  <div class="delivery-row-left">
-                    <span class="delivery-num">
-                      {{ o.orderNumber }}
-                    </span>
-                    <span class="delivery-customer">
-                      {{ o.customerName }}
-                    </span>
-                  </div>
-                  <div class="delivery-row-right">
-                    <span class="delivery-date-badge red">
-                      {{ formatShortDate(
-                          o.expectedDeliveryDate
-                         ) }}
-                    </span>
-                    <app-status-badge
-                      [status]="o.status"
-                      [color]="getOrderStatusColor(o.status)">
-                    </app-status-badge>
-                  </div>
-                </a>
+        <h3>Orders to fulfill</h3>
+        <div style="display:flex; align-items:center; gap:1rem;">
+          @if (ordersToFulfill().length > 0) {
+            <span class="header-sub">
+              {{ ordersToFulfill().length }} active
+              @if (delayedOrdersCount() > 0) {
+                · <span style="color:var(--red); font-weight:700;">
+                  {{ delayedOrdersCount() }}
+                  delayed
+                </span>
               }
-            </div>
+            </span>
           }
-
-          @if (deliverySchedule().scheduled.length > 0) {
-            <div class="delivery-section">
-              <div class="delivery-section-label upcoming">
-                Upcoming ({{
-                  deliverySchedule().scheduled.length
-                }})
-              </div>
-              @for (o of deliverySchedule().scheduled;
-                track o.id) {
-                <a [routerLink]="['/admin/orders', o.id]"
-                  class="delivery-row">
-                  <div class="delivery-row-left">
-                    <span class="delivery-num">
-                      {{ o.orderNumber }}
-                    </span>
-                    <span class="delivery-customer">
-                      {{ o.customerName }}
-                    </span>
-                  </div>
-                  <div class="delivery-row-right">
-                    <span class="delivery-date-badge">
-                      {{ formatShortDate(
-                          o.expectedDeliveryDate
-                         ) }}
-                    </span>
-                    <app-status-badge
-                      [status]="o.status"
-                      [color]="getOrderStatusColor(o.status)">
-                    </app-status-badge>
-                  </div>
-                </a>
-              }
-            </div>
-          }
-        }
-      </div>
-    </div>
-
-    <!-- Recent orders -->
-    <div class="dash-card full-width">
-      <div class="dash-card-header">
-        <h3>Recent orders</h3>
-        <a routerLink="/admin/orders"
-          class="header-link">View all →</a>
+          <a routerLink="/admin/orders"
+            class="header-link">View all →</a>
+        </div>
       </div>
       <div class="dash-card-body no-pad">
-        @if (recentOrdersOverview().length === 0) {
+        @if (ordersToFulfill().length === 0) {
           <div class="empty-state-sm">
-            No orders in this period
+            🎉 No orders waiting to be fulfilled
           </div>
         } @else {
-          @for (o of recentOrdersOverview(); track o.id) {
+          @for (o of ordersToFulfill(); track o.id) {
             <a [routerLink]="['/admin/orders', o.id]"
-              class="list-row">
-              <div class="list-row-left">
-                <span class="mono-num">
-                  {{ o.orderNumber }}
-                </span>
-                <span class="list-sub">
+              class="fulfill-row"
+              [class.fulfill-row--delayed]="o.isDelayed"
+              [class.fulfill-row--preparing]="
+                o.status === 'preparing'">
+
+              <!-- Left: order info -->
+              <div class="fulfill-left">
+                <div class="fulfill-top">
+                  <span class="mono-num">
+                    {{ o.orderNumber }}
+                  </span>
+                  @if (o.isPortal) {
+                    <span class="fulfill-portal-tag">
+                      Online
+                    </span>
+                  }
+                  @if (o.isDelayed) {
+                    <span class="fulfill-delayed-tag">
+                      ⚠ Delayed
+                    </span>
+                  }
+                </div>
+                <span class="fulfill-customer">
                   {{ o.customerName }}
                 </span>
               </div>
-              <div class="list-row-right">
-                <app-status-badge
-                  [status]="o.status"
-                  [color]="getOrderStatusColor(o.status)">
-                </app-status-badge>
-                @if ((o.balanceCents || 0) > 0) {
-                  <span class="owing-chip">
-                    {{ formatCurrency(o.balanceCents) }}
-                    owing
+
+              <!-- Center: delivery date -->
+              <div class="fulfill-date">
+                @if (o.deliveryDate) {
+                  <span class="fulfill-date-label">
+                    Expected
+                  </span>
+                  <span class="fulfill-date-val"
+                    [class.fulfill-date--delayed]="
+                      o.isDelayed">
+                    {{ formatShortDate(
+                        o.expectedDeliveryDate) }}
+                  </span>
+                } @else {
+                  <span class="fulfill-date-label">
+                    No date set
                   </span>
                 }
+              </div>
+
+              <!-- Right: status + amount -->
+              <div class="fulfill-right">
+                <app-status-badge
+                  [status]="o.status"
+                  [color]="getOrderStatusColor(o.status)"
+                  [label]="getStatusLabel(o.status)">
+                </app-status-badge>
                 <span class="amount-text">
                   {{ formatCurrency(o.totalCents) }}
                 </span>
-                <span class="date-text">
-                  {{ formatShortDate(o.confirmedAt) }}
-                </span>
               </div>
+
             </a>
           }
         }
