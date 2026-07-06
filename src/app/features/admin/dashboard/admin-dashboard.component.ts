@@ -274,6 +274,25 @@ export class AdminDashboardComponent {
     const threshold = new Date();
     threshold.setDate(threshold.getDate() - overdueDays);
 
+    // New orders = customer-placed orders still sitting in
+    // 'confirmed' (not yet actioned into preparing/delivery).
+    // Admin-created orders are excluded — you already know
+    // about orders you keyed in yourself.
+    const newOrders = this.allOrders()
+      .filter(o =>
+        !o.isDeleted &&
+        o.status === 'confirmed' &&
+        o.source === 'customer_portal'
+      )
+      .sort((a, b) =>
+        this.toDate(b.confirmedAt).getTime() -
+        this.toDate(a.confirmedAt).getTime()
+      );
+
+    const newOrdersTotal = newOrders.reduce(
+      (sum, o) => sum + (o.totalCents || 0), 0
+    );
+
     const overdueOrders = this.allOrders().filter(o =>
       !o.isDeleted &&
       o.status !== 'cancelled' &&
@@ -281,6 +300,8 @@ export class AdminDashboardComponent {
       (o.balanceCents || 0) > 0 &&
       this.toDate(o.confirmedAt) < threshold
     );
+    // Note: 'preparing' is intentionally included in overdue
+    // since it still has an outstanding balance.
 
     const pendingReturns = this.allReturns()
       .filter(r => !r.isDeleted && r.status === 'pending');
@@ -308,17 +329,21 @@ export class AdminDashboardComponent {
     );
 
     return {
+      newOrders,
+      newOrdersTotal,
       overdueOrders,
       overdueTotalBalance,
       pendingReturns,
       lowStockProducts,
       pendingAccessRequests,
       hasItems:
+        newOrders.length > 0 ||
         overdueOrders.length > 0 ||
         pendingReturns.length > 0 ||
         lowStockProducts.length > 0 ||
         pendingAccessRequests.length > 0,
       totalCount:
+        newOrders.length +
         overdueOrders.length +
         pendingReturns.length +
         lowStockProducts.length +
@@ -339,6 +364,7 @@ export class AdminDashboardComponent {
       .filter(o =>
         !o.isDeleted &&
         (o.status === 'confirmed' ||
+          o.status === 'preparing' ||
           o.status === 'out_for_delivery') &&
         o.expectedDeliveryDate
       )
@@ -657,6 +683,9 @@ export class AdminDashboardComponent {
       confirmed: o.filter(
         x => x.status === 'confirmed'
       ).length,
+      preparing: o.filter(
+        x => x.status === 'preparing'
+      ).length,
       outForDelivery: o.filter(
         x => x.status === 'out_for_delivery'
       ).length,
@@ -835,7 +864,7 @@ export class AdminDashboardComponent {
 
   getDonutSegments() {
     const b = this.orderStatusBreakdown();
-    const total = b.confirmed + b.outForDelivery +
+    const total = b.confirmed + b.preparing + b.outForDelivery +
       b.delivered + b.cancelled;
     if (total === 0) return [];
 
@@ -843,6 +872,10 @@ export class AdminDashboardComponent {
       {
         label: 'Confirmed', count: b.confirmed,
         color: 'var(--navy)'
+      },
+      {
+        label: 'Preparing', count: b.preparing,
+        color: '#7c3aed'
       },
       {
         label: 'Out for Delivery', count: b.outForDelivery,
@@ -928,6 +961,7 @@ export class AdminDashboardComponent {
   getOrderStatusColor(status: string): string {
     const map: Record<string, string> = {
       confirmed: 'info',
+      preparing: 'purple',
       out_for_delivery: 'warning',
       delivered: 'success',
       cancelled: 'danger'

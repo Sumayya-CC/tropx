@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { Order, OrderStatus, PaymentStatus, ORDER_STATUS_LABELS } from '../../../core/models/order.model';
@@ -20,6 +20,7 @@ import { centsToDisplay } from '../../../shared/utils/currency.utils';
 export class AdminOrdersComponent {
   private readonly firestore = inject(FirestoreService);
   protected readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   // State
   searchQuery = signal('');
@@ -48,6 +49,21 @@ export class AdminOrdersComponent {
   constructor() {
     // Basic loading state handling
     this.orders$.subscribe(() => this.isLoading.set(false));
+
+    // Apply filters from query params (e.g. dashboard
+    // "new orders" link → status=confirmed&source=customer_portal)
+    this.route.queryParamMap.subscribe(params => {
+      const status = params.get('status');
+      const source = params.get('source');
+
+      if (status) {
+        this.statusFilter.set(status as any);
+      }
+      if (source === 'customer_portal' ||
+          source === 'admin_created') {
+        this.sourceFilter.set(source);
+      }
+    });
   }
 
   // Computed
@@ -109,6 +125,7 @@ export class AdminOrdersComponent {
     return {
       totalOrdersMonth: monthOrders.length,
       confirmedCount: orders.filter(o => o.status === 'confirmed').length,
+      preparingCount: orders.filter(o => o.status === 'preparing').length,
       outForDeliveryCount: orders.filter(o => o.status === 'out_for_delivery').length,
       revenueMonthCents: monthOrders.reduce((sum, o) => sum + o.totalCents, 0)
     };
@@ -437,6 +454,7 @@ export class AdminOrdersComponent {
   getOrderStatusColor(status: OrderStatus): string {
     switch (status) {
       case 'confirmed': return 'info';
+      case 'preparing': return 'purple';
       case 'out_for_delivery': return 'warning';
       case 'delivered': return 'success';
       case 'cancelled': return 'danger';

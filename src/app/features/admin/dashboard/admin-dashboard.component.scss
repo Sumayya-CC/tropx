@@ -659,6 +659,7 @@
   flex-shrink: 0;
 
   &.navy { background: var(--navy); }
+  &.purple { background: #7c3aed; }
   &.gold { background: var(--gold); }
   &.green { background: var(--green); }
   &.red { background: var(--red); }
@@ -1591,6 +1592,14 @@
     border-left-color: var(--navy);
     &:hover { background: rgba(10, 45, 74, 0.03); }
   }
+
+  &.ov-attn-row--new {
+    border-left: 3px solid #0d9488;
+    background: rgba(13, 148, 136, 0.04);
+    &:hover {
+      background: rgba(13, 148, 136, 0.08);
+    }
+  }
 }
 
 .ov-attn-left {
@@ -1611,6 +1620,10 @@
   &.ov-attn-dot--danger { background: var(--red); }
   &.ov-attn-dot--warn   { background: var(--gold); }
   &.ov-attn-dot--accent { background: var(--navy); }
+  &.ov-attn-dot--new {
+    background: #0d9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
+  }
 }
 
 .ov-attn-text {
@@ -1725,6 +1738,7 @@
   transition: width 0.4s ease;
 
   &.ov-seg--confirmed  { background: var(--navy); }
+  &.ov-seg--preparing  { background: #7c3aed; }
   &.ov-seg--delivery   { background: var(--gold); }
   &.ov-seg--delivered  { background: var(--green); }
   &.ov-seg--cancelled  { background: var(--red); }
@@ -1750,6 +1764,7 @@
   flex-shrink: 0;
 
   &.ov-status-dot--confirmed  { background: var(--navy); }
+  &.ov-status-dot--preparing  { background: #7c3aed; }
   &.ov-status-dot--delivery   { background: var(--gold); }
   &.ov-status-dot--delivered  { background: var(--green); }
   &.ov-status-dot--cancelled  { background: var(--red); }

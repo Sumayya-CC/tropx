@@ -107,7 +107,7 @@
             @let cfg = getStatusConfig(order.status);
             <span class="status-badge"
               [class]="'status-' + cfg.class">
-              {{ cfg.label }}
+              {{ getCustomerStatusLabel(order.status) }}
             </span>
           </div>
 

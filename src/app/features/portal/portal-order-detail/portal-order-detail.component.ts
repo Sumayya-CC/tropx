@@ -859,11 +859,25 @@ export class PortalOrderDetailComponent {
 </html>`;
   }
 
+  getCustomerStatusLabel(status: string): string {
+    if (status === 'confirmed' || status === 'preparing') {
+      return 'Confirmed';
+    }
+    if (status === 'out_for_delivery') return 'Out for Delivery';
+    if (status === 'delivered') return 'Delivered';
+    if (status === 'cancelled') return 'Cancelled';
+    return status;
+  }
+
   getStatusConfig(status: string) {
     const map: Record<string, {
       label: string; class: string; step: number;
     }> = {
       confirmed: {
+        label: 'Confirmed', class: 'confirmed',
+        step: 1
+      },
+      preparing: {
         label: 'Confirmed', class: 'confirmed',
         step: 1
       },

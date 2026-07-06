@@ -245,6 +245,34 @@
 
         <div class="ov-attention-list">
 
+          <!-- 0. New orders (highest priority — fresh revenue) -->
+          @if (actionItems().newOrders.length > 0) {
+            <a routerLink="/admin/orders"
+              [queryParams]="{ status: 'confirmed', source: 'customer_portal' }"
+              class="ov-attn-row ov-attn-row--new">
+              <div class="ov-attn-left">
+                <span class="ov-attn-dot ov-attn-dot--new">
+                </span>
+                <div class="ov-attn-text">
+                  <span class="ov-attn-main">
+                    {{ actionItems().newOrders.length }}
+                    new order{{
+                      actionItems().newOrders.length === 1
+                        ? '' : 's'
+                    }} to fulfill
+                  </span>
+                  <span class="ov-attn-sub">
+                    {{ formatCurrency(
+                        actionItems().newOrdersTotal
+                       ) }}
+                    · placed online, not yet started
+                  </span>
+                </div>
+              </div>
+              <span class="ov-attn-arrow">→</span>
+            </a>
+          }
+
           <!-- 1. Balance discrepancies (data integrity) -->
           @if (reconciliationAlert().hasItems) {
             <a routerLink="/admin/reconciliation"
@@ -484,6 +512,7 @@
 
           @let total =
             orderStatusBreakdown().confirmed +
+            orderStatusBreakdown().preparing +
             orderStatusBreakdown().outForDelivery +
             orderStatusBreakdown().delivered +
             orderStatusBreakdown().cancelled;
@@ -497,6 +526,14 @@
                 <div class="ov-status-seg ov-seg--confirmed"
                   [style.width.%]="
                     (orderStatusBreakdown().confirmed
+                      / total) * 100
+                  ">
+                </div>
+              }
+              @if (orderStatusBreakdown().preparing > 0) {
+                <div class="ov-status-seg ov-seg--preparing"
+                  [style.width.%]="
+                    (orderStatusBreakdown().preparing
                       / total) * 100
                   ">
                 </div>
@@ -536,6 +573,14 @@
               <span class="ov-status-label">Confirmed</span>
               <span class="ov-status-val">
                 {{ orderStatusBreakdown().confirmed }}
+              </span>
+            </div>
+            <div class="ov-status-row">
+              <span class="ov-status-dot
+                ov-status-dot--preparing"></span>
+              <span class="ov-status-label">Preparing</span>
+              <span class="ov-status-val">
+                {{ orderStatusBreakdown().preparing }}
               </span>
             </div>
             <div class="ov-status-row">
@@ -1242,6 +1287,7 @@
         <div class="dash-card-body donut-layout">
           @let total =
             orderStatusBreakdown().confirmed +
+            orderStatusBreakdown().preparing +
             orderStatusBreakdown().outForDelivery +
             orderStatusBreakdown().delivered +
             orderStatusBreakdown().cancelled;
@@ -1269,6 +1315,13 @@
                 <span>Confirmed</span>
                 <strong>
                   {{ orderStatusBreakdown().confirmed }}
+                </strong>
+              </div>
+              <div class="donut-row">
+                <span class="donut-dot purple"></span>
+                <span>Preparing</span>
+                <strong>
+                  {{ orderStatusBreakdown().preparing }}
                 </strong>
               </div>
               <div class="donut-row">

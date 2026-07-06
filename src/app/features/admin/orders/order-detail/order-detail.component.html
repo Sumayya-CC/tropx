@@ -348,6 +348,29 @@
               </div>
             </div>
 
+            <!-- Preparing -->
+            <div class="timeline-item">
+              <div class="dot"
+                [class.reached]="order()?.preparingAt">
+              </div>
+              <div class="item-content">
+                <span class="label">Preparing</span>
+                @if (order()?.preparingAt) {
+                  <span class="meta">
+                    {{ order()?.preparingAt?.toDate()
+                      | date:'MMM d, yyyy @ h:mm a' }}
+                  </span>
+                  <span class="meta">
+                    By {{ order()?.preparingBy?.firstName }}
+                  </span>
+                } @else {
+                  <span class="meta" style="color:var(--gray)">
+                    Pending...
+                  </span>
+                }
+              </div>
+            </div>
+
             <!-- Out for Delivery -->
             <div class="timeline-item">
               <div class="dot" [class.reached]="order()?.outForDeliveryAt"></div>
@@ -402,7 +425,17 @@
               </div>
             } @else {
               @if (order()?.status === 'confirmed') {
-                <button class="btn-action" (click)="updateStatus('out_for_delivery')">Mark Out for Delivery</button>
+                <button class="btn-action" (click)="updateStatus('preparing')">
+                  📦 Mark as Preparing
+                </button>
+                <button class="btn-action secondary" (click)="updateStatus('out_for_delivery')">
+                  Mark Out for Delivery
+                </button>
+                <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
+              } @else if (order()?.status === 'preparing') {
+                <button class="btn-action" (click)="updateStatus('out_for_delivery')">
+                  Mark Out for Delivery
+                </button>
                 <button class="btn-action danger" (click)="showCancelForm.set(true)">Cancel Order</button>
               } @else if (order()?.status === 'out_for_delivery') {
                 <button class="btn-action success" (click)="updateStatus('delivered')">Mark as Delivered</button>

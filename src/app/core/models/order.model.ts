@@ -2,6 +2,7 @@ import { ActionBy } from './action-by.model';
 
 export type OrderStatus = 
   | 'confirmed' 
+  | 'preparing'
   | 'out_for_delivery' 
   | 'delivered' 
   | 'cancelled';
@@ -61,6 +62,8 @@ export interface Order {
   expectedDeliveryDate?: any | null;
   confirmedAt: any;
   confirmedBy: ActionBy;
+  preparingAt?: any;
+  preparingBy?: ActionBy;
   outForDeliveryAt?: any;
   outForDeliveryBy?: ActionBy;
   deliveredAt?: any;
@@ -83,6 +86,7 @@ export interface Order {
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   confirmed: 'Confirmed',
+  preparing: 'Preparing',
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled'
@@ -90,6 +94,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   confirmed: 'info',
+  preparing: 'purple',
   out_for_delivery: 'warning',
   delivered: 'success',
   cancelled: 'danger'

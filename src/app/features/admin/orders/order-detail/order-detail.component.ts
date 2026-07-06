@@ -59,7 +59,9 @@ export class OrderDetailComponent {
 
   canEditOrder = computed(() => {
     const status = this.order()?.status;
-    return status === 'confirmed' || status === 'out_for_delivery';
+    return status === 'confirmed' ||
+      status === 'preparing' ||
+      status === 'out_for_delivery';
   });
 
   editTotals = computed(() => {
@@ -142,8 +144,11 @@ export class OrderDetailComponent {
     this.isUpdating.set(true);
     try {
       const updates: any = { status };
-      
-      if (status === 'out_for_delivery') {
+
+      if (status === 'preparing') {
+        updates.preparingAt = serverTimestamp();
+        updates.preparingBy = actionBy;
+      } else if (status === 'out_for_delivery') {
         updates.outForDeliveryAt = serverTimestamp();
         updates.outForDeliveryBy = actionBy;
       } else if (status === 'delivered') {
@@ -1041,6 +1046,7 @@ export class OrderDetailComponent {
   getOrderStatusColor(status: OrderStatus): string {
     switch (status) {
       case 'confirmed': return 'info';
+      case 'preparing': return 'purple';
       case 'out_for_delivery': return 'warning';
       case 'delivered': return 'success';
       case 'cancelled': return 'danger';

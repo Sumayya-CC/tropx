@@ -135,7 +135,7 @@ export class StockAdjustmentModalComponent implements OnInit {
           idx === existing
             ? { ...item,
                 quantity: qty,
-                direction: this.pendingDirection()
+                direction: this.effectivePendingDirection()
               }
             : item
         )
@@ -146,7 +146,7 @@ export class StockAdjustmentModalComponent implements OnInit {
         {
           product: p,
           quantity: qty,
-          direction: this.pendingDirection(),
+          direction: this.effectivePendingDirection(),
         }
       ]);
     }

@@ -32,7 +32,17 @@ export class PortalOrdersComponent {
 
     const status = this.statusFilter();
     if (status !== 'all') {
-      list = list.filter(o => o.status === status);
+      // 'confirmed' filter shows both confirmed and
+      // preparing — customers never see 'preparing'
+      // as a separate status.
+      if (status === 'confirmed') {
+        list = list.filter(o =>
+          o.status === 'confirmed' ||
+          o.status === 'preparing'
+        );
+      } else {
+        list = list.filter(o => o.status === status);
+      }
     }
 
     return list;
@@ -50,6 +60,16 @@ export class PortalOrdersComponent {
     });
   }
 
+  getCustomerStatusLabel(status: string): string {
+    if (status === 'confirmed' || status === 'preparing') {
+      return 'Confirmed';
+    }
+    if (status === 'out_for_delivery') return 'Out for Delivery';
+    if (status === 'delivered') return 'Delivered';
+    if (status === 'cancelled') return 'Cancelled';
+    return status;
+  }
+
   getStatusConfig(status: string): {
     label: string; class: string;
   } {
@@ -57,6 +77,9 @@ export class PortalOrdersComponent {
       label: string; class: string;
     }> = {
       confirmed: {
+        label: 'Confirmed', class: 'confirmed'
+      },
+      preparing: {
         label: 'Confirmed', class: 'confirmed'
       },
       out_for_delivery: {

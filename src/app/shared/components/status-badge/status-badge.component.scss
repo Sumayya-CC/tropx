@@ -41,4 +41,10 @@
     color: var(--navy);
     border: 1px solid rgba(22, 88, 142, 0.2);
   }
+
+  &.badge-purple {
+    background: rgba(124, 58, 237, 0.1);
+    color: #7c3aed;
+    border: 1px solid rgba(124, 58, 237, 0.2);
+  }
 }

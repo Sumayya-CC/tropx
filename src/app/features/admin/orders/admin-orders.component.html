@@ -16,6 +16,10 @@
       <span class="stat-value">{{ stats().confirmedCount }}</span>
     </div>
     <div class="stat-card">
+      <span class="stat-label">Preparing</span>
+      <span class="stat-value">{{ stats().preparingCount }}</span>
+    </div>
+    <div class="stat-card">
       <span class="stat-label">Out for Delivery</span>
       <span class="stat-value">{{ stats().outForDeliveryCount }}</span>
     </div>
@@ -40,6 +44,7 @@
       <select [value]="statusFilter()" (change)="onStatusFilterChange($event)">
         <option value="all">All Statuses</option>
         <option value="confirmed">Confirmed</option>
+        <option value="preparing">Preparing</option>
         <option value="out_for_delivery">Out for Delivery</option>
         <option value="delivered">Delivered</option>
         <option value="cancelled">Cancelled</option>

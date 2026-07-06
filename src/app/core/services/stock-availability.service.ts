@@ -22,7 +22,7 @@ export class StockAvailabilityService {
       ? this.firestore.getCollection<Order>(
           'orders',
           where('tenantId', '==', 1),
-          where('status', 'in', ['confirmed', 'out_for_delivery'])
+          where('status', 'in', ['confirmed', 'preparing', 'out_for_delivery'])
         )
       : of([] as Order[])
     )
