@@ -18,6 +18,38 @@ export class NotificationService {
   allProducts = signal<Product[]>([]);
   allAccessRequests = signal<any[]>([]);
 
+  // Tracks IDs seen on previous emission so we can
+  // detect genuinely new arrivals without firing on
+  // the initial page-load snapshot.
+  private _seenOrderIds = new Set<string>();
+  private _initialLoadDone = false;
+  private _onNewOrder?: (order: Order) => void;
+
+  registerNewOrderHandler(cb: (order: Order) => void) {
+    this._onNewOrder = cb;
+  }
+
+  private _detectNewOrders(orders: Order[]) {
+    // Skip first emission — that's existing history
+    // loading in, not new incoming orders.
+    if (!this._initialLoadDone) {
+      this._initialLoadDone = true;
+      orders.forEach(o => this._seenOrderIds.add(o.id));
+      return;
+    }
+    for (const order of orders) {
+      if (this._seenOrderIds.has(order.id)) continue;
+      this._seenOrderIds.add(order.id);
+      if (
+        order.status === 'confirmed' &&
+        order.source === 'customer_portal' &&
+        !order.isDeleted
+      ) {
+        this._onNewOrder?.(order);
+      }
+    }
+  }
+
   constructor() {
     // Only subscribe to admin collections when the
     // current user is staff. Customers and unauthenticated
@@ -39,7 +71,10 @@ export class NotificationService {
 
       this.firestore.getCollection<Order>(
         'orders', where('tenantId', '==', 1)
-      ).subscribe(v => this.allOrders.set(v));
+      ).subscribe(orders => {
+        this.allOrders.set(orders);
+        this._detectNewOrders(orders);
+      });
 
       this.firestore.getCollection<Product>(
         'products', where('tenantId', '==', 1)
@@ -86,6 +121,14 @@ export class NotificationService {
     this.allAccessRequests()
       .filter(r => r.status === 'pending')
       .length
+  );
+
+  newOrdersCount = computed(() =>
+    this.allOrders().filter(o =>
+      !o.isDeleted &&
+      o.status === 'confirmed' &&
+      o.source === 'customer_portal'
+    ).length
   );
 
   overdueOrdersList = computed(() =>

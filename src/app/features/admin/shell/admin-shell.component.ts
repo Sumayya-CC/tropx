@@ -91,11 +91,18 @@ import { FullNamePipe, OwnerFullNamePipe } from '../../../shared/pipes/full-name
                           {{ pendingReturns() > 99 ? '99+' : pendingReturns() }}
                         </span>
                       }
-                      <!-- Badge for Orders (overdue) -->
-                      @if (item.route === '/admin/orders' && 
-                           overdueOrders() > 0) {
-                        <span class="nav-badge orange">
-                          {{ overdueOrders() > 99 ? '99+' : overdueOrders() }}
+                      <!-- Badge for Orders (new + overdue) -->
+                      @if (item.route === '/admin/orders' &&
+                           (newOrders() > 0 ||
+                            overdueOrders() > 0)) {
+                        <span class="nav-badge"
+                          [class.orange]="
+                            newOrders() === 0 &&
+                            overdueOrders() > 0"
+                          [class.teal]="newOrders() > 0">
+                          {{ (newOrders() + overdueOrders()) > 99
+                            ? '99+'
+                            : newOrders() + overdueOrders() }}
                         </span>
                       }
                       <!-- Dot for Products (low stock) -->
@@ -210,6 +217,45 @@ import { FullNamePipe, OwnerFullNamePipe } from '../../../shared/pipes/full-name
                     </div>
                   } @else {
                     <div class="notif-body">
+
+                      <!-- New Orders -->
+                      @if (newOrders() > 0) {
+                        <div class="notif-section">
+                          <div class="notif-section-header">
+                            <span class="notif-dot teal"></span>
+                            <span class="notif-section-label">
+                              New Orders
+                            </span>
+                            <span class="notif-section-count">
+                              {{ newOrders() }}
+                            </span>
+                          </div>
+                          <a routerLink="/admin/orders"
+                            [queryParams]="{
+                              status: 'confirmed',
+                              source: 'customer_portal'
+                            }"
+                            class="notif-item"
+                            (click)="showNotifications.set(false)">
+                            <div class="notif-item-main">
+                              <span class="notif-item-title">
+                                {{ newOrders() }} unactioned
+                                order{{
+                                  newOrders() === 1 ? '' : 's'
+                                }}
+                              </span>
+                              <span class="notif-item-sub">
+                                Placed online, not yet started
+                              </span>
+                            </div>
+                            <span class="notif-item-value"
+                              style="color:#0d9488;
+                                font-weight:700;">
+                              →
+                            </span>
+                          </a>
+                        </div>
+                      }
 
                       <!-- Overdue Invoices -->
                       @if (overdueOrders() > 0) {
@@ -549,7 +595,50 @@ export class AdminShellComponent implements OnInit {
     }
   }
 
+  private playNewOrderChime() {
+    try {
+      const ctx = new AudioContext();
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(
+        0.18, ctx.currentTime + 0.01
+      );
+
+      // First tone — higher pitch
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(880, ctx.currentTime);
+      osc1.connect(gain);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.18);
+
+      // Second tone — lower pitch, slight delay
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(
+        660, ctx.currentTime + 0.2
+      );
+      osc2.connect(gain);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime + 0.2);
+      gain.gain.linearRampToValueAtTime(
+        0, ctx.currentTime + 0.55
+      );
+      osc2.start(ctx.currentTime + 0.2);
+      osc2.stop(ctx.currentTime + 0.55);
+
+      setTimeout(() => ctx.close(), 800);
+    } catch (e) {
+      // AudioContext not available — silent fallback
+    }
+  }
+
+  newOrders = computed(() =>
+    this.notificationService.newOrdersCount()
+  );
+
   totalNotificationCount = computed(() =>
+    this.newOrders() +
     this.overdueOrders() +
     this.pendingReturns() +
     this.lowStock() +
@@ -705,6 +794,17 @@ export class AdminShellComponent implements OnInit {
     this.currentRoute.set(this.router.url.split('?')[0]);
     this.updatePageTitle();
     this.inventoryBootstrap.bootstrap();
+
+    this.notificationService.registerNewOrderHandler(
+      (order) => {
+        this.playNewOrderChime();
+        this.toast.success(
+          `🛒 New order ${order.orderNumber} from ` +
+          `${order.customerName} — ` +
+          `$${((order.totalCents || 0) / 100).toFixed(2)}`
+        );
+      }
+    );
   }
 
   @HostListener('document:click', ['$event'])

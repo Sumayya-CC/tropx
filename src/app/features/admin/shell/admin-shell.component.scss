@@ -579,6 +579,10 @@
   letter-spacing: 0;
 
   &.orange { background: var(--gold); }
+  &.teal {
+    background: #0d9488;
+    color: white;
+  }
 }
 
 /* When collapsed, position badge on top of icon */
@@ -930,6 +934,7 @@
   &.red { background: var(--red); }
   &.gold { background: var(--gold); }
   &.navy { background: var(--navy); }
+  &.teal { background: #0d9488; }
 }
 
 .notif-section-label {
@@ -1000,6 +1005,7 @@
 
   &.red { color: var(--red); }
   &.gold { color: var(--gold); }
+  &.teal { color: #0d9488; font-weight: 700; }
 }
 
 .notif-arrow {
