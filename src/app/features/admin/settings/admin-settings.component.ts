@@ -10,8 +10,10 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { Storage } from '@angular/fire/storage';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
-import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct, FeaturedBannerOverlay, BannerTextAlign, BannerTextColor, BannerProductPlacement, MAX_BANNER_PRODUCTS, resolveHidePrice } from '../../../core/models/storefront-settings.model';
+import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct, FeaturedBannerOverlay, BannerTextAlign, BannerTextColor, BannerProductPlacement, MAX_BANNER_PRODUCTS, resolveHidePrice, PopularProductsSettings, DEFAULT_POPULAR_PRODUCTS_SETTINGS } from '../../../core/models/storefront-settings.model';
 import { Product } from '../../../core/models/product.model';
+import { Functions, getFunctions, httpsCallable } from '@angular/fire/functions';
+import { FirebaseApp } from '@angular/fire/app';
 
 type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications' | 'system';
 
@@ -30,6 +32,7 @@ export class AdminSettingsComponent {
   private readonly storage = inject(Storage);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly functions = getFunctions(inject(FirebaseApp), 'northamerica-northeast1');
 
   readonly TABS = ['business', 'ordering', 'storefront', 'invoice', 'notifications', 'system'] as const;
   activeTab = signal<SettingsTab>('business');
@@ -100,6 +103,12 @@ export class AdminSettingsComponent {
 
   // Storefront — Gallery
   editingGallery = signal(false);
+  // Popular Products settings
+  editingPopular = signal(false);
+  popularWindowDays = signal(90);
+  popularTopN = signal(10);
+  popularMinPercent = signal(0);
+  isRecomputing = signal(false);
   galleryEnabled = signal(false);
   galleryImages = signal<StorefrontGalleryImage[]>([]);
   galleryUploadFile = signal<File | null>(null);
@@ -411,6 +420,21 @@ export class AdminSettingsComponent {
       if (!untracked(() => this.editingGallery())) {
         this.galleryEnabled.set(sf.galleryEnabled);
         this.galleryImages.set(sf.galleryImages || []);
+      }
+      
+      if (!untracked(() => this.editingPopular())) {
+        this.popularEnabled.set(
+          sf.popularEnabled ?? true
+        );
+        const cfg = sf.popularProductsSettings ??
+          DEFAULT_POPULAR_PRODUCTS_SETTINGS;
+        this.popularWindowDays.set(
+          cfg.windowDays ?? 90
+        );
+        this.popularTopN.set(cfg.topN ?? 10);
+        this.popularMinPercent.set(
+          cfg.minPercent ?? 0
+        );
       }
     }, { allowSignalWrites: true });
   }
@@ -911,6 +935,70 @@ export class AdminSettingsComponent {
 
   removeGalleryImage(id: string) {
     this.galleryImages.update(list => list.filter(img => img.id !== id));
+  }
+
+  cancelPopular() {
+    const sf = this.settings.storefront();
+    this.popularEnabled.set(
+      sf.popularEnabled ?? true
+    );
+    const cfg = sf.popularProductsSettings ??
+      DEFAULT_POPULAR_PRODUCTS_SETTINGS;
+    this.popularWindowDays.set(
+      cfg.windowDays ?? 90
+    );
+    this.popularTopN.set(cfg.topN ?? 10);
+    this.popularMinPercent.set(
+      cfg.minPercent ?? 0
+    );
+    this.editingPopular.set(false);
+  }
+
+  async savePopular() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.updateDocument(
+        'settings/storefront', {
+          popularEnabled: this.popularEnabled(),
+          popularProductsSettings: {
+            windowDays: this.popularWindowDays(),
+            topN: this.popularTopN(),
+            minPercent: this.popularMinPercent(),
+          },
+        }
+      );
+      this.toast.success('Popular products settings saved');
+      this.editingPopular.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error(
+        'Failed to save popular products settings'
+      );
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async recomputePopularNow() {
+    this.isRecomputing.set(true);
+    try {
+      const fn = httpsCallable(
+        this.functions,
+        'computePopularProductsNow',
+        { limitedUseAppCheckTokens: false }
+      );
+      await fn({});
+      this.toast.success(
+        'Popular products recomputed successfully'
+      );
+    } catch (err) {
+      console.error(err);
+      this.toast.error(
+        'Failed to recompute — check console'
+      );
+    } finally {
+      this.isRecomputing.set(false);
+    }
   }
 
   async saveGallery() {

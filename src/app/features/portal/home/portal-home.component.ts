@@ -328,6 +328,37 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
       .slice(0, 8);
   });
 
+  popularProducts = computed(() => {
+    const sf = this.storefront();
+    if (!sf.popularEnabled) return [];
+
+    const entries = sf.popularProductEntries || [];
+    if (entries.length === 0) return [];
+
+    return entries
+      .map((entry: any) => {
+        const product = this.portal.allProducts()
+          .find((p: any) => p.id === entry.productId);
+        if (!product || product.isDeleted || !product.active) {
+          return null;
+        }
+        // Respect out-of-stock hide behavior
+        if (product.stock <= 0) {
+          const behavior = this.getEffectiveOutOfStockBehavior(
+            product
+          );
+          if (behavior === 'hide') return null;
+        }
+        return {
+          ...product,
+          customerCount: entry.customerCount,
+          totalCustomers: entry.totalCustomers,
+          percent: entry.percent,
+        };
+      })
+      .filter(Boolean);
+  });
+
   private toMillis(ts: any): number | null {
     if (!ts) return null;
     if (ts.toMillis) return ts.toMillis();

@@ -901,6 +901,23 @@
   margin: 0;
 }
 
+// ── Popular with other shops ─────────────────────────────
+
+.popular-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  background: var(--navy-deep);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
 /* ── PRODUCT GRID ─────────────────────────────────────── */
 .product-grid {
   display: grid;

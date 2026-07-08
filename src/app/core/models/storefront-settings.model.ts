@@ -11,6 +11,28 @@ export type BannerProductPlacement = 'left' | 'right' | 'center' | 'both';
 
 export const MAX_BANNER_PRODUCTS = 8;
 
+export interface PopularProductsSettings {
+  /** Days back to look for delivered orders */
+  windowDays: number;
+  /** Max products to surface */
+  topN: number;
+  /** Min popularity % to include a product */
+  minPercent: number;
+}
+
+export const DEFAULT_POPULAR_PRODUCTS_SETTINGS: PopularProductsSettings = {
+  windowDays: 90,
+  topN: 10,
+  minPercent: 0,
+};
+
+export interface PopularProductEntry {
+  productId: string;
+  customerCount: number;
+  totalCustomers: number;
+  percent: number;
+}
+
 export function resolveHidePrice(p: FeaturedBannerProduct): boolean {
   if (p.hidePrice !== undefined) return p.hidePrice;
   if (p.showPrice !== undefined) return !p.showPrice;
@@ -57,6 +79,11 @@ export interface StorefrontSettings {
   newArrivalsAutoDays: number;
 
   popularEnabled: boolean;
+  popularProductsSettings?: PopularProductsSettings;
+  popularProductEntries?: PopularProductEntry[];
+  popularProductsComputedAt?: any;
+  popularProductsTotalCustomers?: number;
+  popularProductsWindowDays?: number;
 
   galleryEnabled: boolean;
   galleryImages: StorefrontGalleryImage[];
@@ -71,6 +98,8 @@ export const DEFAULT_STOREFRONT_SETTINGS: StorefrontSettings = {
   newArrivalsEnabled: true,
   newArrivalsAutoDays: 14,
   popularEnabled: true,
+  popularProductsSettings: DEFAULT_POPULAR_PRODUCTS_SETTINGS,
+  popularProductEntries: [],
   galleryEnabled: false,
   galleryImages: [],
 };

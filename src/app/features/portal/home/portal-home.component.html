@@ -497,6 +497,262 @@
       </section>
     }
 
+    <!-- Popular with Other Shops -->
+    @if (storefront().popularEnabled &&
+         popularProducts().length > 0) {
+      <section class="home-section popular-section">
+        <div class="section-header-row">
+          <h3 class="section-title">
+            Popular with Other Shops
+          </h3>
+          <a routerLink="/portal/catalog"
+            class="section-link">
+            View All
+          </a>
+        </div>
+
+        <div class="product-grid">
+          @for (product of popularProducts();
+                track product.id) {
+            <div class="product-card"
+              [class.out-of-stock]="
+                product.stock <= 0 &&
+                getEffectiveOutOfStockBehavior(product)
+                  !== 'allow_backorder'"
+              (mouseenter)="
+                hoveredProductId.set(product.id)"
+              (mouseleave)="
+                hoveredProductId.set(null)">
+
+              <!-- Popularity badge -->
+              <div class="popular-badge">
+                🔥 {{ product.percent }}% of shops
+              </div>
+
+              <!-- Image -->
+              <a [routerLink]="[
+                '/portal/catalog', product.id]"
+                class="product-image-link">
+                @if (product.imageUrl) {
+                  <img [src]="product.imageUrl"
+                    [alt]="product.name"
+                    class="product-img">
+                } @else {
+                  <div class="product-img-placeholder">
+                    <span class="product-initial">
+                      {{ getProductInitial(product.name) }}
+                    </span>
+                  </div>
+                }
+                @let status = getStockStatus(product);
+                @if (status.class === 'out') {
+                  <div class="stock-overlay">
+                    {{ status.label }}
+                  </div>
+                } @else if (status.class === 'low') {
+                  <div class="low-stock-ribbon">
+                    {{ status.label }}
+                  </div>
+                }
+              </a>
+
+              <!-- Info -->
+              <div class="product-info">
+                <a [routerLink]="[
+                  '/portal/catalog', product.id]"
+                  class="product-name-link">
+                  <h3 class="product-name">
+                    {{ product.name }}
+                  </h3>
+                </a>
+                <span class="product-sku">
+                  {{ product.sku }}
+                </span>
+                <div class="product-price-row">
+                  <span class="product-price">
+                    {{ formatCurrency(
+                        product.priceCents || 0) }}
+                  </span>
+                  <span class="price-unit">/ unit</span>
+                </div>
+              </div>
+
+              <!-- Cart controls -->
+              <div class="product-actions">
+                @if (product.stock <= 0 &&
+                  getEffectiveOutOfStockBehavior(product)
+                    !== 'allow_backorder') {
+                  @if (getEffectiveOutOfStockBehavior(
+                        product) === 'show_disabled') {
+                    @if (submittedNotifications()
+                          [product.id]) {
+                      <button class="btn-notify requested"
+                        disabled>
+                        ✓ Requested
+                      </button>
+                    } @else {
+                      <button class="btn-notify"
+                        (click)="
+                          requestStockNotification(product)
+                        ">
+                        Notify Me
+                      </button>
+                    }
+                  } @else {
+                    <button class="btn-add-cart disabled"
+                      disabled>
+                      Out of Stock
+                    </button>
+                  }
+                } @else if (isInCart(product.id)) {
+                  <div class="in-cart-compact">
+                    <div class="in-cart-label">
+                      <svg xmlns="http://www.w3.org/2000/svg"
+                        width="12" height="12"
+                        viewBox="0 0 24 24" fill="none"
+                        stroke="var(--green, #16a34a)"
+                        stroke-width="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      <span style="color:var(--green,
+                        #16a34a);font-weight:600;
+                        font-size:0.75rem;">
+                        In cart
+                      </span>
+                    </div>
+                    <div class="qty-picker-wrap"
+                      (click)="$event.stopPropagation()">
+                      <div class="qty-picker">
+                        <button class="qp-btn"
+                          (click)="decrement(product);
+                            onStepperButtonClick(
+                              product.id, $event)">
+                          −
+                        </button>
+                        <input type="number"
+                          class="qp-input"
+                          [value]="getCartQty(product.id)"
+                          min="1"
+                          [max]="getEffectiveOutOfStockBehavior(
+                            product) === 'allow_backorder'
+                            ? 999999 : product.stock"
+                          (change)="portal.updateCartQty(
+                            product.id,
+                            +$any($event.target).value)"
+                          (click)="
+                            $any($event.target).select()">
+                        <button class="qp-btn"
+                          (click)="increment(product);
+                            onStepperButtonClick(
+                              product.id, $event)"
+                          [disabled]="
+                            getEffectiveOutOfStockBehavior(
+                              product) !== 'allow_backorder'
+                            && getCartQty(product.id)
+                              >= product.stock">
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="qty-add-section">
+                    <div class="qty-input-add-row">
+                      <div class="qty-picker-wrap"
+                        (click)="$event.stopPropagation()">
+                        <div class="qty-picker">
+                          <button class="qp-btn"
+                            (click)="setQty(product.id,
+                              getQty(product.id) - 1);
+                              onStepperButtonClick(
+                                product.id, $event)"
+                            [disabled]="
+                              getQty(product.id) <= 1">
+                            −
+                          </button>
+                          <input type="number"
+                            class="qp-input"
+                            [value]="getQty(product.id)"
+                            min="1"
+                            [max]="getEffectiveOutOfStockBehavior(
+                              product) === 'allow_backorder'
+                              ? 999999 : product.stock"
+                            (input)="setQty(product.id,
+                              +$any($event.target).value)"
+                            (click)="
+                              $any($event.target).select()">
+                          <button class="qp-btn"
+                            (click)="setQty(product.id,
+                              getQty(product.id) + 1);
+                              onStepperButtonClick(
+                                product.id, $event)"
+                            [disabled]="
+                              getEffectiveOutOfStockBehavior(
+                                product) !==
+                                'allow_backorder' &&
+                              getQty(product.id) >=
+                                product.stock">
+                            +
+                          </button>
+                        </div>
+                        @if (shouldShowQuickSelect(
+                              product.id)) {
+                          <div class="qty-dropdown">
+                            <div class="qty-dropdown-label">
+                              Quick select
+                            </div>
+                            @for (q of quickQtys; track q) {
+                              @if (q <= product.stock ||
+                                getEffectiveOutOfStockBehavior(
+                                  product) ===
+                                  'allow_backorder') {
+                                <button
+                                  class="qty-dropdown-item"
+                                  [class.active]="
+                                    getQty(product.id) === q"
+                                  (click)="
+                                    selectQuickQty(
+                                      product.id, q)">
+                                  <span
+                                    class="qty-dropdown-num">
+                                    {{ q }}
+                                  </span>
+                                  <span
+                                    class="qty-dropdown-units">
+                                    units
+                                  </span>
+                                </button>
+                              }
+                            }
+                          </div>
+                        }
+                      </div>
+                      <button class="btn-add-cart"
+                        (click)="addToCart(product)">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                          width="14" height="14"
+                          viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor"
+                          stroke-width="2">
+                          <circle cx="9" cy="21" r="1"/>
+                          <circle cx="20" cy="21" r="1"/>
+                          <path d="M1 1h4l2.68 13.39a2 2
+                            0 0 0 2 1.61h9.72a2 2 0 0 0
+                            2-1.61L23 6H6"/>
+                        </svg>
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+
+            </div>
+          }
+        </div>
+      </section>
+    }
+
     <!-- Gallery -->
     @if (storefront().galleryEnabled && storefront().galleryImages.length > 0) {
       <section class="home-section gallery-section">
