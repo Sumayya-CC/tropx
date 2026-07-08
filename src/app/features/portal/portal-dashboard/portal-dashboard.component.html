@@ -271,9 +271,10 @@
               </span>
             </div>
             <div class="order-row-right">
+              @let cfg = getStatusConfig(order.status);
               <span class="status-pill"
-                [attr.data-status]="order.status">
-                {{ getStatusLabel(order.status) }}
+                [attr.data-status]="cfg.class">
+                {{ getCustomerStatusLabel(order.status) }}
               </span>
               @if ((order.balanceCents || 0) > 0) {
                 <span class="owing-tag">

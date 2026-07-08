@@ -34,23 +34,39 @@ export class PortalDashboardComponent {
     });
   }
 
-  getStatusColor(status: string): string {
-    switch (status) {
-      case 'confirmed': return 'blue';
-      case 'out_for_delivery': return 'gold';
-      case 'delivered': return 'green';
-      case 'cancelled': return 'red';
-      default: return 'gray';
+  getCustomerStatusLabel(status: string): string {
+    if (status === 'confirmed' || status === 'preparing') {
+      return 'Confirmed';
     }
+    if (status === 'out_for_delivery') return 'Out for Delivery';
+    if (status === 'delivered') return 'Delivered';
+    if (status === 'cancelled') return 'Cancelled';
+    return status;
   }
 
-  getStatusLabel(status: string): string {
-    const map: Record<string, string> = {
-      confirmed: 'Confirmed',
-      out_for_delivery: 'Out for Delivery',
-      delivered: 'Delivered',
-      cancelled: 'Cancelled',
+  getStatusConfig(status: string): {
+    label: string; class: string;
+  } {
+    const map: Record<string, {
+      label: string; class: string;
+    }> = {
+      confirmed: {
+        label: 'Confirmed', class: 'confirmed'
+      },
+      preparing: {
+        label: 'Confirmed', class: 'confirmed'
+      },
+      out_for_delivery: {
+        label: 'Out for Delivery', class: 'delivery'
+      },
+      delivered: {
+        label: 'Delivered', class: 'delivered'
+      },
+      cancelled: {
+        label: 'Cancelled', class: 'cancelled'
+      },
     };
-    return map[status] || status;
+    return map[status] ||
+      { label: status, class: 'confirmed' };
   }
 }
