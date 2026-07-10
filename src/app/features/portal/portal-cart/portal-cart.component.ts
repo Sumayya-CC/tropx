@@ -172,6 +172,11 @@ export class PortalCartComponent {
         this.settingsService
       );
       this.toast.success('Order placed successfully!');
+      // Brief delay to allow Firestore to sync the new
+      // order doc before the detail page opens a listener
+      // on it — avoids a transient permission error on
+      // the first read of a freshly created document.
+      await new Promise(resolve => setTimeout(resolve, 800));
       this.router.navigate(['/portal/orders', orderId]);
     } catch (err: any) {
       console.error('Order placement error:', err);

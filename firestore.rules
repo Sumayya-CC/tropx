@@ -73,7 +73,10 @@ service cloud.firestore {
     // Public read (portal catalog). Staff write only.
     match /products/{doc} {
       allow read: if true;
-      allow write: if isStaff() || isCustomer();
+      allow write: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId
+         != null);
     }
 
     match /categories/{doc} {
@@ -96,16 +99,30 @@ service cloud.firestore {
     // Customers: read/create their own orders only.
     //   (Updates happen via Cloud Functions / admin UI.)
     match /orders/{orderId} {
-      allow read: if isStaff() || isCustomer();
-      allow create: if isStaff() || isCustomer();
-      allow update: if isStaff() || isCustomer();
+      allow read: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId != null &&
+         resource.data.customerId ==
+         request.auth.token.linkedCustomerId);
+      allow create: if isStaff() ||
+        (isCustomer() &&
+         request.resource.data.customerId ==
+         request.auth.token.linkedCustomerId);
+      allow update: if isStaff() ||
+        (isCustomer() &&
+         resource.data.customerId ==
+         request.auth.token.linkedCustomerId);
       allow delete: if false;
     }
 
     // ── Payments ─────────────────────────────────────────
     // Staff: full access. Customers: read own only.
     match /payments/{paymentId} {
-      allow read: if isStaff() || isCustomer();
+      allow read: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId != null &&
+         resource.data.customerId ==
+         request.auth.token.linkedCustomerId);
       allow write: if isStaff();
     }
 
@@ -113,8 +130,15 @@ service cloud.firestore {
     // Staff: full access.
     // Customers: read own + create (submit return).
     match /returns/{returnId} {
-      allow read: if isStaff() || isCustomer();
-      allow create: if isStaff() || isCustomer();
+      allow read: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId != null &&
+         resource.data.customerId ==
+         request.auth.token.linkedCustomerId);
+      allow create: if isStaff() ||
+        (isCustomer() &&
+         request.resource.data.customerId ==
+         request.auth.token.linkedCustomerId);
       allow update: if isStaff();
       allow delete: if false;
     }
@@ -122,15 +146,23 @@ service cloud.firestore {
     // ── Portal carts ─────────────────────────────────────
     // Each customer owns their own cart doc.
     match /portalCarts/{customerId} {
-      allow read, write: if isStaff() || isCustomer();
+      allow read, write: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId != null &&
+         customerId ==
+         request.auth.token.linkedCustomerId);
     }
 
     // ── Customers ────────────────────────────────────────
     // Staff only. Customers read their own record via
     // the linked customerId on their profile, not directly.
     match /customers/{doc} {
-      allow read: if isStaff() || isCustomer();
-      allow write: if isStaff() || isCustomer();
+      allow read: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId != null &&
+         doc ==
+         request.auth.token.linkedCustomerId);
+      allow write: if isStaff();
     }
 
     // ── User profiles ────────────────────────────────────
@@ -152,7 +184,10 @@ service cloud.firestore {
     // ── Admin-only collections ────────────────────────────
     match /stockAdjustments/{doc} {
       allow read: if isStaff();
-      allow write: if isStaff() || isCustomer();
+      allow write: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId
+         != null);
     }
 
     match /suppliers/{doc} {
@@ -193,6 +228,13 @@ service cloud.firestore {
 
     match /warehouses/{doc} {
       allow read, write: if isStaff();
+    }
+
+    match /stockNotificationRequests/{doc} {
+      allow create: if isCustomer() &&
+        request.resource.data.customerId ==
+        request.auth.token.linkedCustomerId;
+      allow read, update, delete: if isStaff();
     }
 
     // ── Fallback ──────────────────────────────────────────

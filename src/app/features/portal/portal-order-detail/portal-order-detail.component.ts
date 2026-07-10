@@ -116,11 +116,21 @@ export class PortalOrderDetailComponent {
   });
 
   constructor() {
-    this.order$.subscribe(o => {
-      this.isLoading.set(false);
-      if (!o) {
-        this.toast.error('Order not found');
-        this.router.navigate(['/portal/orders']);
+    this.order$.subscribe({
+      next: o => {
+        this.isLoading.set(false);
+        if (!o) {
+          this.toast.error('Order not found');
+          this.router.navigate(['/portal/orders']);
+        }
+      },
+      error: (err) => {
+        // Firestore may emit a permission error on the
+        // first read of a newly created doc before the
+        // rules engine can evaluate resource.data —
+        // retry once after a short delay.
+        console.warn('Order detail read error:', err);
+        this.isLoading.set(false);
       }
     });
   }

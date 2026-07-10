@@ -32,7 +32,12 @@ export class AdminSettingsComponent {
   private readonly storage = inject(Storage);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly functions = getFunctions(inject(FirebaseApp), 'northamerica-northeast1');
+  private readonly functions = getFunctions(
+    inject(FirebaseApp), 'northamerica-northeast1'
+  );
+  private readonly functions2 = getFunctions(
+    inject(FirebaseApp), 'northamerica-northeast2'
+  );
 
   readonly TABS = ['business', 'ordering', 'storefront', 'invoice', 'notifications', 'system'] as const;
   activeTab = signal<SettingsTab>('business');
@@ -998,6 +1003,24 @@ export class AdminSettingsComponent {
       );
     } finally {
       this.isRecomputing.set(false);
+    }
+  }
+
+  async runBackfill() {
+    try {
+      const fn = httpsCallable(
+        this.functions2,
+        'backfillLinkedCustomerIdClaims'
+      );
+      const result = await fn({});
+      console.log('Backfill result:', result.data);
+      this.toast.success(
+        'Backfill complete: ' +
+        JSON.stringify(result.data)
+      );
+    } catch (err) {
+      console.error('Backfill error:', err);
+      this.toast.error('Backfill failed');
     }
   }
 

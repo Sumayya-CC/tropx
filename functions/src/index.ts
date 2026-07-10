@@ -767,7 +767,11 @@ export const onAccessRequestApproved = onDocumentCreated(
       // security rules can check request.auth.token.role
       // without an extra DB read.
       await admin.auth().setCustomUserClaims(
-        userRecord.uid, {role: "customer", tenantId: 1}
+        userRecord.uid, {
+          role: "customer",
+          tenantId: 1,
+          linkedCustomerId: data.customerId ?? null,
+        }
       );
 
       resetLink = await admin.auth().generatePasswordResetLink(
@@ -976,7 +980,11 @@ export const onAdminPasswordReset = onDocumentCreated(
       // Always customer for admin-triggered resets since this
       // path is used exclusively for customer account setup.
       await admin.auth().setCustomUserClaims(
-        userRecord.uid, {role: "customer", tenantId: 1}
+        userRecord.uid, {
+          role: "customer",
+          tenantId: 1,
+          linkedCustomerId: data.customerId ?? null,
+        }
       );
 
       resetLink = await admin.auth().generatePasswordResetLink(
@@ -1206,8 +1214,10 @@ export const onAuthAction = onDocumentCreated(
             const userData = userDocs.docs[0].data();
             const role = userData.role || "customer";
             const tenantId = userData.tenantId ?? 1;
+            const linkedCustomerId =
+              userData.linkedCustomerId ?? null;
             await admin.auth().setCustomUserClaims(
-              uid, {role, tenantId}
+              uid, {role, tenantId, linkedCustomerId}
             );
             console.log(
               `Restored claim role=${role} for ${uid}`
@@ -4582,3 +4592,92 @@ export const computePopularProductsNow = onCall(
     return {success: true};
   }
 );
+
+// ── Backfill linkedCustomerId claim ─────────────
+// One-time callable to stamp linkedCustomerId into
+// custom claims for all existing customer Auth
+// users. Safe to run multiple times — skips users
+// who already have the correct claim.
+// Call once from admin after deploying, then leave
+// in place for future use.
+
+export const backfillLinkedCustomerIdClaims =
+  onCall(
+    {
+      region: "northamerica-northeast2",
+      secrets: [],
+      cors: true,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Must be authenticated"
+        );
+      }
+      const callerClaims = request.auth.token;
+      if (callerClaims["role"] !== "admin") {
+        throw new HttpsError(
+          "permission-denied",
+          "Admin only"
+        );
+      }
+
+      const customersSnap = await db
+        .collection("customers")
+        .where("tenantId", "==", 1)
+        .where("isDeleted", "==", false)
+        .get();
+
+      let updated = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      for (const customerDoc of customersSnap.docs) {
+        const customer = customerDoc.data();
+        const customerId = customerDoc.id;
+        const email = customer["email"];
+
+        if (!email) {
+          skipped++;
+          continue;
+        }
+
+        try {
+          const userRecord = await admin.auth()
+            .getUserByEmail(email);
+          const existing =
+            userRecord.customClaims || {};
+
+          // Skip if already correct
+          if (existing["linkedCustomerId"] ===
+              customerId) {
+            skipped++;
+            continue;
+          }
+
+          await admin.auth().setCustomUserClaims(
+            userRecord.uid, {
+              ...existing,
+              linkedCustomerId: customerId,
+            }
+          );
+          updated++;
+        } catch (err: any) {
+          console.log(
+            `No Auth user for ${email}: ` +
+            err.message
+          );
+          failed++;
+        }
+      }
+
+      console.log(
+        "backfillLinkedCustomerIdClaims: " +
+        `updated=${updated}, ` +
+        `skipped=${skipped}, ` +
+        `failed=${failed}`
+      );
+      return {updated, skipped, failed};
+    }
+  );

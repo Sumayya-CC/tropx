@@ -216,7 +216,13 @@ export class PortalService {
 
   async loadCart() {
     const id = this.customerId();
+    const profile = this.auth.currentProfile() as any;
+    // Wait until linkedCustomerId is in the profile
+    // before attempting to read the cart — avoids a
+    // permission error on the first Firestore emission
+    // before the token claim has propagated.
     if (!id || this.cartLoaded()) return;
+    if (!profile?.linkedCustomerId) return;
     try {
       const cartDoc = await this.firestoreService
         .getDocument<any>(`portalCarts/${id}`)
@@ -450,20 +456,7 @@ export class PortalService {
         // Update sequence
         batch.update(seqRef, { sequence: nextSeq });
 
-        // Update customer totals
-        const customerRef = docFn(
-          db, `customers/${customerId}`
-        );
-        const customerSnap = await getDoc(customerRef);
-        if (customerSnap.exists()) {
-          const cd = customerSnap.data();
-          batch.update(customerRef, {
-            totalOrderedCents:
-              (cd['totalOrderedCents'] || 0) + totalCents,
-            totalOwingCents:
-              (cd['totalOwingCents'] || 0) + totalCents,
-          });
-        }
+
 
         // Deduct stock + create stockAdjustments
         for (const item of items) {

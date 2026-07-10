@@ -71,7 +71,9 @@ export class AuthService {
 
       if (!user) return;
 
-      getIdToken(user).then(() => {
+      // Force token refresh to pick up any new custom
+      // claims (e.g. linkedCustomerId after backfill).
+      getIdToken(user, true).then(() => {
         profileSub = this._firestore
           .getDocument<AppUser>(`users/${user.uid}`)
           .subscribe({
