@@ -40,7 +40,85 @@
 </head>
 
 <body>
-  <app-root></app-root>
+  <app-root>
+    <!--
+      Static SEO fallback content.
+      Google's crawler and the browser's first paint see this
+      immediately, before Angular boots. The moment the Angular
+      app loads, it replaces everything inside <app-root>, so
+      real users never see this — it exists purely so crawlers
+      index real, keyword-relevant content instead of an empty
+      JavaScript shell. Keep this in sync with the live home
+      page's key messaging when it changes.
+    -->
+    <div
+      style="max-width:900px;margin:0 auto;padding:48px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#1c1c1c;line-height:1.6;">
+      <p
+        style="color:#c9952a;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">
+        Partner With The Best
+      </p>
+      <h1 style="font-size:2rem;font-weight:800;color:#0a2d4a;margin:0 0 16px;">
+        Tropx Wholesale — A Canadian Wholesale Distributor You Can Trust
+      </h1>
+      <p style="font-size:1.05rem;color:#444;margin:0 0 16px;">
+        The wholesale partner your business deserves. Premium quality
+        products, competitive pricing, and reliable supply for retail
+        businesses across Southwestern Ontario.
+      </p>
+      <p style="color:#444;margin:0 0 16px;">
+        Tropx Wholesale is redefining convenience store distribution
+        across Southwestern Ontario. We don't just deliver products —
+        we deliver an edge: hand-picked, exclusive, and hard-to-find
+        snacks and beverages, including our own Momchipz fruit and
+        veggie chip line, that help your shelves stand out from the
+        competition. Built on reliability and integrity, we treat every
+        partnership as long-term — showing up on time, keeping you
+        stocked, and growing alongside you. Whether you're a single
+        independent store or a multi-location operator, Tropx is the
+        partner who helps you offer something different.
+      </p>
+
+      <h2 style="font-size:1.3rem;font-weight:700;color:#0a2d4a;margin:32px 0 12px;">
+        What We Supply
+      </h2>
+      <ul style="color:#444;margin:0 0 16px;padding-left:20px;">
+        <li>Snacks &amp; Confectionery</li>
+        <li>Imported Goods</li>
+        <li>Seasonal Items</li>
+        <li>Beverages</li>
+        <li>Speciality Foods</li>
+        <li>Freeze-Dried Snacks</li>
+        <li>Momchipz fruit and veggie chips</li>
+      </ul>
+
+      <h2 style="font-size:1.3rem;font-weight:700;color:#0a2d4a;margin:32px 0 12px;">
+        Why Retailers Partner With Tropx
+      </h2>
+      <ul style="color:#444;margin:0 0 16px;padding-left:20px;">
+        <li><strong>Unique Selection</strong> — hand-picked, exclusive,
+          and hard-to-find products that give your shelf an edge.</li>
+        <li><strong>Reliable Delivery</strong> — consistent, dependable
+          supply so your shelves stay stocked.</li>
+        <li><strong>Competitive Pricing</strong> — wholesale rates
+          designed to protect your margins.</li>
+        <li><strong>Easy Online Ordering</strong> — place and track
+          orders 24/7 through our wholesale portal.</li>
+      </ul>
+
+      <p style="margin:32px 0 0;">
+        <a href="/request-access"
+          style="display:inline-block;background:#0a2d4a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;">
+          Request Wholesale Access
+        </a>
+      </p>
+
+      <p style="color:#8a94a6;font-size:0.85rem;margin:32px 0 0;">
+        Tropx Enterprises Inc. — Wholesale snack and beverage
+        distribution serving convenience stores and gas stations across
+        Kitchener-Waterloo and Southwestern Ontario.
+      </p>
+    </div>
+  </app-root>
 </body>
 
 </html>
