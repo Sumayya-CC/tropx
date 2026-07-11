@@ -1,0 +1,189 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="form-container">
+  <div class="page-header">
+    <div class="left-section">
+      <a routerLink="/admin/shops" class="back-link">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Shops
+      </a>
+      <h1>{{ isEditMode() ? 'Edit Shop' : 'Add Shop' }}</h1>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn-primary" [disabled]="isSaving() || isLoading()">
+        @if (isSaving()) {
+        <app-loading-spinner size="sm"></app-loading-spinner>
+        Saving...
+        } @else {
+        {{ isEditMode() ? 'Save Changes' : 'Add Shop' }}
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+  <div class="loading-state">
+    <app-loading-spinner></app-loading-spinner>
+    <p>Loading...</p>
+  </div>
+  } @else {
+  <div class="content-layout">
+    <div class="left-col">
+      <!-- Business Information -->
+      <div class="form-card">
+        <h2 class="card-title">Shop Details</h2>
+
+        <div class="form-group">
+          <label for="name">Shop Name <span class="required">*</span></label>
+          <input type="text" id="name" formControlName="name" placeholder="Shop name"
+            [class.is-invalid]="isInvalid('name')">
+          @if (isInvalid('name')) {
+          <div class="error-msg">Shop name is required</div>
+          }
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" formControlName="phone" placeholder="(519) 000-0000">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ownerFirstName">Owner First Name</label>
+            <input type="text" id="ownerFirstName" formControlName="ownerFirstName" placeholder="Owner first name">
+          </div>
+          <div class="form-group">
+            <label for="ownerLastName">Owner Last Name</label>
+            <input type="text" id="ownerLastName" formControlName="ownerLastName" placeholder="Owner last name">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="managerFirstName">Manager First Name</label>
+            <input type="text" id="managerFirstName" formControlName="managerFirstName"
+              placeholder="Manager first name">
+          </div>
+          <div class="form-group">
+            <label for="managerLastName">Manager Last Name</label>
+            <input type="text" id="managerLastName" formControlName="managerLastName" placeholder="Manager last name">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bestVisitTime">Best Visit Time</label>
+            <input type="text" id="bestVisitTime" formControlName="bestVisitTime" placeholder="e.g. Tuesdays at 2pm">
+          </div>
+          <div class="form-group">
+            <label for="otherStoresOwned">Other Stores Owned</label>
+            <input type="text" id="otherStoresOwned" formControlName="otherStoresOwned" placeholder="Other locations">
+          </div>
+        </div>
+      </div>
+
+      <!-- Address -->
+      <div class="form-card" formGroupName="address">
+        <h2 class="card-title">Address</h2>
+
+        <div class="form-group">
+          <label for="street">Street Address</label>
+          <input type="text" id="street" formControlName="street" placeholder="123 Main Street">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" formControlName="city" placeholder="Kitchener">
+          </div>
+
+          <div class="form-group">
+            <label for="province">Province</label>
+            <select id="province" formControlName="province">
+              <option value="">Select province</option>
+              @for (prov of provinces; track prov.code) {
+              <option [value]="prov.code">{{ prov.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="postalCode">Postal Code</label>
+            <input type="text" id="postalCode" formControlName="postalCode" placeholder="N2G 1A1">
+          </div>
+
+          <div class="form-group">
+            <label for="country">Country</label>
+            <input type="text" id="country" formControlName="country">
+          </div>
+        </div>
+      </div>
+
+      <!-- GPS Location -->
+      <div class="form-card">
+        <h2 class="card-title">Location</h2>
+        <div class="form-group">
+          <label>GPS Coordinates</label>
+          <button type="button" class="btn-secondary" (click)="useMyLocation()" [disabled]="isLocating()">
+            {{ isLocating() ? 'Locating…' : '📍 Use My Location' }}
+          </button>
+          <div class="form-row mt-3">
+            <input type="number" step="any" formControlName="lat" placeholder="Latitude">
+            <input type="number" step="any" formControlName="lng" placeholder="Longitude">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <!-- Status -->
+      <div class="form-card">
+        <h2 class="card-title">Status</h2>
+
+        <div class="form-group">
+          <label for="status">Shop Status</label>
+          <select id="status" formControlName="status">
+            @for (s of statuses; track s.value) {
+            <option [value]="s.value">{{ s.label }}</option>
+            }
+          </select>
+        </div>
+
+        @if (showPipeline()) {
+        <div class="form-group">
+          <label for="pipelineStage">Pipeline Stage</label>
+          <select id="pipelineStage" formControlName="pipelineStage">
+            @for (p of pipelineStages; track p.value) {
+            <option [value]="p.value">{{ p.label }}</option>
+            }
+          </select>
+        </div>
+        }
+      </div>
+
+      <!-- Interests & Notes -->
+      <div class="form-card">
+        <h2 class="card-title">Details</h2>
+
+        <div class="form-group">
+          <label for="productsOfInterest">Products of Interest</label>
+          <input type="text" id="productsOfInterest" formControlName="productsOfInterest"
+            placeholder="Beverages, snacks...">
+          <div class="field-hint">Comma-separated</div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Internal Notes</label>
+          <textarea id="notes" formControlName="notes" rows="4" placeholder="Internal notes about this shop"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</form>

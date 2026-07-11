@@ -119,6 +119,19 @@
         </div>
       </div>
 
+      <div class="detail-card">
+        <h3>Linked Shop</h3>
+        @if (linkedShop()) {
+          <div class="linked-row">
+            <a [routerLink]="['/admin/shops', linkedShop()!.id]">{{ linkedShop()!.name }}</a>
+            <button type="button" class="btn-unlink" (click)="openUnlink()">Unlink</button>
+          </div>
+        } @else {
+          <p>No shop linked yet.</p>
+          <button class="btn btn-secondary" (click)="openLinkShop()">Link Shop</button>
+        }
+      </div>
+
       <!-- Financial Card -->
       <div class="detail-card">
         <h3 class="card-title">Financial Summary</h3>
@@ -328,6 +341,56 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+}
+
+@if (showLinkModal()) {
+  <app-entity-link-modal
+    title="Link this customer to a shop"
+    addNewLabel="Create new shop from this customer"
+    searchPlaceholder="Search shops without a customer…"
+    emptyText="No unlinked shops. Create a new one."
+    [items]="linkItems()" [suggestedIds]="linkSuggestedIds()" [busy]="linkBusy()"
+    (link)="onLinkShop($event)" (addNew)="onAddNewShop()" (close)="showLinkModal.set(false)">
+  </app-entity-link-modal>
+}
+
+@if (showUnlinkDialog()) {
+  <div class="unlink-backdrop" (click)="showUnlinkDialog.set(false)"></div>
+  <div class="unlink-modal">
+    <h3>Unlink customer from this shop?</h3>
+    <p>
+      This removes the link between <strong>{{ linkedShop()?.name }}</strong> and its customer.
+      The customer record itself is not deleted. Choose what this shop becomes:
+    </p>
+    <div class="unlink-status-options">
+      <label>
+        <input type="radio" name="unlinkStatus" value="prospect"
+          [checked]="unlinkNewStatus() === 'prospect'"
+          (change)="unlinkNewStatus.set('prospect')">
+        <span>Prospect <small>— still a lead worth pursuing</small></span>
+      </label>
+      <label>
+        <input type="radio" name="unlinkStatus" value="dormant"
+          [checked]="unlinkNewStatus() === 'dormant'"
+          (change)="unlinkNewStatus.set('dormant')">
+        <span>Dormant <small>— inactive, not currently pursued</small></span>
+      </label>
+      <label>
+        <input type="radio" name="unlinkStatus" value="not_interested"
+          [checked]="unlinkNewStatus() === 'not_interested'"
+          (change)="unlinkNewStatus.set('not_interested')">
+        <span>Not Interested <small>— declined, keep for records</small></span>
+      </label>
+    </div>
+    <div class="unlink-actions">
+      <button type="button" class="btn-cancel-edit" (click)="showUnlinkDialog.set(false)"
+        [disabled]="unlinkBusy()">Cancel</button>
+      <button type="button" class="btn-unlink-confirm" (click)="confirmUnlink()"
+        [disabled]="unlinkBusy()">
+        {{ unlinkBusy() ? 'Unlinking…' : 'Unlink' }}
+      </button>
     </div>
   </div>
 }

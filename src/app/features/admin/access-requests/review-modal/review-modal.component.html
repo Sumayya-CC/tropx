@@ -108,6 +108,47 @@
               <textarea class="form-control" rows="3" [ngModel]="approveNotes()" (ngModelChange)="approveNotes.set($event)" placeholder="Notes will be saved to the customer profile"></textarea>
             </div>
 
+            @if (request.status === 'pending') {
+              <div class="approve-field">
+                <label class="approve-label">Shop (optional)</label>
+                <p class="approve-hint">Link this application to a shop you already visit, or create one. You can skip and link later.</p>
+            
+                @if (suggestedShops().length > 0) {
+                  <div class="shop-suggestions">
+                    @for (shop of suggestedShops(); track shop.id) {
+                      <button type="button" class="shop-suggestion"
+                              [class.selected]="shopChoice() === 'existing' && selectedShopId() === shop.id"
+                              (click)="chooseExistingShop(shop)">
+                        <span class="ss-main">
+                          <span class="ss-title">{{ shop.name }}</span>
+                          <span class="ss-sub">{{ shop.address?.city }} · {{ shop.phone }}</span>
+                        </span>
+                        <span class="ss-tag">Suggested</span>
+                      </button>
+                    }
+                  </div>
+                }
+            
+                <div class="shop-choice-row">
+                  <button type="button" class="chip" [class.active]="shopChoice() === 'new'" (click)="chooseNewShop()">
+                    + Create new shop from application
+                  </button>
+                  <button type="button" class="chip" (click)="openShopBrowse()">
+                    Browse existing shops…
+                  </button>
+                  <button type="button" class="chip" [class.active]="shopChoice() === 'skip'" (click)="chooseSkipShop()">
+                    Skip for now
+                  </button>
+                </div>
+            
+                <div class="shop-choice-summary">
+                  @if (shopChoice() === 'existing') { Will link to: <strong>{{ selectedShopName() }}</strong> }
+                  @else if (shopChoice() === 'new') { Will create a new shop from this application }
+                  @else { No shop will be linked }
+                </div>
+              </div>
+            }
+
             <button class="btn btn-primary full-width" (click)="approve()" [disabled]="isSaving()">
               @if (isSaving()) {
                 <app-loading-spinner size="sm" color="white"></app-loading-spinner>
@@ -186,3 +227,16 @@
     </div>
   </div>
 </div>
+
+@if (showShopBrowse()) {
+  <app-entity-link-modal
+    title="Pick a shop to link"
+    addNewLabel="Create new shop from application"
+    searchPlaceholder="Search shops without a customer…"
+    emptyText="No unlinked shops. Create one from the application."
+    [items]="browseItems()" [suggestedIds]="browseSuggestedIds()"
+    (link)="onBrowsePickShop($event)"
+    (addNew)="chooseNewShop(); showShopBrowse.set(false)"
+    (close)="showShopBrowse.set(false)">
+  </app-entity-link-modal>
+}

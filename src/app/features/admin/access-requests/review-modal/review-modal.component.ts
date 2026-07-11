@@ -15,6 +15,10 @@ import { ServiceAreaSelectComponent } from '../../../../shared/components/servic
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 
 import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+import { ShopLinkService } from '../../../../core/services/shop-link.service';
+import { Shop } from '../../../../core/models/shop.model';
+import { normalizeSearchName } from '../../../../shared/utils/text.utils';
+import { EntityLinkModalComponent, LinkableItem } from '../../../../shared/components/entity-link-modal/entity-link-modal.component';
 
 @Component({
   selector: 'app-review-modal',
@@ -27,7 +31,8 @@ import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-n
     ServiceAreaSelectComponent, 
     LoadingSpinnerComponent,
     FullNamePipe,
-    OwnerFullNamePipe
+    OwnerFullNamePipe,
+    EntityLinkModalComponent
   ],
   templateUrl: './review-modal.component.html',
   styleUrl: './review-modal.component.scss'
@@ -40,6 +45,7 @@ export class ReviewModalComponent implements OnInit {
   private readonly _auth = inject(AuthService);
   private readonly _toast = inject(ToastService);
   private readonly _router = inject(Router);
+  private readonly shopLink = inject(ShopLinkService);
 
   isSaving = signal(false);
   
@@ -58,6 +64,17 @@ export class ReviewModalComponent implements OnInit {
   linkedCustomer = signal<any | null>(null);
   isLinkedCustomerDeleted = signal(false);
 
+  shopChoice = signal<'skip' | 'existing' | 'new'>('skip');
+  selectedShopId = signal<string | null>(null);
+  selectedShopName = signal<string>('');
+  suggestedShops = signal<Shop[]>([]);
+  private loadedShops = signal<Map<string, Shop>>(new Map());
+
+  // Browse-all sub-modal
+  showShopBrowse = signal(false);
+  browseItems = signal<LinkableItem[]>([]);
+  browseSuggestedIds = signal<string[]>([]);
+
   async ngOnInit() {
     await this.checkForDuplicateEmail();
     
@@ -72,6 +89,25 @@ export class ReviewModalComponent implements OnInit {
 
     if (this.request.serviceAreaId) {
       this.selectedAreaId.set(this.request.serviceAreaId);
+    }
+    
+    if (this.request.status === 'pending') {
+      try {
+        // AccessRequest has phone + businessName, which the suggestion query reads.
+        const matches = await this.shopLink.findShopSuggestionsForCustomer(this.request as any);
+        this.suggestedShops.set(matches);
+        const map = new Map<string, Shop>();
+        matches.forEach(s => map.set(s.id, s));
+        this.loadedShops.set(map);
+        // Auto-preselect the single strongest match, but it stays clearable.
+        if (matches.length === 1) {
+          this.selectedShopId.set(matches[0].id);
+          this.selectedShopName.set(matches[0].name);
+          this.shopChoice.set('existing');
+        }
+      } catch (e) {
+        console.error('Failed to load shop suggestions', e);
+      }
     }
   }
 
@@ -104,6 +140,54 @@ export class ReviewModalComponent implements OnInit {
       this.selectedAreaId.set(null);
       this.selectedAreaName.set('');
     }
+  }
+
+  chooseSkipShop() {
+    this.shopChoice.set('skip');
+    this.selectedShopId.set(null);
+    this.selectedShopName.set('');
+  }
+
+  chooseNewShop() {
+    this.shopChoice.set('new');
+    this.selectedShopId.set(null);
+    this.selectedShopName.set('');
+  }
+
+  chooseExistingShop(shop: Shop) {
+    this.shopChoice.set('existing');
+    this.selectedShopId.set(shop.id);
+    this.selectedShopName.set(shop.name);
+    this.loadedShops.update(m => { m.set(shop.id, shop); return new Map(m); });
+  }
+
+  async openShopBrowse() {
+    try {
+      const browse = await this.shopLink.listShopsWithoutCustomer();
+      const map = this.loadedShops();
+      browse.forEach(s => map.set(s.id, s));
+      this.loadedShops.set(new Map(map));
+      this.browseItems.set(browse.map(s => ({
+        id: s.id,
+        primaryText: s.name,
+        secondaryText: [s.address?.city, s.phone].filter(Boolean).join(' · '),
+      })));
+      this.browseSuggestedIds.set(this.suggestedShops().map(s => s.id));
+      this.showShopBrowse.set(true);
+    } catch (e) {
+      console.error('Failed to load shops', e);
+      this._toast.error('Could not load shops');
+    }
+  }
+
+  onBrowsePickShop(shopId: string) {
+    const shop = this.loadedShops().get(shopId);
+    if (shop) this.chooseExistingShop(shop);
+    this.showShopBrowse.set(false);
+  }
+
+  private hasAddress(a: any): boolean {
+    return !!(a && (a.street || a.city || a.province || a.postalCode));
   }
 
   async approve() {
@@ -158,6 +242,7 @@ export class ReviewModalComponent implements OnInit {
         logoUrl: null,
         notes: this.approveNotes().trim() || null,
         status: this.customerStatus(),
+        searchName: normalizeSearchName(this.request.businessName),
         source: 'access_request',
         linkedRequestId: this.request.id,
         tenantId: this.request.tenantId,
@@ -173,11 +258,63 @@ export class ReviewModalComponent implements OnInit {
 
       let newCustomerId = '';
 
+      const shopChoice = this.shopChoice();
+      let existingShop: Shop | null = null;
+      if (shopChoice === 'existing' && this.selectedShopId()) {
+        existingShop = this.loadedShops().get(this.selectedShopId()!) ?? null;
+        if (!existingShop) {
+          try {
+            existingShop = await firstValueFrom(
+              this._firestore.getDocument<Shop>(`shops/${this.selectedShopId()}`)
+            );
+          } catch { existingShop = null; }
+        }
+      }
+      const requestHasAddr = this.hasAddress(this.request.address);
+
       await this._firestore.runBatch(async (batch, db) => {
         const { collection, doc } = await import('@angular/fire/firestore');
         const custRef = doc(collection(db, 'customers'));
         newCustomerId = custRef.id;
-        batch.set(custRef, customerData);
+
+        let linkedShopId: string | null = null;
+
+        if (shopChoice === 'new') {
+          const shopRef = doc(collection(db, 'shops'));
+          linkedShopId = shopRef.id;
+          batch.set(shopRef, {
+            name: this.request.businessName,
+            ownerFirstName: this.request.ownerFirstName,
+            ownerLastName: this.request.ownerLastName ?? null,
+            phone: this.request.phone,
+            address: this.request.address ?? null,
+            searchName: normalizeSearchName(this.request.businessName),
+            status: 'customer',
+            linkedCustomerId: custRef.id,
+            hasCustomer: true,
+            tenantId: this.request.tenantId,
+            isDeleted: false,
+            createdAt: serverTimestamp() as any,
+            createdBy: actionBy || null,
+          });
+        } else if (shopChoice === 'existing' && existingShop) {
+          linkedShopId = existingShop.id;
+          const shopUpdate: any = {
+            linkedCustomerId: custRef.id,
+            hasCustomer: true,
+            status: 'customer',
+          };
+          if (!this.hasAddress(existingShop.address) && requestHasAddr) {
+            shopUpdate.address = this.request.address;
+          }
+          batch.update(doc(db, 'shops', existingShop.id), shopUpdate);
+        }
+
+        batch.set(custRef, {
+          ...customerData,
+          linkedShopId,
+          hasShop: linkedShopId != null,
+        });
 
         const reqRef = doc(db, 'accessRequests', this.request.id);
         batch.update(reqRef, {

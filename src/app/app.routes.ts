@@ -207,6 +207,34 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'shops',
+        loadComponent: () =>
+          import('./features/admin/shops/admin-shops.component').then(
+            (m) => m.AdminShopsComponent
+          ),
+      },
+      {
+        path: 'shops/add',
+        loadComponent: () =>
+          import('./features/admin/shops/shop-form/shop-form.component').then(
+            (m) => m.ShopFormComponent
+          ),
+      },
+      {
+        path: 'shops/:id/edit',
+        loadComponent: () =>
+          import('./features/admin/shops/shop-form/shop-form.component').then(
+            (m) => m.ShopFormComponent
+          ),
+      },
+      {
+        path: 'shops/:id',
+        loadComponent: () =>
+          import('./features/admin/shops/shop-detail/shop-detail.component').then(
+            (m) => m.ShopDetailComponent
+          ),
+      },
+      {
         path: 'orders',
         data: { title: 'Orders' },
         children: [

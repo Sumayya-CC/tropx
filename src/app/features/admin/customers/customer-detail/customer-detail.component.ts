@@ -14,8 +14,10 @@ import { Return } from '../../../../core/models/return.model';
 import { where, orderBy, limit, serverTimestamp } from '@angular/fire/firestore';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { take } from 'rxjs/operators';
-
 import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+import { ShopLinkService } from '../../../../core/services/shop-link.service';
+import { EntityLinkModalComponent, LinkableItem } from '../../../../shared/components/entity-link-modal/entity-link-modal.component';
+import { Shop } from '../../../../core/models/shop.model';
 
 interface ServiceArea {
   id: string;
@@ -27,7 +29,7 @@ interface ServiceArea {
 @Component({
   selector: 'app-customer-detail',
   standalone: true,
-  imports: [RouterLink, StatusBadgeComponent, LoadingSpinnerComponent, DatePipe, FullNamePipe, OwnerFullNamePipe],
+  imports: [RouterLink, StatusBadgeComponent, LoadingSpinnerComponent, DatePipe, FullNamePipe, OwnerFullNamePipe, EntityLinkModalComponent],
   templateUrl: './customer-detail.component.html',
   styleUrl: './customer-detail.component.scss'
 })
@@ -37,12 +39,19 @@ export class CustomerDetailComponent {
   private readonly firestore = inject(FirestoreService);
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
+  private readonly shopLink = inject(ShopLinkService);
 
   customer = signal<Customer | null>(null);
   serviceAreaName = signal<string>('Loading...');
   recentOrders = signal<Order[]>([]);
   isLoading = signal(true);
   isTogglingStatus = signal(false);
+
+  linkedShop = signal<Shop | null>(null);
+  showLinkModal = signal(false);
+  linkItems = signal<LinkableItem[]>([]);
+  linkSuggestedIds = signal<string[]>([]);
+  linkBusy = signal(false);
 
   private customerId = this.route.snapshot.paramMap.get('id') || '';
 
@@ -98,6 +107,16 @@ export class CustomerDetailComponent {
         }
         this.customer.set(data);
         this.resolveServiceArea(data);
+        
+        if (data.linkedShopId) {
+          this.firestore.getDocument<Shop>(`shops/${data.linkedShopId}`).subscribe({
+            next: (s) => this.linkedShop.set(s && !s.isDeleted ? s : null),
+            error: () => this.linkedShop.set(null),
+          });
+        } else {
+          this.linkedShop.set(null);
+        }
+
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -121,6 +140,85 @@ export class CustomerDetailComponent {
     } else {
       this.serviceAreaName.set('None');
     }
+  }
+
+  async openLinkShop() {
+    const c = this.customer();
+    if (!c) return;
+    this.linkBusy.set(true);
+    try {
+      const [suggestions, browse] = await Promise.all([
+        this.shopLink.findShopSuggestionsForCustomer(c),
+        this.shopLink.listShopsWithoutCustomer(),
+      ]);
+      const suggestedIds = suggestions.map(s => s.id);
+      const merged = [...suggestions, ...browse].filter(
+        (s, i, arr) => arr.findIndex(x => x.id === s.id) === i
+      );
+      this.linkItems.set(merged.map(s => ({
+        id: s.id,
+        primaryText: s.name,
+        secondaryText: [s.address?.city, s.phone].filter(Boolean).join(' · '),
+      })));
+      this.linkSuggestedIds.set(suggestedIds);
+      this.showLinkModal.set(true);
+    } catch (e) {
+      console.error('Failed to load shops for linking', e);
+      this.toast.error('Could not load shops');
+    } finally {
+      this.linkBusy.set(false);
+    }
+  }
+
+  async onLinkShop(shopId: string) {
+    const c = this.customer();
+    if (!c) return;
+    this.linkBusy.set(true);
+    try {
+      await this.shopLink.linkCustomerAndShop(c.id, shopId);
+      this.toast.success('Customer linked to shop');
+      this.showLinkModal.set(false);
+      this.loadCustomer(c.id);
+    } catch (e) {
+      console.error('Link failed', e);
+      this.toast.error('Failed to link');
+    } finally {
+      this.linkBusy.set(false);
+    }
+  }
+
+  showUnlinkDialog = signal(false);
+  unlinkNewStatus = signal<'prospect' | 'dormant' | 'not_interested'>('prospect');
+  unlinkBusy = signal(false);
+
+  openUnlink() {
+    this.unlinkNewStatus.set('prospect');
+    this.showUnlinkDialog.set(true);
+  }
+
+  async confirmUnlink() {
+    const c = this.customer();
+    const shopId = c?.linkedShopId;
+    if (!c || !shopId) return;
+    this.unlinkBusy.set(true);
+    try {
+      await this.shopLink.unlinkCustomerAndShop(c.id, shopId, this.unlinkNewStatus());
+      this.toast.success('Unlinked. Shop status updated.');
+      this.showUnlinkDialog.set(false);
+      this.linkedShop.set(null);
+      this.loadCustomer(c.id);
+    } catch (e) {
+      console.error('Unlink failed', e);
+      this.toast.error('Failed to unlink');
+    } finally {
+      this.unlinkBusy.set(false);
+    }
+  }
+
+  onAddNewShop() {
+    const c = this.customer();
+    if (!c) return;
+    this.router.navigate(['/admin/shops/add'], { queryParams: { fromCustomer: c.id } });
   }
 
   private loadRecentOrders(customerId: string) {

@@ -13,11 +13,11 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
   manager: [
     'viewProducts', 'editProducts', 'viewOrders', 'manageOrders',
     'viewPayments', 'recordPayments', 'viewCustomers', 'manageCustomers',
-    'addCustomer', 'adjustStock', 'viewDashboard', 'viewReports', 'approveAccess',
+    'addCustomer', 'adjustStock', 'viewDashboard', 'viewReports', 'approveAccess', 'manageShops',
   ],
   sales_rep: [
     'viewProducts', 'viewOrders', 'manageOrders',
-    'viewPayments', 'recordPayments', 'viewCustomers', 'addCustomer',
+    'viewPayments', 'recordPayments', 'viewCustomers', 'addCustomer', 'manageShops',
   ],
   warehouse: [
     'viewProducts', 'viewOrders', 'manageOrders', 'adjustStock', 'viewCustomers',

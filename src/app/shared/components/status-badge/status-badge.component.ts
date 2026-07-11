@@ -33,16 +33,16 @@ export class StatusBadgeComponent {
     }
 
     const s = this._status().toLowerCase();
-    const success = ['active', 'approved', 'paid', 'delivered', 'received', 'return_from_customer', 'in_stock'];
-    const warning = ['pending', 'partial', 'low_stock', 'correction', 'other', 'sample', 'out_for_delivery'];
-    const danger = ['inactive', 'rejected', 'suspended', 'voided', 'unpaid', 'damaged', 'expired', 'lost', 'out_of_stock', 'cancelled'];
+    const success = ['active', 'approved', 'paid', 'delivered', 'received', 'return_from_customer', 'in_stock', 'customer'];
+    const warning = ['pending', 'partial', 'low_stock', 'correction', 'other', 'sample', 'out_for_delivery', 'prospect'];
+    const danger = ['inactive', 'rejected', 'suspended', 'voided', 'unpaid', 'damaged', 'expired', 'lost', 'out_of_stock', 'cancelled', 'dormant'];
     const info = ['manager', 'warehouse', 'sales_rep', 'confirmed'];
 
     if (success.includes(s)) return 'badge-success';
     if (warning.includes(s)) return 'badge-warning';
     if (danger.includes(s)) return 'badge-danger';
     if (info.includes(s)) return 'badge-info';
-    return 'badge-gray';
+    return 'badge-gray'; // 'not_interested' falls back to here
   });
 
   displayLabel = computed(() => {

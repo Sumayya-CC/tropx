@@ -1,0 +1,83 @@
+<app-page-header
+  title="Shops"
+  subtitle="Every place you visit — customers and prospects"
+  buttonLabel="Add Shop"
+  (buttonClick)="router.navigate(['/admin/shops/add'])">
+</app-page-header>
+
+<div class="stats-row">
+  <div class="stat-card stat-default"><div class="stat-label">Total Shops</div><div class="stat-value">{{ stats().total }}</div></div>
+  <div class="stat-card stat-gold"><div class="stat-label">Prospects</div><div class="stat-value">{{ stats().prospects }}</div></div>
+  <div class="stat-card stat-green"><div class="stat-label">Customers</div><div class="stat-value">{{ stats().customers }}</div></div>
+  <div class="stat-card stat-red"><div class="stat-label">Dormant</div><div class="stat-value">{{ stats().dormant }}</div></div>
+</div>
+
+<div class="filter-bar">
+  <div class="search-wrapper">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search by shop name, owner, manager, phone, city...">
+  </div>
+  <select class="filter-select" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+    <option value="all">All Status</option>
+    <option value="prospect">Prospect</option>
+    <option value="customer">Customer</option>
+    <option value="dormant">Dormant</option>
+    <option value="not_interested">Not Interested</option>
+  </select>
+</div>
+
+@if (isLoading()) {
+  <div class="loading-state"><div class="spinner"></div><p>Loading shops...</p></div>
+} @else {
+  @if (filteredShops().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"></path><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"></path><path d="M9 22V12h6v10"></path></svg>
+      </div>
+      <h3>No shops found</h3>
+      <p>@if (searchQuery() || statusFilter() !== 'all') { Try adjusting your filters. } @else { Add your first shop or prospect. }</p>
+      @if (!searchQuery() && statusFilter() === 'all') {
+        <button class="btn-primary mt-3" routerLink="/admin/shops/add">Add First Shop</button>
+      }
+    </div>
+  } @else {
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Shop</th><th>Contact</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            @for (shop of filteredShops(); track shop.id) {
+              <tr (click)="goToDetails(shop.id)">
+                <td class="business-col">
+                  <div class="business-cell-content">
+                    <div class="table-avatar">{{ getInitials(shop.name) }}</div>
+                    <div class="business-info">
+                      <div class="business-name">{{ shop.name }}</div>
+                      <div class="owner-name">{{ (shop | ownerFullName) || '—' }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="contact-col"><div class="phone">{{ shop.phone || '—' }}</div></td>
+                <td class="location-col">
+                  <div class="city">{{ shop.address?.city || '—' }}</div>
+                  <div class="province">{{ shop.address?.province || '' }}</div>
+                </td>
+                <td><app-status-badge [status]="shop.status"></app-status-badge></td>
+                <td>
+                  <div class="actions-cell">
+                    <button class="action-btn" (click)="$event.stopPropagation(); goToDetails(shop.id)" title="View">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                    <button class="action-btn" (click)="$event.stopPropagation()" [routerLink]="['/admin/shops', shop.id, 'edit']" title="Edit">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+}

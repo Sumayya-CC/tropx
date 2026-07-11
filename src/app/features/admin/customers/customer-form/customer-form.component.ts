@@ -6,9 +6,12 @@ import { ToastService } from '../../../../shared/services/toast.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { Customer } from '../../../../core/models/customer.model';
+import { Shop } from '../../../../core/models/shop.model';
 import { where, serverTimestamp } from '@angular/fire/firestore';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { ServiceAreaSelectComponent } from '../../../../shared/components/service-area-select/service-area-select.component';
+import { normalizeSearchName } from '../../../../shared/utils/text.utils';
+import { ShopLinkService } from '../../../../core/services/shop-link.service';
 
 interface ServiceArea {
   id: string;
@@ -32,12 +35,14 @@ export class CustomerFormComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly storage = inject(Storage);
+  private readonly shopLink = inject(ShopLinkService);
 
   isEditMode = signal(false);
   isLoading = signal(false);
   isSaving = signal(false);
   customerId = signal<string | null>(null);
   customer = signal<Customer | null>(null);
+  fromShopId = signal<string | null>(null);
   
   logoFile = signal<File | null>(null);
   logoPreviewUrl = signal<string | null>(null);
@@ -97,7 +102,30 @@ export class CustomerFormComponent implements OnInit {
       this.isEditMode.set(true);
       this.customerId.set(id);
       this.loadCustomer(id);
+    } else {
+      const fromShop = this.route.snapshot.queryParamMap.get('fromShop');
+      if (fromShop) { this.fromShopId.set(fromShop); this.prefillFromShop(fromShop); }
     }
+  }
+
+  private prefillFromShop(shopId: string) {
+    this.firestore.getDocument<Shop>(`shops/${shopId}`).subscribe({
+      next: (s) => {
+        if (!s || s.isDeleted) return;
+        this.form.patchValue({
+          businessName: s.name,
+          ownerFirstName: s.ownerFirstName || '',
+          ownerLastName: s.ownerLastName || '',
+          phone: s.phone || '',
+          address: {
+            street: s.address?.street || '', city: s.address?.city || '',
+            province: s.address?.province || '', postalCode: s.address?.postalCode || '',
+            country: 'Canada',
+          },
+        });
+      },
+      error: (e) => console.error('Failed to prefill from shop', e),
+    });
   }
 
   onServiceAreaChanged(area: { id: string; name: string } | null) {
@@ -249,6 +277,7 @@ export class CustomerFormComponent implements OnInit {
           serviceAreaId,
           serviceAreaCustom,
           status: val.status,
+          searchName: normalizeSearchName(val.businessName),
           notes: val.notes,
           updatedAt: serverTimestamp(),
         });
@@ -277,6 +306,8 @@ export class CustomerFormComponent implements OnInit {
           status: val.status,
           notes: val.notes,
           source: 'admin_created',
+          searchName: normalizeSearchName(val.businessName),
+          hasShop: false,
           tenantId: 1,
           isDeleted: false,
           totalOrderedCents: 0,
@@ -297,6 +328,12 @@ export class CustomerFormComponent implements OnInit {
           await this.firestore.updateDocument(`customers/${docRef.id}`, {
             logoUrl: finalLogoUrl
           });
+        }
+        
+        const fromShop = this.fromShopId();
+        if (fromShop) {
+          try { await this.shopLink.linkCustomerAndShop(docRef.id, fromShop); }
+          catch (e) { console.error('Auto-link to shop failed', e); this.toast.error('Customer saved, but linking to the shop failed — link it manually.'); }
         }
         
         this.toast.success('Customer added successfully');

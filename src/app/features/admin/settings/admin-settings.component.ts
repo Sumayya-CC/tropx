@@ -56,10 +56,12 @@ export class AdminSettingsComponent {
   editingMinimumOrder = signal(false);
   editingClosure = signal(false);
   editingNotifications = signal(false);
-
   editingReconciliation = signal(false);
+  editingShopLink = signal(false);
 
   // Reconciliation form signals
+  shopLinkReconEnabled = signal(true);
+  isReconcilingLinks = signal(false);
   reconNotifyThresholdDollars = signal(1);
   reconAutoCorrectMaxDollars = signal(50);
   reconAutoCorrectEnabled = signal(true);
@@ -403,6 +405,7 @@ export class AdminSettingsComponent {
       );
       this.reconAutoCorrectEnabled.set(r.autoCorrectEnabled);
       this.reconNotifyAdmin.set(r.notifyAdmin);
+      this.shopLinkReconEnabled.set((r as any).shopLink?.enabled !== false);
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -1589,6 +1592,50 @@ export class AdminSettingsComponent {
       );
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  editShopLink() {
+    this.editingShopLink.set(true);
+  }
+
+  cancelShopLink() {
+    const r = this.settings.reconciliation() as any;
+    this.shopLinkReconEnabled.set(r.shopLink?.enabled !== false);
+    this.editingShopLink.set(false);
+  }
+
+  async saveShopLink() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.updateDocument('settings/reconciliation', {
+        shopLink: { enabled: this.shopLinkReconEnabled() },
+      });
+      this.toast.success('Shop ↔ customer linking settings saved');
+      this.editingShopLink.set(false);
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to save linking settings');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async reconcileLinksNow() {
+    this.isReconcilingLinks.set(true);
+    try {
+      const fn = httpsCallable(this.functions2, 'reconcileShopLinksNow');
+      const res: any = await fn({});
+      const d = res.data || {};
+      this.toast.success(
+        `Reconciled: ${d.healed ?? 0} healed, ${d.flagged ?? 0} need review, ` +
+        `${d.backfilled ?? 0} backfilled (scanned ${d.scanned ?? 0})`
+      );
+    } catch (err) {
+      console.error('Link reconcile failed', err);
+      this.toast.error('Reconcile failed — check console');
+    } finally {
+      this.isReconcilingLinks.set(false);
     }
   }
 

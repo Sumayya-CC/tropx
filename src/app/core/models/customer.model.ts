@@ -37,6 +37,11 @@ export interface Customer {
   status: CustomerStatus;
   source: CustomerSource;
   linkedUserId?: string;
+  linkedShopId?: string;
+  // Maintained by link writes + nightly reconciliation. Missing == false (legacy records).
+  hasShop?: boolean;
+  // Normalized businessName for indexed prefix search in the link picker.
+  searchName?: string;
 
   // Vendor-neutral external payment processor
   // customer ID. Stores Stripe cus_xxx today,

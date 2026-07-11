@@ -1,0 +1,213 @@
+@if (isLoading()) {
+<div class="loading-state">
+  <app-loading-spinner></app-loading-spinner>
+  <p>Loading shop details...</p>
+</div>
+}
+
+@if (shop(); as s) {
+<div class="page-header">
+  <div class="left-section">
+    <a routerLink="/admin/shops" class="back-link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Shops
+    </a>
+    <div class="title-group">
+      <h1>{{ s.name }}</h1>
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <!-- Edit button -->
+    <button class="btn btn-outline" [routerLink]="['/admin/shops', s.id, 'edit']">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>
+      Edit
+    </button>
+
+    <button class="btn btn-outline" (click)="makeCustomer()">
+      {{ s.linkedCustomerId ? 'View Customer' : 'Make Customer' }}
+    </button>
+
+    <!-- Delete button -->
+    <button class="btn btn-outline btn-danger" (click)="deleteShop()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      </svg>
+      Delete
+    </button>
+  </div>
+</div>
+
+<div class="content-layout">
+  <div class="left-col">
+    <!-- Contact Card -->
+    <div class="detail-card">
+      <div class="avatar-circle">{{ getInitials(s.name) }}</div>
+      <div class="info-rows">
+        <div class="info-row">
+          <span class="icon">👤</span>
+          <div class="info-content">
+            <span class="label">Owner</span>
+            <span class="value">{{ (s | ownerFullName) || '—' }}</span>
+          </div>
+        </div>
+        <div class="info-row">
+          <span class="icon">🧑</span>
+          <div class="info-content">
+            <span class="label">Manager</span>
+            <span class="value">{{ managerName() || '—' }}</span>
+          </div>
+        </div>
+        <div class="info-row">
+          <span class="icon">📞</span>
+          <div class="info-content">
+            <span class="label">Phone</span>
+            <span class="value">{{ s.phone || '—' }}</span>
+          </div>
+        </div>
+        <div class="info-row">
+          <span class="icon">📍</span>
+          <div class="info-content">
+            <span class="label">Address</span>
+            <span class="value">
+              @if (s.address?.street || s.address?.city) {
+              {{ s.address?.street || '' }}<br>
+              {{ s.address?.city || '' }}{{ s.address?.province ? ', ' + s.address?.province : '' }} {{
+              s.address?.postalCode || '' }}
+              } @else { — }
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Linked Customer Card -->
+    <div class="detail-card">
+      <h3 class="card-title">Linked Customer</h3>
+      @if (linkedCustomer()) {
+      <div class="linked-row">
+        <a [routerLink]="['/admin/customers', linkedCustomer()!.id]">
+          {{ linkedCustomer()!.businessName }}
+        </a>
+        <button type="button" class="btn-unlink" (click)="openUnlink()">Unlink</button>
+      </div>
+      } @else {
+      <p style="color: var(--gray); font-size: 0.875rem; margin: 0 0 1rem;">
+        Not yet a customer.
+      </p>
+      <button class="btn btn-outline" (click)="makeCustomer()">Make Customer</button>
+      }
+    </div>
+  </div>
+
+  <div class="right-col">
+    <!-- Details Card -->
+    <div class="detail-card">
+      <h3 class="card-title">Shop Details</h3>
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="label">Status</span>
+          <span class="value"><span class="status-pill">{{ statusLabel() }}</span></span>
+        </div>
+        @if (s.status === 'prospect' && s.pipelineStage) {
+        <div class="detail-item">
+          <span class="label">Pipeline Stage</span>
+          <span class="value"><span class="pipeline-pill">{{ pipelineLabel() }}</span></span>
+        </div>
+        }
+        <div class="detail-item">
+          <span class="label">Best Visit Time</span>
+          <span class="value">{{ s.bestVisitTime || '—' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Other Stores Owned</span>
+          <span class="value">{{ s.otherStoresOwned || '—' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Coordinates</span>
+          <span class="value">
+            @if (s.coordinates) { {{ s.coordinates.lat }}, {{ s.coordinates.lng }} }
+            @else { — }
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Products of Interest</span>
+          <span class="value">
+            @if (s.productsOfInterest?.length) { {{ s.productsOfInterest?.join(', ') }} }
+            @else { — }
+          </span>
+        </div>
+        @if (s.notes) {
+        <div class="detail-item full-width mt-3">
+          <span class="label">Notes</span>
+          <span class="value notes-text">{{ s.notes }}</span>
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- Visit History Card -->
+    <div class="detail-card">
+      <h3 class="card-title">Visit History</h3>
+      <div class="empty-orders">
+        <p>Visit logging arrives in Phase 2.</p>
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+@if (showLinkModal()) {
+<app-entity-link-modal title="Link this shop to a customer" addNewLabel="Create new customer from this shop"
+  searchPlaceholder="Search customers without a shop…" emptyText="No unlinked customers. Create a new one."
+  [items]="linkItems()" [suggestedIds]="linkSuggestedIds()" [busy]="linkBusy()" (link)="onLinkCustomer($event)"
+  (addNew)="onAddNewCustomer()" (close)="showLinkModal.set(false)">
+</app-entity-link-modal>
+}
+
+@if (showUnlinkDialog()) {
+<div class="unlink-backdrop" (click)="showUnlinkDialog.set(false)"></div>
+<div class="unlink-modal">
+  <h3>Unlink customer from this shop?</h3>
+  <p>
+    This removes the link between <strong>{{ shop()?.name }}</strong> and its customer.
+    The customer record itself is not deleted. Choose what this shop becomes:
+  </p>
+  <div class="unlink-status-options">
+    <label>
+      <input type="radio" name="unlinkStatus" value="prospect" [checked]="unlinkNewStatus() === 'prospect'"
+        (change)="unlinkNewStatus.set('prospect')">
+      <span>Prospect <small>— still a lead worth pursuing</small></span>
+    </label>
+    <label>
+      <input type="radio" name="unlinkStatus" value="dormant" [checked]="unlinkNewStatus() === 'dormant'"
+        (change)="unlinkNewStatus.set('dormant')">
+      <span>Dormant <small>— inactive, not currently pursued</small></span>
+    </label>
+    <label>
+      <input type="radio" name="unlinkStatus" value="not_interested" [checked]="unlinkNewStatus() === 'not_interested'"
+        (change)="unlinkNewStatus.set('not_interested')">
+      <span>Not Interested <small>— declined, keep for records</small></span>
+    </label>
+  </div>
+  <div class="unlink-actions">
+    <button type="button" class="btn-cancel-edit" (click)="showUnlinkDialog.set(false)"
+      [disabled]="unlinkBusy()">Cancel</button>
+    <button type="button" class="btn-unlink-confirm" (click)="confirmUnlink()" [disabled]="unlinkBusy()">
+      {{ unlinkBusy() ? 'Unlinking…' : 'Unlink' }}
+    </button>
+  </div>
+</div>
+}

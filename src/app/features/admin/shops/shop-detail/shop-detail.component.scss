@@ -114,9 +114,7 @@
   flex-direction: column;
   gap: 1.5rem;
 
-  @media (max-width: 900px) {
-    width: 100%;
-  }
+  @media (max-width: 900px) { width: 100%; }
 }
 
 .right-col {
@@ -124,7 +122,28 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  min-width: 0; // prevents overflow flex issues
+  min-width: 0;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  background: rgba(201, 149, 42, 0.12);
+  color: var(--gold);
+}
+
+.pipeline-pill {
+  display: inline-flex;
+  padding: 0.2rem 0.625rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(22, 88, 142, 0.1);
+  color: var(--navy);
 }
 
 .detail-card {

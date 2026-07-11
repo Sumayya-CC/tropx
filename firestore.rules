@@ -237,6 +237,17 @@ service cloud.firestore {
       allow read, update, delete: if isStaff();
     }
 
+    // ── Shops (field ops) ────────────────────────────────
+    // Staff only — no customer access.
+    match /shops/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    // ── Visits (field ops) ───────────────────────────────
+    match /visits/{doc} {
+      allow read, write: if isStaff();
+    }
+
     // ── Fallback ──────────────────────────────────────────
     // Any unlisted collection requires staff access.
     // Prevents new collections from being accidentally

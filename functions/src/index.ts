@@ -709,6 +709,324 @@ export const weeklyReconcileSweep = onSchedule(
   }
 );
 
+// ═══ Shop↔Customer Link Reconciliation ═══════════════════════════════════
+// Keeps the bidirectional Shop/Customer link and its denormalized flags
+// honest. Heals unambiguous drift automatically; logs ambiguous conflicts
+// for manual review. The link WRITES (client-side ShopLinkService + the
+// approval batch) remain the source of truth — this is the safety net for
+// partial failures, manual console edits, and legacy records.
+
+// normalizeSearchName — MUST match src/app/shared/utils/text.utils.ts exactly.
+function normalizeSearchNameFn(value: string | null | undefined): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+interface LinkReconSummary {
+  scanned: number;
+  healed: number;
+  flagged: number;
+  backfilled: number;
+}
+
+interface LinkReconConfig {
+  enabled: boolean;
+}
+
+async function getLinkReconConfig(): Promise<LinkReconConfig> {
+  try {
+    const doc = await db.collection("settings").doc("reconciliation").get();
+    const d = doc.data() || {};
+    const s = d.shopLink || {};
+    return {enabled: s.enabled !== false}; // default ON
+  } catch {
+    return {enabled: true};
+  }
+}
+
+// Reconcile ONE customer + its linked shop. Returns which buckets it touched.
+// Auto-heals: flag↔link agreement, dangling pointer, missing back-pointer,
+// stale searchName, shop status coherence. Flags (no write): three-way
+// mismatch (cust→shopA but shopA→custB), and shop claimed by another customer.
+async function reconcileOneCustomer(
+  customerId: string
+): Promise<{healed: boolean; flagged: boolean; backfilled: boolean}> {
+  const custRef = db.collection("customers").doc(customerId);
+  const custSnap = await custRef.get();
+  if (!custSnap.exists) return {healed: false, flagged: false, backfilled: false};
+  const cust = custSnap.data() || {};
+  if (cust.isDeleted) return {healed: false, flagged: false, backfilled: false};
+
+  const custUpdate: Record<string, any> = {};
+  let flagged = false;
+  let backfilled = false;
+  const stamp = admin.firestore.FieldValue.serverTimestamp();
+
+  // searchName backfill/refresh (first-run migration + drift).
+  const wantSearch = normalizeSearchNameFn(cust.businessName);
+  if ((cust.searchName || "") !== wantSearch) {
+    custUpdate.searchName = wantSearch;
+    if (cust.searchName === undefined) backfilled = true;
+  }
+
+  const linkedShopId: string | null = cust.linkedShopId ?? null;
+
+  if (!linkedShopId) {
+    // No shop link → hasShop must be false.
+    if (cust.hasShop !== false) {
+      custUpdate.hasShop = false;
+      if (cust.hasShop === undefined) backfilled = true;
+    }
+  } else {
+    const shopRef = db.collection("shops").doc(linkedShopId);
+    const shopSnap = await shopRef.get();
+
+    if (!shopSnap.exists || shopSnap.data()?.isDeleted) {
+      // Dangling pointer → clear it, hasShop false. (Unambiguous heal.)
+      custUpdate.linkedShopId = admin.firestore.FieldValue.delete();
+      custUpdate.hasShop = false;
+    } else {
+      const shop = shopSnap.data() || {};
+      const backRef: string | null = shop.linkedCustomerId ?? null;
+
+      if (backRef === customerId) {
+        // Healthy link. Ensure flags + shop coherence.
+        if (cust.hasShop !== true) {
+          custUpdate.hasShop = true;
+          if (cust.hasShop === undefined) backfilled = true;
+        }
+        const shopUpdate: Record<string, any> = {};
+        if (shop.hasCustomer !== true) {
+          shopUpdate.hasCustomer = true;
+          if (shop.hasCustomer === undefined) backfilled = true;
+        }
+        if (shop.status !== "customer") shopUpdate.status = "customer";
+        const shopWantSearch = normalizeSearchNameFn(shop.name);
+        if ((shop.searchName || "") !== shopWantSearch) {
+          shopUpdate.searchName = shopWantSearch;
+          if (shop.searchName === undefined) backfilled = true;
+        }
+        if (Object.keys(shopUpdate).length > 0) {
+          await shopRef.update(shopUpdate);
+        }
+      } else if (backRef == null) {
+        // One-way link (cust→shop, shop has no back-pointer). Heal: set back-pointer.
+        await shopRef.update({
+          linkedCustomerId: customerId,
+          hasCustomer: true,
+          status: "customer",
+        });
+        if (cust.hasShop !== true) custUpdate.hasShop = true;
+      } else {
+        // Three-way mismatch: cust→shop, but shop→someone else. AMBIGUOUS.
+        flagged = true;
+        await db.collection("reconciliationLog").add({
+          kind: "shop_link",
+          status: "needs_review",
+          reason: "three_way_mismatch",
+          customerId,
+          shopId: linkedShopId,
+          shopLinkedCustomerId: backRef,
+          tenantId: 1,
+          detectedAt: stamp,
+          resolvedAt: null,
+          resolvedBy: null,
+        });
+        // Do NOT touch either side.
+      }
+    }
+  }
+
+  const healed = Object.keys(custUpdate).length > 0;
+  if (healed) {
+    custUpdate.linkReconciledAt = stamp;
+    await custRef.update(custUpdate);
+  } else {
+    // Still stamp watermark so we don't reprocess a clean doc every incremental run.
+    await custRef.update({linkReconciledAt: stamp});
+  }
+
+  return {healed, flagged, backfilled};
+}
+
+// Reconcile shops that have NO customer link (the customer loop above only
+// visits shops reachable from a customer). Catches orphan flags on prospect
+// shops + backfills their searchName/hasCustomer.
+async function reconcileOrphanShops(
+  shopIds: string[]
+): Promise<{healed: number; backfilled: number}> {
+  let healed = 0;
+  let backfilled = 0;
+  for (const id of shopIds) {
+    const ref = db.collection("shops").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) continue;
+    const shop = snap.data() || {};
+    if (shop.isDeleted) continue;
+    if (shop.linkedCustomerId) continue; // handled via customer loop
+
+    const update: Record<string, any> = {};
+    if (shop.hasCustomer !== false) {
+      update.hasCustomer = false;
+      if (shop.hasCustomer === undefined) backfilled++;
+    }
+    const wantSearch = normalizeSearchNameFn(shop.name);
+    if ((shop.searchName || "") !== wantSearch) {
+      update.searchName = wantSearch;
+      if (shop.searchName === undefined) backfilled++;
+    }
+    if (Object.keys(update).length > 0) {
+      await ref.update(update);
+      healed++;
+    }
+  }
+  return {healed, backfilled};
+}
+
+// Core sweep. mode 'full' scans everything; 'incremental' only customers
+// whose doc changed since their last link-reconcile watermark.
+async function reconcileShopLinks(
+  mode: "full" | "incremental"
+): Promise<LinkReconSummary> {
+  const summary: LinkReconSummary = {scanned: 0, healed: 0, flagged: 0, backfilled: 0};
+
+  // ── customers ──
+  const customerIds: string[] = [];
+  const pageSize = 500;
+  let last: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+
+  for (let page = 0; page < 20; page++) {
+    let q = db.collection("customers")
+      .where("tenantId", "==", 1)
+      .where("isDeleted", "==", false)
+      .orderBy("businessName")
+      .limit(pageSize);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      if (mode === "incremental") {
+        const d = doc.data();
+        const changed = d.updatedAt?.toMillis?.() ??
+          d.createdAt?.toMillis?.() ?? 0;
+        const reconciled = d.linkReconciledAt?.toMillis?.() ?? 0;
+        // First-run (no watermark) always qualifies → doubles as backfill.
+        if (reconciled !== 0 && changed <= reconciled) continue;
+      }
+      customerIds.push(doc.id);
+    }
+    last = snap.docs[snap.docs.length - 1];
+    if (snap.docs.length < pageSize) break;
+  }
+
+  for (const id of customerIds) {
+    try {
+      const r = await reconcileOneCustomer(id);
+      summary.scanned++;
+      if (r.healed) summary.healed++;
+      if (r.flagged) summary.flagged++;
+      if (r.backfilled) summary.backfilled++;
+    } catch (err) {
+      console.error(`Link reconcile failed for customer ${id}:`, err);
+    }
+  }
+
+  // ── orphan shops (full sweep only — cheap enough, and where legacy prospect
+  //    shops get their flags backfilled) ──
+  if (mode === "full") {
+    const shopIds: string[] = [];
+    last = null;
+    for (let page = 0; page < 20; page++) {
+      let q = db.collection("shops")
+        .where("tenantId", "==", 1)
+        .where("isDeleted", "==", false)
+        .orderBy("name")
+        .limit(pageSize);
+      if (last) q = q.startAfter(last);
+      const snap = await q.get();
+      if (snap.empty) break;
+      for (const doc of snap.docs) shopIds.push(doc.id);
+      last = snap.docs[snap.docs.length - 1];
+      if (snap.docs.length < pageSize) break;
+    }
+    const orphan = await reconcileOrphanShops(shopIds);
+    summary.healed += orphan.healed;
+    summary.backfilled += orphan.backfilled;
+    summary.scanned += shopIds.length;
+  }
+
+  console.log(
+    `Link reconcile (${mode}): scanned ${summary.scanned}, ` +
+    `healed ${summary.healed}, flagged ${summary.flagged}, ` +
+    `backfilled ${summary.backfilled}`
+  );
+  return summary;
+}
+
+// Nightly incremental — only recently-changed customers.
+export const nightlyLinkReconcile = onSchedule(
+  {
+    schedule: "every day 03:30",
+    timeZone: "America/Toronto",
+    region: "northamerica-northeast1",
+    timeoutSeconds: 540,
+    secrets: [],
+  },
+  async () => {
+    const cfg = await getLinkReconConfig();
+    if (!cfg.enabled) {
+      console.log("Link reconcile disabled — skipping nightly");
+      return;
+    }
+    await reconcileShopLinks("incremental");
+  }
+);
+
+// Weekly full — backstop that catches dormant/legacy drift the incremental misses.
+export const weeklyLinkReconcile = onSchedule(
+  {
+    schedule: "every sunday 04:30",
+    timeZone: "America/Toronto",
+    region: "northamerica-northeast1",
+    timeoutSeconds: 540,
+    secrets: [],
+  },
+  async () => {
+    const cfg = await getLinkReconConfig();
+    if (!cfg.enabled) {
+      console.log("Link reconcile disabled — skipping weekly");
+      return;
+    }
+    await reconcileShopLinks("full");
+  }
+);
+
+// On-demand "Reconcile Now" — always a FULL sweep. Region matches app.config
+// (northamerica-northeast2) so the callable resolves, same as the backfill callable.
+export const reconcileShopLinksNow = onCall(
+  {
+    region: "northamerica-northeast2",
+    secrets: [],
+    cors: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be authenticated");
+    }
+    if (request.auth.token["role"] !== "admin") {
+      throw new HttpsError("permission-denied", "Admin only");
+    }
+    // Manual runs ignore the enabled flag — pressing the button IS intent.
+    const summary = await reconcileShopLinks("full");
+    return summary;
+  }
+);
 
 // ─── Welcome Email ─────────────────────────────────────────────────────────
 export const onAccessRequestApproved = onDocumentCreated(
