@@ -43,15 +43,24 @@ export interface Shop {
 }
 
 export interface VisitItem {
-  productId?: string;
-  productName: string;
-  left?: number;
-  found?: number;
-  added?: number;
+  productId?: string;          // catalog SKU; undefined for free-text
+  productName: string;         // always present
+  left?: number;               // on shelf at start (auto-filled from last visit)
+  found?: number;              // still there now
+  added?: number;              // restocked this visit
+  soldSinceLastVisit?: number; // computed on save: left - found (>=0)
+  isSample?: boolean;          // sample giveaway
+  sampleQty?: number;          // qty sampled ($0, adjusts stock for catalog items)
 }
 
 export type VisitOutcome =
-  | 'ordered' | 'no_order' | 'follow_up' | 'not_interested' | 'sample_left';
+  | 'ordered'
+  | 'restocked'
+  | 'no_action'
+  | 'follow_up'
+  | 'not_interested'
+  | 'sample_left'
+  | 'converted';
 
 export interface Visit {
   id: string;
@@ -59,11 +68,12 @@ export interface Visit {
   visitDate: Date;
   items: VisitItem[];
   outcome?: VisitOutcome;
-  notes?: string;
   managerAvailable?: boolean;
-  fuelCents?: number;
-  visitedBy: ActionBy;
+  notes?: string;
+  markedConversion?: boolean;
+  restockOrderId?: string;   // set when an order was created from this visit's restock
 
+  visitedBy: ActionBy;
   tenantId: number;
   createdAt: Date;
   isDeleted: boolean;

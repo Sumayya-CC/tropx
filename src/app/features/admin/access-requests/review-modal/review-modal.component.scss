@@ -409,3 +409,31 @@
   font-size: 0.8rem;
   margin: 0.1rem 0;
 }
+
+.shop-picker { margin-top: .5rem; }
+.shop-suggest-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+  color: #64748b; font-weight: 700; margin-bottom: .5rem; }
+.shop-suggest-grid { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; }
+.shop-card { display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  width: 100%; text-align: left; padding: .75rem .875rem; border: 1.5px solid #e2e8f0;
+  border-radius: 10px; background: #fff; cursor: pointer; transition: all .15s; }
+.shop-card:hover { border-color: var(--navy); background: #f8fafc; }
+.shop-card.selected { border-color: var(--green); background: rgba(26,124,74,.06); }
+.shop-card-main { display: flex; flex-direction: column; min-width: 0; }
+.shop-card-name { font-weight: 600; color: #1e293b; font-size: .9rem; }
+.shop-card-sub { font-size: .78rem; color: #64748b; }
+.shop-card-check { opacity: 0; color: var(--green); font-weight: 700; font-size: 1.1rem; }
+.shop-card.selected .shop-card-check { opacity: 1; }
+.shop-choice-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .625rem; }
+@media (max-width: 520px) { .shop-choice-cards { grid-template-columns: 1fr; } }
+.choice-card { display: flex; align-items: center; gap: .625rem; padding: .75rem; border: 1.5px solid #e2e8f0;
+  border-radius: 10px; background: #fff; cursor: pointer; transition: all .15s; text-align: left; }
+.choice-card:hover { border-color: var(--navy); background: #f8fafc; }
+.choice-card.active { border-color: var(--navy); background: rgba(30,58,138,.06); }
+.choice-icon { font-size: 1.1rem; flex-shrink: 0; }
+.choice-text { display: flex; flex-direction: column; line-height: 1.2; }
+.choice-text strong { font-size: .82rem; color: #1e293b; }
+.choice-text small { font-size: .7rem; color: #64748b; }
+.shop-choice-summary { margin-top: .875rem; padding: .625rem .875rem; border-radius: 8px;
+  background: #f1f5f9; font-size: .82rem; color: #475569; }
+.shop-choice-summary.has-selection { background: rgba(26,124,74,.08); color: #1a7c4a; }

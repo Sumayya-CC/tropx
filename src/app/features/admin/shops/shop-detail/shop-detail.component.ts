@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, computed } from '@angular/core';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../../../core/services/firestore.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
@@ -10,11 +10,18 @@ import { serverTimestamp } from '@angular/fire/firestore';
 import { OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
 import { ShopLinkService } from '../../../../core/services/shop-link.service';
 import { EntityLinkModalComponent, LinkableItem } from '../../../../shared/components/entity-link-modal/entity-link-modal.component';
+import { LogVisitComponent } from '../log-visit/log-visit.component';
+import { VisitService } from '../../../../core/services/visit.service';
+import { Visit } from '../../../../core/models/shop.model';
+import { Product } from '../../../../core/models/product.model';
+import { where } from '@angular/fire/firestore';
+import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-shop-detail',
   standalone: true,
-  imports: [RouterLink, LoadingSpinnerComponent, OwnerFullNamePipe, EntityLinkModalComponent],
+  imports: [RouterLink, LoadingSpinnerComponent, OwnerFullNamePipe, EntityLinkModalComponent, LogVisitComponent, CommonModule, FormsModule],
   templateUrl: './shop-detail.component.html',
   styleUrl: './shop-detail.component.scss'
 })
@@ -25,6 +32,7 @@ export class ShopDetailComponent {
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly shopLink = inject(ShopLinkService);
+  private readonly visits = inject(VisitService);
 
   shop = signal<Shop | null>(null);
   linkedCustomer = signal<Customer | null>(null);
@@ -35,7 +43,36 @@ export class ShopDetailComponent {
   linkSuggestedIds = signal<string[]>([]);
   linkBusy = signal(false);
 
+  showLogVisit = signal(false);
+  editingVisit = signal<Visit | null>(null);
+  showDeleteVisit = signal<Visit | null>(null);
+  reverseStockOnDelete = signal(false);
+
+  visitHistory = signal<Visit[]>([]);
+  expandedVisitId = signal<string | null>(null);
+  showConvertPrompt = signal(false);
+  products = signal<Product[]>([]);
+  pendingConversion = computed(() => {
+    const s = this.shop();
+    if (!s || s.linkedCustomerId) return null;
+    return this.visitHistory().find(v => v.markedConversion) ?? null;
+  });
+
+  canRestock = computed(() => {
+    const s = this.shop();
+    if (!s?.linkedCustomerId) return false;
+    const last = this.visitHistory()[0];
+    if (!last) return false;
+    if (last.restockOrderId) return false;   // already ordered from this visit
+    return last.items.some(it => it.productId && (it.added ?? 0) > 0);
+  });
+
+  linkedCustomerName = computed(() => this.linkedCustomer()?.businessName ?? null);
+
   constructor() {
+    this.firestore.getCollection<Product>('products', where('active', '==', true))
+      .subscribe(p => this.products.set(p));
+      
     effect(() => {
       const id = this.route.snapshot.paramMap.get('id');
       if (id) this.loadShop(id);
@@ -50,6 +87,7 @@ export class ShopDetailComponent {
         }
         this.shop.set(data);
         this.isLoading.set(false);
+        this.loadVisits(data.id);
         if (data.linkedCustomerId) this.loadLinkedCustomer(data.linkedCustomerId);
       },
       error: (err) => {
@@ -187,5 +225,104 @@ export class ShopDetailComponent {
     } finally {
       this.unlinkBusy.set(false);
     }
+  }
+
+  openLogVisit() { this.editingVisit.set(null); this.showLogVisit.set(true); }
+  openEditVisit(v: Visit) { this.editingVisit.set(v); this.showLogVisit.set(true); }
+
+  askDeleteVisit(v: Visit) {
+    this.reverseStockOnDelete.set(false);
+    this.showDeleteVisit.set(v);
+  }
+  
+  visitHasSamples(v: Visit): boolean {
+    return v.items.some(it => it.isSample && it.productId && (it.sampleQty ?? 0) > 0);
+  }
+  
+  async confirmDeleteVisit() {
+    const v = this.showDeleteVisit();
+    const s = this.shop();
+    const actionBy = this.auth.getActionBy();
+    if (!v || !s || !actionBy) {
+      if (!actionBy) this.toast.error('You must be logged in to delete a visit.');
+      return;
+    }
+    try {
+      await this.visits.deleteVisit(v, this.reverseStockOnDelete(), actionBy);
+      this.toast.success('Visit deleted');
+      this.showDeleteVisit.set(null);
+      await this.loadVisits(s.id);
+    } catch (e) {
+      console.error('Delete visit failed', e);
+      this.toast.error('Failed to delete visit');
+    }
+  }
+  
+  async onVisitSaved(_id: string) {
+    this.showLogVisit.set(false);
+    this.editingVisit.set(null);
+    const s = this.shop();
+    if (s) await this.loadVisits(s.id);
+    if (this.pendingConversion() && !s?.linkedCustomerId) this.showConvertPrompt.set(true);
+  }
+
+  private async loadVisits(shopId: string) {
+    try { this.visitHistory.set(await this.visits.listForShop(shopId)); }
+    catch (e) { console.error('Load visits failed', e); }
+  }
+
+  toggleVisit(id: string) {
+    this.expandedVisitId.set(this.expandedVisitId() === id ? null : id);
+  }
+
+  visitDateOf(v: Visit): Date {
+    const d: any = v.visitDate;
+    return d?.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
+  }
+
+  restock() {
+    const s = this.shop();
+    if (!s || !s.linkedCustomerId) return;
+    const last = this.visitHistory()[0];
+    const items = (last?.items || [])
+      .filter(it => it.productId && (it.added ?? 0) > 0);
+    
+    if (items.length === 0) {
+      this.toast.error('No restocked items on the latest visit to reorder.');
+      return;
+    }
+
+    const draftItems = items.map(it => {
+      const p = this.products().find(prod => prod.id === it.productId);
+      if (!p) return null;
+      const added = it.added!;
+      return {
+        productId: p.id,
+        productName: p.name,
+        productSku: p.sku,
+        quantity: added,
+        unitPriceCents: p.priceCents,
+        unitCostCents: p.costCents,
+        lineTotalCents: added * p.priceCents,
+        lineCostCents: added * p.costCents,
+        currencyCode: 'CAD'
+      };
+    }).filter(Boolean);
+
+    if (draftItems.length === 0) {
+      this.toast.error('Could not match restocked items to active products.');
+      return;
+    }
+
+    const draft = {
+      customerId: s.linkedCustomerId,
+      items: draftItems,
+      taxRatePercent: 13,
+      deliveryType: 'delivery',
+      sourceOrderNumber: 'visit restock',
+      sourceVisitId: last.id,
+    };
+    localStorage.setItem('tropx_reorder_draft', JSON.stringify(draft));
+    this.router.navigate(['/admin/orders/new']);
   }
 }

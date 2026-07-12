@@ -7,11 +7,12 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
 import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
 import { where, orderBy } from '@angular/fire/firestore';
 import { Shop, ShopStatus } from '../../../core/models/shop.model';
+import { LogVisitComponent } from './log-visit/log-visit.component';
 
 @Component({
   selector: 'app-admin-shops',
   standalone: true,
-  imports: [FormsModule, RouterLink, PageHeaderComponent, StatusBadgeComponent, OwnerFullNamePipe],
+  imports: [FormsModule, RouterLink, PageHeaderComponent, StatusBadgeComponent, OwnerFullNamePipe, LogVisitComponent],
   templateUrl: './admin-shops.component.html',
   styleUrl: './admin-shops.component.scss'
 })
@@ -23,6 +24,7 @@ export class AdminShopsComponent {
   isLoading = signal(true);
   searchQuery = signal('');
   statusFilter = signal<ShopStatus | 'all'>('all');
+  logVisitShop = signal<Shop | null>(null);
 
   filteredShops = computed(() => {
     let result = this.shops();
@@ -69,4 +71,5 @@ export class AdminShopsComponent {
 
   getInitials(name: string): string { return name ? name.substring(0, 2).toUpperCase() : '??'; }
   goToDetails(id: string) { this.router.navigate(['/admin/shops', id]); }
+  openLogVisit(shop: Shop, ev: Event) { ev.stopPropagation(); this.logVisitShop.set(shop); }
 }

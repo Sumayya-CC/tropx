@@ -1,0 +1,136 @@
+<div class="modal-backdrop" (click)="close.emit()">
+  <div class="modal-content lv-modal" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="close.emit()">&times;</button>
+
+    <div class="lv-head">
+      <h2>{{ editVisit ? 'Edit Visit' : 'Log Visit' }}</h2>
+      <p class="lv-sub">
+        {{ shop.name }}
+        @if (customerName) { <span class="lv-cust">• Customer: {{ customerName }}</span> }
+      </p>
+    </div>
+
+    <div class="lv-scroll">
+      <div class="form-group">
+        <label>Date</label>
+        <input class="form-control" type="date"
+          [ngModel]="visitDate()" (ngModelChange)="visitDate.set($event)">
+      </div>
+
+      <div class="lv-section-label">Items</div>
+      <div class="lv-rows">
+        @for (r of rows(); track r.key) {
+          <div class="lv-row" [class.is-sample]="r.isSample">
+            <div class="lv-row-top">
+              <div class="lv-row-name">
+                @if (r.isFreeText) {
+                  <input class="form-control" type="text" placeholder="Item name"
+                    [ngModel]="r.productName"
+                    (ngModelChange)="patchRow(r.key, { productName: $event })">
+                } @else {
+                  <span class="lv-prod">{{ r.productName }}</span>
+                }
+              </div>
+
+              @if (!r.isSample) {
+                <div class="lv-nums">
+                  <label>Left<input type="number" min="0" [ngModel]="r.left"
+                    (ngModelChange)="patchRow(r.key, { left: $event })"></label>
+                  <label>Found<input type="number" min="0" [ngModel]="r.found"
+                    (ngModelChange)="patchRow(r.key, { found: $event })"></label>
+                  <label>Added<input type="number" min="0" [ngModel]="r.added"
+                    (ngModelChange)="patchRow(r.key, { added: $event })"></label>
+                </div>
+              } @else {
+                <div class="lv-nums lv-nums-sample">
+                  <label>Sample Qty<input type="number" min="0" [ngModel]="r.sampleQty"
+                    (ngModelChange)="patchRow(r.key, { sampleQty: $event })"></label>
+                </div>
+              }
+
+              <label class="lv-sample-toggle" [class.on]="r.isSample">
+                <input type="checkbox" [ngModel]="r.isSample"
+                  (ngModelChange)="toggleSample(r.key, $event)"> Sample
+              </label>
+              <button class="lv-del" (click)="removeRow(r.key)" title="Remove">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              </button>
+            </div>
+
+            @if (!r.isSample && soldFor(r) !== null) {
+              <div class="lv-sold">→ {{ soldFor(r) }} sold</div>
+            }
+            @if (r.isSample) {
+              <div class="lv-sample-note">$0 sample — adjusts stock</div>
+            }
+            @if (sampleWarn(r)) {
+              <div class="lv-warn">⚠ {{ sampleWarn(r) }}</div>
+            }
+          </div>
+        }
+        @if (rows().length === 0) {
+          <p class="lv-empty">No items yet. Add a catalog item or a free-text item.</p>
+        }
+      </div>
+
+      <div class="lv-add-row">
+        <button class="btn btn-outline" (click)="showPicker.set(true)">+ Add Catalog Item</button>
+        <button class="btn btn-outline" (click)="addFreeTextItem()">+ Add Free-Text Item</button>
+      </div>
+
+      @if (showPicker()) {
+        <div class="lv-picker">
+          <input class="form-control" type="text" placeholder="Search products…"
+            [ngModel]="pickerQuery()" (ngModelChange)="pickerQuery.set($event)">
+          @if (interestProducts().length && !pickerQuery()) {
+            <div class="lv-picker-label">Products of interest</div>
+            @for (p of interestProducts(); track p.id) {
+              <button class="lv-picker-row" (click)="addCatalogItem(p)">
+                {{ p.name }} <small>{{ p.sku }} · stock {{ p.stock }}</small>
+              </button>
+            }
+            <div class="lv-picker-label">All products</div>
+          }
+          @for (p of filteredCatalog(); track p.id) {
+            <button class="lv-picker-row" (click)="addCatalogItem(p)">
+              {{ p.name }} <small>{{ p.sku }} · stock {{ p.stock }}</small>
+            </button>
+          }
+        </div>
+      }
+
+      <div class="form-group">
+        <label>Manager available?</label>
+        <div class="lv-yesno">
+          <button [class.active]="managerAvailable() === true" (click)="managerAvailable.set(true)">Yes</button>
+          <button [class.active]="managerAvailable() === false" (click)="managerAvailable.set(false)">No</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Outcome</label>
+        <select class="form-control" [ngModel]="outcome()" (ngModelChange)="outcome.set($event)" [disabled]="markedConversion()">
+          @for (o of outcomes; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea class="form-control" rows="2" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+      </div>
+
+      <label class="lv-convert">
+        <input type="checkbox" [ngModel]="markedConversion()"
+          (ngModelChange)="onConversionToggle($event)">
+        Shop agreed to become a customer
+      </label>
+    </div>
+
+    <div class="lv-footer">
+      <button class="btn btn-outline" (click)="close.emit()" [disabled]="isSaving()">Cancel</button>
+      <button class="btn btn-primary" (click)="save()" [disabled]="isSaving()">
+        {{ isSaving() ? 'Saving…' : (editVisit ? 'Update Visit' : 'Save Visit') }}
+      </button>
+    </div>
+  </div>
+</div>

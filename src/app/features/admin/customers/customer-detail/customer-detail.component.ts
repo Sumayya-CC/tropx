@@ -17,7 +17,9 @@ import { take } from 'rxjs/operators';
 import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
 import { ShopLinkService } from '../../../../core/services/shop-link.service';
 import { EntityLinkModalComponent, LinkableItem } from '../../../../shared/components/entity-link-modal/entity-link-modal.component';
-import { Shop } from '../../../../core/models/shop.model';
+import { Shop, Visit } from '../../../../core/models/shop.model';
+import { VisitService } from '../../../../core/services/visit.service';
+import { CommonModule } from '@angular/common';
 
 interface ServiceArea {
   id: string;
@@ -29,7 +31,7 @@ interface ServiceArea {
 @Component({
   selector: 'app-customer-detail',
   standalone: true,
-  imports: [RouterLink, StatusBadgeComponent, LoadingSpinnerComponent, DatePipe, FullNamePipe, OwnerFullNamePipe, EntityLinkModalComponent],
+  imports: [RouterLink, StatusBadgeComponent, LoadingSpinnerComponent, CommonModule, FullNamePipe, OwnerFullNamePipe, EntityLinkModalComponent],
   templateUrl: './customer-detail.component.html',
   styleUrl: './customer-detail.component.scss'
 })
@@ -40,10 +42,12 @@ export class CustomerDetailComponent {
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly shopLink = inject(ShopLinkService);
+  private readonly visits = inject(VisitService);
 
   customer = signal<Customer | null>(null);
   serviceAreaName = signal<string>('Loading...');
   recentOrders = signal<Order[]>([]);
+  recentVisits = signal<Visit[]>([]);
   isLoading = signal(true);
   isTogglingStatus = signal(false);
 
@@ -113,8 +117,12 @@ export class CustomerDetailComponent {
             next: (s) => this.linkedShop.set(s && !s.isDeleted ? s : null),
             error: () => this.linkedShop.set(null),
           });
+          this.visits.listForShop(data.linkedShopId, 3)
+            .then(v => this.recentVisits.set(v))
+            .catch(() => this.recentVisits.set([]));
         } else {
           this.linkedShop.set(null);
+          this.recentVisits.set([]);
         }
 
         this.isLoading.set(false);
@@ -268,6 +276,11 @@ export class CustomerDetailComponent {
     return value?.toDate ? value.toDate() : 
            value instanceof Date ? value : 
            new Date(value);
+  }
+
+  visitDateOf(v: Visit): Date {
+    const d: any = v.visitDate;
+    return d?.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
   }
 
   async toggleSuspension() {

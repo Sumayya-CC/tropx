@@ -50,6 +50,7 @@ export class OrderFormComponent {
   originalOrder = signal<Order | null>(null);
   hasSavedDraft = signal(false);
   savedDraftData = signal<any>(null);
+  restockVisitId = signal<string | null>(null);
 
   // Data
   private customers$ = this.firestore.getCollection<Customer>(
@@ -89,6 +90,7 @@ export class OrderFormComponent {
         this.items.set(draft.items || []);
         this.taxRatePercent.set(draft.taxRatePercent || 13);
         this.deliveryType.set(draft.deliveryType || 'delivery');
+        if (draft.sourceVisitId) this.restockVisitId.set(draft.sourceVisitId);
         
         this.toast.success(`Items pre-filled from ${draft.sourceOrderNumber}`);
         
@@ -519,6 +521,16 @@ export class OrderFormComponent {
       });
 
       localStorage.removeItem('tropx_order_draft');
+      
+      const rvid = this.restockVisitId();
+      if (rvid && (this as any)._newOrderId) {
+        try {
+          await this.firestore.updateDocument(`visits/${rvid}`, {
+            restockOrderId: (this as any)._newOrderId,
+          });
+        } catch (e) { console.error('Failed to stamp restock visit', e); }
+      }
+
       this.toast.success(`Order ${(this as any)._newOrderNumber} created successfully`);
       this.router.navigate(['/admin/orders', (this as any)._newOrderId]);
 

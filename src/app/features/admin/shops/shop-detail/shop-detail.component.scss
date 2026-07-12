@@ -541,3 +541,31 @@
   border-radius: 8px; font-size: .9rem; font-weight: 700; color: #fff; cursor: pointer;
   &:disabled { opacity: .6; cursor: not-allowed; }
 }
+
+.visit-action { background: none; border: none; color: var(--navy-deep); font-size: .75rem;
+  font-weight: 600; cursor: pointer; padding: .15rem .4rem; }
+.visit-action.del { color: var(--red); }
+.reverse-stock-opt { display: flex; align-items: center; gap: .5rem; font-size: .85rem;
+  color: var(--charcoal); margin-bottom: 1.25rem; padding: .75rem; border: 1px solid var(--gold);
+  background: #fffdf5; border-radius: 8px; }
+
+.convert-banner { display: flex; align-items: center; gap: .5rem; padding: .875rem 1.25rem;
+  background: rgba(201,149,42,.1); border: 1px solid rgba(201,149,42,.3);
+  border-radius: 10px; margin-bottom: 1.5rem; font-weight: 600; color: #8a6d1f; font-size: .9rem; }
+.convert-banner-btn { background: none; border: none; color: var(--navy-deep); font-weight: 700; cursor: pointer; }
+.visit-timeline { display: flex; flex-direction: column; }
+.visit-entry { border-bottom: 1px solid var(--border-light); padding: .5rem 0; }
+.visit-entry:last-child { border-bottom: none; }
+.visit-entry.converted .visit-outcome { color: var(--gold); font-weight: 700; }
+.visit-head { display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: .5rem 0; }
+.visit-date { font-weight: 700; color: var(--navy-deep); min-width: 56px; }
+.visit-outcome { flex: 1; text-transform: capitalize; color: var(--text-dark); font-size: .875rem; }
+.visit-mgr { font-size: .8125rem; color: var(--gray); }
+.visit-expand { color: var(--gray); font-size: .75rem; }
+.visit-items { padding: .25rem 0 .75rem; display: flex; flex-direction: column; gap: .25rem; }
+.visit-item { display: flex; gap: .75rem; font-size: .8125rem; align-items: baseline; }
+.vi-name { font-weight: 600; color: var(--text-dark); }
+.vi-sold { color: var(--gray); }
+.vi-added { color: var(--green); font-weight: 600; }
+.vi-sample { color: var(--gold); font-weight: 600; }
+.visit-notes { font-size: .8125rem; color: var(--gray); font-style: italic; margin-top: .25rem; }

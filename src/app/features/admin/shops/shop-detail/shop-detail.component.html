@@ -22,6 +22,12 @@
   </div>
 
   <div class="detail-actions">
+    @if (canRestock()) {
+      <button class="btn btn-outline" (click)="restock()">Restock</button>
+    }
+    <!-- Log Visit button -->
+    <button class="btn btn-outline" (click)="openLogVisit()">Log Visit</button>
+
     <!-- Edit button -->
     <button class="btn btn-outline" [routerLink]="['/admin/shops', s.id, 'edit']">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -49,6 +55,13 @@
     </button>
   </div>
 </div>
+
+@if (pendingConversion()) {
+  <div class="convert-banner">
+    ⭐ Marked ready to convert on {{ visitDateOf(pendingConversion()!) | date:'mediumDate' }} —
+    <button class="convert-banner-btn" (click)="makeCustomer()">Convert to Customer →</button>
+  </div>
+}
 
 <div class="content-layout">
   <div class="left-col">
@@ -161,9 +174,39 @@
     <!-- Visit History Card -->
     <div class="detail-card">
       <h3 class="card-title">Visit History</h3>
-      <div class="empty-orders">
-        <p>Visit logging arrives in Phase 2.</p>
-      </div>
+      @if (visitHistory().length === 0) {
+        <div class="empty-orders"><p>No visits logged yet.</p></div>
+      } @else {
+        <div class="visit-timeline">
+          @for (v of visitHistory(); track v.id) {
+            <div class="visit-entry" [class.converted]="v.markedConversion">
+              <div class="visit-head" (click)="toggleVisit(v.id)">
+                <span class="visit-date">{{ visitDateOf(v) | date:'MMM d' }}</span>
+                <span class="visit-outcome">
+                  @if (v.markedConversion) { ⭐ Converted } @else { {{ v.outcome || '—' }} }
+                </span>
+                <span class="visit-mgr">Mgr: {{ v.managerAvailable === true ? 'Yes' : (v.managerAvailable === false ? 'No' : '—') }}</span>
+                <span class="visit-expand">{{ expandedVisitId() === v.id ? '▲' : '▼' }}</span>
+                <button class="visit-action" (click)="$event.stopPropagation(); openEditVisit(v)" title="Edit">Edit</button>
+                <button class="visit-action del" (click)="$event.stopPropagation(); askDeleteVisit(v)" title="Delete">Delete</button>
+              </div>
+              @if (expandedVisitId() === v.id) {
+                <div class="visit-items">
+                  @for (it of v.items; track $index) {
+                    <div class="visit-item">
+                      <span class="vi-name">{{ it.productName }}</span>
+                      @if (it.soldSinceLastVisit != null) { <span class="vi-sold">{{ it.soldSinceLastVisit }} sold</span> }
+                      @if ((it.added ?? 0) > 0) { <span class="vi-added">+{{ it.added }}</span> }
+                      @if (it.isSample) { <span class="vi-sample">sample ×{{ it.sampleQty }}</span> }
+                    </div>
+                  }
+                  @if (v.notes) { <div class="visit-notes">{{ v.notes }}</div> }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 </div>
@@ -210,4 +253,41 @@
     </button>
   </div>
 </div>
+}
+
+@if (showLogVisit()) {
+  <app-log-visit [shop]="shop()!" [editVisit]="editingVisit()" [customerName]="linkedCustomerName()"
+    (saved)="onVisitSaved($event)" (close)="showLogVisit.set(false); editingVisit.set(null)">
+  </app-log-visit>
+}
+
+@if (showConvertPrompt()) {
+  <div class="unlink-backdrop" (click)="showConvertPrompt.set(false)"></div>
+  <div class="unlink-modal">
+    <h3>🎉 Visit saved!</h3>
+    <p>You marked this shop ready to become a customer. Convert now?</p>
+    <div class="unlink-actions">
+      <button class="btn btn-outline" (click)="showConvertPrompt.set(false)">Later</button>
+      <button class="btn btn-primary" (click)="showConvertPrompt.set(false); makeCustomer()">Convert Now →</button>
+    </div>
+  </div>
+}
+
+@if (showDeleteVisit(); as dv) {
+  <div class="unlink-backdrop" (click)="showDeleteVisit.set(null)"></div>
+  <div class="unlink-modal">
+    <h3>Delete this visit?</h3>
+    <p>This removes the visit record. It can’t be undone.</p>
+    @if (visitHasSamples(dv)) {
+      <label class="reverse-stock-opt">
+        <input type="checkbox" [ngModel]="reverseStockOnDelete()"
+          (ngModelChange)="reverseStockOnDelete.set($event)">
+        Reverse the sample stock (add sampled units back to inventory)
+      </label>
+    }
+    <div class="unlink-actions">
+      <button class="btn btn-outline" (click)="showDeleteVisit.set(null)">Cancel</button>
+      <button class="btn-unlink-confirm" (click)="confirmDeleteVisit()">Delete Visit</button>
+    </div>
+  </div>
 }

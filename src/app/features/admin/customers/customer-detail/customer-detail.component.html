@@ -340,9 +340,39 @@
             </div>
           </div>
         </div>
-      </div>
     </div>
+
+    @if (linkedShop()) {
+      <div class="detail-card">
+        <h3 class="card-title">Recent Visits</h3>
+        @if (recentVisits().length === 0) {
+          <div class="empty-orders"><p>No visits logged yet.</p></div>
+        } @else {
+          <div class="order-list">
+            @for (v of recentVisits(); track v.id) {
+              <div class="order-row">
+                <div class="order-info">
+                  <span class="order-num">
+                    {{ visitDateOf(v) | date:'mediumDate' }}
+                    @if (v.markedConversion) { ⭐ }
+                  </span>
+                  <span class="order-date" style="text-transform: capitalize;">{{ v.outcome || '—' }}</span>
+                </div>
+                <div class="order-amount" style="font-weight:500;color:var(--gray);">
+                  {{ v.items.length }} item{{ v.items.length === 1 ? '' : 's' }}
+                </div>
+              </div>
+            }
+          </div>
+          <div class="card-footer-link">
+            <a [routerLink]="['/admin/shops', linkedShop()!.id]">View all visits →</a>
+          </div>
+        }
+      </div>
+    }
+
   </div>
+</div>
 }
 
 @if (showLinkModal()) {

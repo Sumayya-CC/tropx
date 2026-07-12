@@ -65,6 +65,9 @@
                 <td><app-status-badge [status]="shop.status"></app-status-badge></td>
                 <td>
                   <div class="actions-cell">
+                    <button class="action-btn" (click)="openLogVisit(shop, $event)" title="Log Visit">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+                    </button>
                     <button class="action-btn" (click)="$event.stopPropagation(); goToDetails(shop.id)" title="View">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </button>
@@ -80,4 +83,10 @@
       </div>
     </div>
   }
+}
+
+@if (logVisitShop()) {
+  <app-log-visit [shop]="logVisitShop()!"
+    (saved)="logVisitShop.set(null)" (close)="logVisitShop.set(null)">
+  </app-log-visit>
 }

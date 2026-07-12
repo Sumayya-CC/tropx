@@ -113,39 +113,47 @@
                 <label class="approve-label">Shop (optional)</label>
                 <p class="approve-hint">Link this application to a shop you already visit, or create one. You can skip and link later.</p>
             
-                @if (suggestedShops().length > 0) {
-                  <div class="shop-suggestions">
-                    @for (shop of suggestedShops(); track shop.id) {
-                      <button type="button" class="shop-suggestion"
-                              [class.selected]="shopChoice() === 'existing' && selectedShopId() === shop.id"
-                              (click)="chooseExistingShop(shop)">
-                        <span class="ss-main">
-                          <span class="ss-title">{{ shop.name }}</span>
-                          <span class="ss-sub">{{ shop.address?.city }} · {{ shop.phone }}</span>
-                        </span>
-                        <span class="ss-tag">Suggested</span>
-                      </button>
-                    }
-                  </div>
-                }
-            
-                <div class="shop-choice-row">
-                  <button type="button" class="chip" [class.active]="shopChoice() === 'new'" (click)="chooseNewShop()">
-                    + Create new shop from application
-                  </button>
-                  <button type="button" class="chip" (click)="openShopBrowse()">
-                    Browse existing shops…
-                  </button>
-                  <button type="button" class="chip" [class.active]="shopChoice() === 'skip'" (click)="chooseSkipShop()">
-                    Skip for now
-                  </button>
-                </div>
-            
-                <div class="shop-choice-summary">
-                  @if (shopChoice() === 'existing') { Will link to: <strong>{{ selectedShopName() }}</strong> }
-                  @else if (shopChoice() === 'new') { Will create a new shop from this application }
-                  @else { No shop will be linked }
-                </div>
+  <div class="shop-picker">
+    @if (suggestedShops().length > 0) {
+      <div class="shop-suggest-label">Suggested matches</div>
+      <div class="shop-suggest-grid">
+        @for (shop of suggestedShops(); track shop.id) {
+          <button type="button" class="shop-card"
+            [class.selected]="shopChoice() === 'existing' && selectedShopId() === shop.id"
+            (click)="chooseExistingShop(shop)">
+            <div class="shop-card-main">
+              <span class="shop-card-name">{{ shop.name }}</span>
+              <span class="shop-card-sub">{{ shop.address?.city }}{{ shop.phone ? ' · ' + shop.phone : '' }}</span>
+            </div>
+            <span class="shop-card-check">✓</span>
+          </button>
+        }
+      </div>
+    }
+
+    <div class="shop-choice-cards">
+      <button type="button" class="choice-card" [class.active]="shopChoice() === 'new'"
+        (click)="chooseNewShop()">
+        <span class="choice-icon">＋</span>
+        <span class="choice-text"><strong>Create new shop</strong><small>from this application</small></span>
+      </button>
+      <button type="button" class="choice-card" (click)="openShopBrowse()">
+        <span class="choice-icon">🔍</span>
+        <span class="choice-text"><strong>Browse shops</strong><small>pick an existing one</small></span>
+      </button>
+      <button type="button" class="choice-card" [class.active]="shopChoice() === 'skip'"
+        (click)="chooseSkipShop()">
+        <span class="choice-icon">↷</span>
+        <span class="choice-text"><strong>Skip for now</strong><small>link later</small></span>
+      </button>
+    </div>
+
+    <div class="shop-choice-summary" [class.has-selection]="shopChoice() !== 'skip'">
+      @if (shopChoice() === 'existing') { Will link to <strong>{{ selectedShopName() }}</strong> }
+      @else if (shopChoice() === 'new') { Will create a new shop from this application }
+      @else { No shop will be linked }
+    </div>
+  </div>
               </div>
             }
 
