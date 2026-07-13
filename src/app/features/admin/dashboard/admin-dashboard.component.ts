@@ -10,6 +10,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
 import { Order, OrderStatus, ORDER_STATUS_LABELS } from '../../../core/models/order.model';
 import { Payment } from '../../../core/models/payment.model';
@@ -108,7 +109,7 @@ export class AdminDashboardComponent {
   customFrom = signal('');
   customTo = signal('');
   showDateDropdown = signal(false);
-  today = new Date().toISOString().split('T')[0];
+  today = todayInputValue();
 
   presets = [
     { value: 'today' as DatePreset, label: 'Today' },

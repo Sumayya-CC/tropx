@@ -8,6 +8,7 @@ import { Product } from '../../../../core/models/product.model';
 import { Shop, VisitItem, Visit } from '../../../../core/models/shop.model';
 import { where } from '@angular/fire/firestore';
 import { firstValueFrom } from 'rxjs';
+import { dateInputToLocalDate, toDateInputValue, todayInputValue } from '../../../../shared/utils/date.utils';
 
 interface EditableItem {
   key: string;              // local row id
@@ -41,7 +42,7 @@ export class LogVisitComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   isSaving = signal(false);
-  visitDate = signal<string>(new Date().toISOString().split('T')[0]);
+  visitDate = signal<string>(todayInputValue());
   rows = signal<EditableItem[]>([]);
   managerAvailable = signal<boolean | null>(null);
   outcome = signal<string>('restocked');
@@ -91,7 +92,7 @@ export class LogVisitComponent implements OnInit {
       const v = this.editVisit;
       const d: any = v.visitDate;
       const dt = d?.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
-      this.visitDate.set(dt.toISOString().split('T')[0]);
+      this.visitDate.set(toDateInputValue(dt));
       this.rows.set(v.items.map(it => ({
         key: crypto.randomUUID(),
         productId: it.productId,
@@ -228,7 +229,7 @@ export class LogVisitComponent implements OnInit {
       }));
 
       const body = {
-        visitDate: new Date(this.visitDate()),
+        visitDate: dateInputToLocalDate(this.visitDate()) ?? new Date(),
         items,
         outcome: this.markedConversion() ? 'converted' : this.outcome(),
         managerAvailable: this.managerAvailable() ?? undefined,

@@ -7,6 +7,7 @@ import { FirestoreService } from '../../../../core/services/firestore.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { doc, getDoc, serverTimestamp, collection, Firestore } from '@angular/fire/firestore';
+import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-record-payment-modal',
@@ -37,7 +38,7 @@ export class RecordPaymentModalComponent {
 
   ngOnInit() {
     this.amount.set(this.order.balanceCents / 100);
-    this.receivedDate.set(new Date().toISOString().split('T')[0]);
+    this.receivedDate.set(todayInputValue());
   }
 
   get showReference(): boolean {

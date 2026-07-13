@@ -15,6 +15,7 @@ import { where, serverTimestamp, doc, getDoc, setDoc } from '@angular/fire/fires
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { SettingsService } from '../../../../core/services/settings.service';
 import { OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+import { dateInputToLocalDate, toDateInputValue } from '../../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-order-form',
@@ -205,7 +206,7 @@ export class OrderFormComponent {
       
       if (order.expectedDeliveryDate) {
         const d = (order.expectedDeliveryDate as any).toDate ? (order.expectedDeliveryDate as any).toDate() : new Date(order.expectedDeliveryDate as any);
-        this.expectedDeliveryDate.set(d.toISOString().split('T')[0]);
+        this.expectedDeliveryDate.set(toDateInputValue(d));
       }
       
       this.isLoadingOrder.set(false);
@@ -462,7 +463,7 @@ export class OrderFormComponent {
           deliveryType: this.deliveryType(),
           customerNotes: this.customerNotes() || null,
           internalNotes: this.internalNotes() || null,
-          expectedDeliveryDate: this.expectedDeliveryDate() ? new Date(this.expectedDeliveryDate()) : null,
+          expectedDeliveryDate: this.expectedDeliveryDate() ? dateInputToLocalDate(this.expectedDeliveryDate()) : null,
           confirmedAt: serverTimestamp(),
           confirmedBy: actionBy,
           tenantId: 1,
@@ -582,7 +583,7 @@ export class OrderFormComponent {
           deliveryType: this.deliveryType(),
           customerNotes: this.customerNotes() || null,
           internalNotes: this.internalNotes() || null,
-          expectedDeliveryDate: this.expectedDeliveryDate() ? new Date(this.expectedDeliveryDate()) : null,
+          expectedDeliveryDate: this.expectedDeliveryDate() ? dateInputToLocalDate(this.expectedDeliveryDate()) : null,
           updatedAt: serverTimestamp(),
           updatedBy: actionBy,
         });

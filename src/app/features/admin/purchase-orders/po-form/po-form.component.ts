@@ -11,6 +11,7 @@ import { Supplier } from '../../../../core/models/supplier.model';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { serverTimestamp, where } from '@angular/fire/firestore';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-po-form',
@@ -47,7 +48,7 @@ export class PoFormComponent {
   // Form State
   formSupplierId = signal('');
   formWarehouseId = signal('');
-  formOrderDate = signal(new Date().toISOString().split('T')[0]);
+  formOrderDate = signal(todayInputValue());
   formExpectedDate = signal('');
   formNotes = signal('');
   formTaxRate = signal(0);
@@ -97,7 +98,7 @@ export class PoFormComponent {
     else if (ts.seconds) d = new Date(ts.seconds * 1000);
     else d = new Date(ts);
     if (isNaN(d.getTime())) return '';
-    return d.toISOString().split('T')[0];
+    return toDateInputValue(d);
   }
 
   addProduct(product: any) {

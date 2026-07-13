@@ -13,6 +13,7 @@ import { Order } from '../../../core/models/order.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
 import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
 
@@ -76,7 +77,7 @@ export class AdminPaymentsComponent {
     const customers = this.allCustomers();
 
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const startOfMonth = toDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
 
     let totalCollectedThisMonth = 0;
     let cashThisMonth = 0;
@@ -164,14 +165,14 @@ export class AdminPaymentsComponent {
 
     // 4. Date Filter
     const dFilter = this.dateFilter();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = todayInputValue();
     
     if (dFilter === 'today') {
       list = list.filter(p => p.receivedDate === todayStr);
     } else if (dFilter === 'last_7' || dFilter === 'last_30') {
       const d = new Date();
       d.setDate(d.getDate() - (dFilter === 'last_7' ? 7 : 30));
-      const threshold = d.toISOString().split('T')[0];
+      const threshold = toDateInputValue(d);
       list = list.filter(p => p.receivedDate >= threshold);
     }
 

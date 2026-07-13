@@ -11,6 +11,7 @@ import { PurchaseReceiveItem } from '../../../../core/models/purchase-receive.mo
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { doc, getDoc, collection, serverTimestamp, where } from '@angular/fire/firestore';
+import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../../shared/utils/date.utils';
 
 interface ReceiveRow {
   productId: string;
@@ -249,7 +250,7 @@ export class PoReceiveComponent {
 
   rows = signal<ReceiveRow[]>([]);
   notes = signal('');
-  receivedDate = signal(new Date().toISOString().split('T')[0]);
+  receivedDate = signal(todayInputValue());
   warehouseId = signal('');
   warehouses = signal<any[]>([]);
   inventorySettings = this.settings.inventory;

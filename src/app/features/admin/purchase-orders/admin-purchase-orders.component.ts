@@ -10,6 +10,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-admin-purchase-orders',
@@ -224,14 +225,14 @@ export class AdminPurchaseOrdersComponent {
     }
 
     const dFilter = this.dateFilter();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = todayInputValue();
     
     if (dFilter === 'today') {
       list = list.filter(o => this.getDateStr(o.orderDate) === todayStr);
     } else if (dFilter === 'last_7' || dFilter === 'last_30') {
       const d = new Date();
       d.setDate(d.getDate() - (dFilter === 'last_7' ? 7 : 30));
-      const threshold = d.toISOString().split('T')[0];
+      const threshold = toDateInputValue(d);
       list = list.filter(o => this.getDateStr(o.orderDate) >= threshold);
     }
 
@@ -245,7 +246,7 @@ export class AdminPurchaseOrdersComponent {
     else if (ts.seconds) d = new Date(ts.seconds * 1000);
     else d = new Date(ts);
     if (isNaN(d.getTime())) return '';
-    return d.toISOString().split('T')[0];
+    return toDateInputValue(d);
   }
 
   formatDate(ts: any): string {
