@@ -569,3 +569,11 @@
 .vi-added { color: var(--green); font-weight: 600; }
 .vi-sample { color: var(--gold); font-weight: 600; }
 .visit-notes { font-size: .8125rem; color: var(--gray); font-style: italic; margin-top: .25rem; }
+
+.health-pill { display:inline-flex; align-items:center; padding:.2rem .6rem; border-radius:20px;
+  font-size:.75rem; font-weight:700; }
+.health-pill.green { background:rgba(26,124,74,.12); color:var(--green); }
+.health-pill.gold  { background:rgba(201,149,42,.12); color:#8a6d1f; }
+.health-pill.red   { background:rgba(231,34,46,.1); color:var(--red); }
+.health-pill.gray  { background:#f1f5f9; color:var(--gray); }
+.health-detail { display:block; font-size:.78rem; color:var(--gray); margin-top:.25rem; }

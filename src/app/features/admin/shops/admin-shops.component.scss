@@ -530,3 +530,10 @@
   color: var(--green);
 }
 
+.health-pill { display:inline-flex; align-items:center; gap:.25rem; padding:.2rem .6rem;
+  border-radius:20px; font-size:.75rem; font-weight:700; }
+.health-pill small { font-weight:500; opacity:.8; }
+.health-pill.green { background:rgba(26,124,74,.12); color:var(--green); }
+.health-pill.gold  { background:rgba(201,149,42,.12); color:#8a6d1f; }
+.health-pill.red   { background:rgba(231,34,46,.1); color:var(--red); }
+.health-pill.gray  { background:#f1f5f9; color:var(--gray); }

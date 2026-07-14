@@ -14,7 +14,7 @@ import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, Featur
 import { Product } from '../../../core/models/product.model';
 import { Functions, getFunctions, httpsCallable } from '@angular/fire/functions';
 import { FirebaseApp } from '@angular/fire/app';
-
+import { DEFAULT_HEALTH_THRESHOLDS } from '../../../shared/utils/shop-health.utils';
 type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications' | 'system';
 
 @Component({
@@ -58,6 +58,12 @@ export class AdminSettingsComponent {
   editingNotifications = signal(false);
   editingReconciliation = signal(false);
   editingShopLink = signal(false);
+  editingShopHealth = signal(false);
+  shHealthEnabled = signal(true);
+  shCustomerWatch = signal(DEFAULT_HEALTH_THRESHOLDS.customerWatchDays);
+  shCustomerAtRisk = signal(DEFAULT_HEALTH_THRESHOLDS.customerAtRiskDays);
+  shProspectCooling = signal(DEFAULT_HEALTH_THRESHOLDS.prospectCoolingDays);
+  shProspectCold = signal(DEFAULT_HEALTH_THRESHOLDS.prospectColdDays);
 
   // Reconciliation form signals
   shopLinkReconEnabled = signal(true);
@@ -378,6 +384,8 @@ export class AdminSettingsComponent {
 
       this.closureActive.set(ord.closureActive ?? false);
       this.closureMessage.set(ord.closureMessage || '');
+
+
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -406,6 +414,13 @@ export class AdminSettingsComponent {
       this.reconAutoCorrectEnabled.set(r.autoCorrectEnabled);
       this.reconNotifyAdmin.set(r.notifyAdmin);
       this.shopLinkReconEnabled.set((r as any).shopLink?.enabled !== false);
+      
+      const sh = (r as any).shopHealth || {};
+      this.shHealthEnabled.set(sh.enabled !== false);
+      this.shCustomerWatch.set(sh.customerWatchDays ?? DEFAULT_HEALTH_THRESHOLDS.customerWatchDays);
+      this.shCustomerAtRisk.set(sh.customerAtRiskDays ?? DEFAULT_HEALTH_THRESHOLDS.customerAtRiskDays);
+      this.shProspectCooling.set(sh.prospectCoolingDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectCoolingDays);
+      this.shProspectCold.set(sh.prospectColdDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectColdDays);
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -1533,6 +1548,34 @@ export class AdminSettingsComponent {
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  async saveShopHealth() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.updateDocument('settings/reconciliation', {
+        shopHealth: {
+          enabled: this.shHealthEnabled(),
+          customerWatchDays: this.shCustomerWatch(),
+          customerAtRiskDays: this.shCustomerAtRisk(),
+          prospectCoolingDays: this.shProspectCooling(),
+          prospectColdDays: this.shProspectCold(),
+        },
+      });
+      this.toast.success('Shop health thresholds saved');
+      this.editingShopHealth.set(false);
+    } catch (e) { console.error(e); this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelShopHealth() {
+    const sh = (this.settings.reconciliation() as any).shopHealth || {};
+    this.shHealthEnabled.set(sh.enabled !== false);
+    this.shCustomerWatch.set(sh.customerWatchDays ?? DEFAULT_HEALTH_THRESHOLDS.customerWatchDays);
+    this.shCustomerAtRisk.set(sh.customerAtRiskDays ?? DEFAULT_HEALTH_THRESHOLDS.customerAtRiskDays);
+    this.shProspectCooling.set(sh.prospectCoolingDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectCoolingDays);
+    this.shProspectCold.set(sh.prospectColdDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectColdDays);
+    this.editingShopHealth.set(false);
   }
 
   onLogoSelected(event: Event) {

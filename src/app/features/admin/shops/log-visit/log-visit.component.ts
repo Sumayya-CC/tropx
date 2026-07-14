@@ -238,7 +238,7 @@ export class LogVisitComponent implements OnInit {
       };
       let id: string;
       if (this.editVisit) {
-        await this.visits.updateVisit(this.editVisit.id, body);
+        await this.visits.updateVisit(this.editVisit.id, this.shop.id, body);
         id = this.editVisit.id;
         this.toast.success('Visit updated');
       } else {

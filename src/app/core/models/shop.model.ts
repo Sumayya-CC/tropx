@@ -33,6 +33,13 @@ export interface Shop {
   hasCustomer?: boolean;
   searchName?: string;
   inactiveDaysOverride?: number; // Phase 3 — defined now to avoid a later model edit
+  lastVisitDate?: Date;   // denormalized: most recent non-deleted visit's visitDate
+
+  // Denormalized health, stamped nightly by the reconciler. Read directly by lists/map.
+  healthBand?: 'healthy' | 'watch' | 'at_risk' | 'warm' | 'cooling' | 'cold' | 'unknown';
+  healthDays?: number | null;   // days since last order (customer) or last visit (prospect)
+  healthKind?: 'customer' | 'prospect';
+  healthComputedAt?: Date;
 
   tenantId: number;
   createdAt: Date;

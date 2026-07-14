@@ -4,11 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ToastService } from '../../../shared/services/toast.service';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
@@ -17,7 +19,7 @@ import { Payment } from '../../../core/models/payment.model';
 import { Return } from '../../../core/models/return.model';
 import { Customer } from '../../../core/models/customer.model';
 import { Product } from '../../../core/models/product.model';
-
+import { Shop } from '../../../core/models/shop.model';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 
@@ -44,6 +46,8 @@ export class AdminDashboardComponent {
   protected readonly settingsService = inject(SettingsService);
   private readonly notificationService = inject(NotificationService);
   protected readonly router = inject(Router);
+  private readonly functions2 = inject(Functions);
+  private readonly toast = inject(ToastService);
 
   private orders$ = this.firestore.getCollection<Order>(
     'orders', where('tenantId', '==', 1)
@@ -60,6 +64,9 @@ export class AdminDashboardComponent {
   private returns$ = this.firestore.getCollection<Return>(
     'returns', where('tenantId', '==', 1)
   );
+  private shops$ = this.firestore.getCollection<Shop>(
+    'shops', where('tenantId', '==', 1)
+  );
   private accessRequests$ = this.firestore.getCollection<any>(
     'accessRequests', where('tenantId', '==', 1)
   );
@@ -74,6 +81,7 @@ export class AdminDashboardComponent {
   allCustomers = toSignal(this.customers$, { initialValue: [] as Customer[] });
   allProducts = toSignal(this.products$, { initialValue: [] as Product[] });
   allReturns = toSignal(this.returns$, { initialValue: [] as Return[] });
+  allShops = toSignal(this.shops$, { initialValue: [] as Shop[] });
   allAccessRequests = toSignal(this.accessRequests$, { initialValue: [] as any[] });
   needsReviewDiscrepancies = toSignal(this.reconciliationLog$, { initialValue: [] as any[] });
 
@@ -102,7 +110,22 @@ export class AdminDashboardComponent {
   );
 
   // Tabs
-  activeTab = signal<'overview' | 'financials' | 'orders' | 'products'>('overview');
+  activeTab = signal<'overview' | 'financials' | 'orders' | 'products' | 'health'>('overview');
+
+  isRefreshingHealth = signal(false);
+  async refreshShopHealth() {
+    this.isRefreshingHealth.set(true);
+    try {
+      const fn = httpsCallable(this.functions2, 'refreshShopHealthNow'); // northeast2 instance
+      const res: any = await fn({});
+      this.toast.success(`Health refreshed: ${res.data?.updated ?? 0} shops`);
+    } catch (e) {
+      console.error(e);
+      this.toast.error('Refresh failed');
+    } finally {
+      this.isRefreshingHealth.set(false);
+    }
+  }
 
   // Date range
   selectedPreset = signal<DatePreset>('days30');
@@ -349,6 +372,41 @@ export class AdminDashboardComponent {
         pendingReturns.length +
         lowStockProducts.length +
         pendingAccessRequests.length,
+    };
+  });
+
+  // ── SHOP HEALTH SUMMARY ────────────────────────────
+  shopHealthSummary = computed(() => {
+    const shops = this.allShops().filter(s => !s.isDeleted);
+    const bands: Record<string, number> = { healthy:0, watch:0, at_risk:0, warm:0, cooling:0, cold:0, unknown:0 };
+    const attention: { shop: Shop; days: number | null; kind: string }[] = [];
+    for (const s of shops) {
+      const band = s.healthBand || 'unknown';
+      bands[band] = (bands[band] || 0) + 1;
+      if (band === 'at_risk' || band === 'cold') {
+        attention.push({ shop: s, days: s.healthDays ?? null, kind: s.healthKind || 'prospect' });
+      }
+    }
+    attention.sort((a,b) => (b.days ?? 0) - (a.days ?? 0));
+    return {
+      customers: { healthy: bands['healthy'], watch: bands['watch'], at_risk: bands['at_risk'] },
+      prospects: { warm: bands['warm'], cooling: bands['cooling'], cold: bands['cold'] },
+      needsAttention: attention.slice(0, 8),
+      needsAttentionCount: attention.length,
+    };
+  });
+
+  healthTabData = computed(() => {
+    const shops = this.allShops().filter(s => !s.isDeleted);
+    const customers = shops.filter(s => s.healthKind === 'customer');
+    const prospects = shops.filter(s => s.healthKind === 'prospect');
+    const byBand = (list: Shop[], band: string) => list.filter(s => (s.healthBand||'unknown') === band)
+      .sort((a,b) => (b.healthDays ?? 0) - (a.healthDays ?? 0));
+    return {
+      atRisk: byBand(customers, 'at_risk'),
+      watch: byBand(customers, 'watch'),
+      cold: byBand(prospects, 'cold'),
+      cooling: byBand(prospects, 'cooling'),
     };
   });
 

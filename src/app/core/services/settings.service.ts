@@ -75,6 +75,13 @@ export interface OrderingSettings {
   minimumOrderValue?: number;
   closureActive?: boolean;
   closureMessage?: string | null;
+
+  shopHealth?: {
+    customerWatchDays: number;
+    customerAtRiskDays: number;
+    prospectCoolingDays: number;
+    prospectColdDays: number;
+  };
 }
 
 export interface NotificationSettings {
@@ -218,6 +225,13 @@ export const DEFAULT_ORDERING: OrderingSettings = {
 
   closureActive: false,
   closureMessage: '',
+
+  shopHealth: {
+    customerWatchDays: 30,
+    customerAtRiskDays: 60,
+    prospectCoolingDays: 14,
+    prospectColdDays: 45,
+  },
 };
 
 @Injectable({ providedIn: 'root' })

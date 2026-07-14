@@ -8,6 +8,8 @@ import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
 import { where, orderBy } from '@angular/fire/firestore';
 import { Shop, ShopStatus } from '../../../core/models/shop.model';
 import { LogVisitComponent } from './log-visit/log-visit.component';
+import { SettingsService } from '../../../core/services/settings.service';
+import { HEALTH_BAND_LABELS, HEALTH_BAND_TONE, HealthBand } from '../../../shared/utils/shop-health.utils';
 
 @Component({
   selector: 'app-admin-shops',
@@ -25,6 +27,8 @@ export class AdminShopsComponent {
   searchQuery = signal('');
   statusFilter = signal<ShopStatus | 'all'>('all');
   logVisitShop = signal<Shop | null>(null);
+
+  protected readonly settings = inject(SettingsService);
 
   filteredShops = computed(() => {
     let result = this.shops();
@@ -55,7 +59,9 @@ export class AdminShopsComponent {
     };
   });
 
-  constructor() { this.loadShops(); }
+  constructor() { 
+    this.loadShops();
+  }
 
   private loadShops() {
     this.firestore.getCollection<Shop>(
@@ -72,4 +78,14 @@ export class AdminShopsComponent {
   getInitials(name: string): string { return name ? name.substring(0, 2).toUpperCase() : '??'; }
   goToDetails(id: string) { this.router.navigate(['/admin/shops', id]); }
   openLogVisit(shop: Shop, ev: Event) { ev.stopPropagation(); this.logVisitShop.set(shop); }
+
+  bandOf(shop: Shop): { label: string; tone: string; days: number | null; known: boolean } {
+    const band = (shop.healthBand || 'unknown') as HealthBand;
+    return {
+      label: HEALTH_BAND_LABELS[band],
+      tone: HEALTH_BAND_TONE[band],
+      days: shop.healthDays ?? null,
+      known: band !== 'unknown',
+    };
+  }
 }

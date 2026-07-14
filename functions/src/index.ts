@@ -727,6 +727,62 @@ function normalizeSearchNameFn(value: string | null | undefined): string {
     .replace(/\s+/g, " ");
 }
 
+interface HealthThresholds {
+  customerWatchDays: number;
+  customerAtRiskDays: number;
+  prospectCoolingDays: number;
+  prospectColdDays: number;
+}
+
+async function getHealthThresholds(): Promise<HealthThresholds> {
+  try {
+    const doc = await db.collection("settings").doc("reconciliation").get();
+    const sh = (doc.data() || {}).shopHealth || {};
+    return {
+      customerWatchDays: sh.customerWatchDays ?? 30,
+      customerAtRiskDays: sh.customerAtRiskDays ?? 60,
+      prospectCoolingDays: sh.prospectCoolingDays ?? 14,
+      prospectColdDays: sh.prospectColdDays ?? 45,
+    };
+  } catch {
+    return {customerWatchDays: 30, customerAtRiskDays: 60, prospectCoolingDays: 14, prospectColdDays: 45};
+  }
+}
+
+async function isShopHealthEnabled(): Promise<boolean> {
+  try {
+    const doc = await db.collection("settings").doc("reconciliation").get();
+    const sh = (doc.data() || {}).shopHealth || {};
+    return sh.enabled !== false;
+  } catch {
+    return true;
+  }
+}
+
+function daysSinceMs(value: any): number | null {
+  if (!value) return null;
+  const then = value?.toMillis ? value.toMillis() :
+    (value instanceof Date ? value.getTime() : new Date(value).getTime());
+  if (isNaN(then)) return null;
+  return Math.max(0, Math.floor((Date.now() - then) / 86400000));
+}
+
+type HealthBand = "healthy"|"watch"|"at_risk"|"warm"|"cooling"|"cold"|"unknown";
+
+function computeCustomerBand(days: number | null, t: HealthThresholds, atRiskOverride?: number): HealthBand {
+  if (days == null) return "unknown";
+  const atRisk = atRiskOverride ?? t.customerAtRiskDays;
+  if (days >= atRisk) return "at_risk";
+  if (days >= t.customerWatchDays) return "watch";
+  return "healthy";
+}
+function computeProspectBand(days: number | null, t: HealthThresholds): HealthBand {
+  if (days == null) return "unknown";
+  if (days >= t.prospectColdDays) return "cold";
+  if (days >= t.prospectCoolingDays) return "cooling";
+  return "warm";
+}
+
 interface LinkReconSummary {
   scanned: number;
   healed: number;
@@ -754,7 +810,7 @@ async function getLinkReconConfig(): Promise<LinkReconConfig> {
 // stale searchName, shop status coherence. Flags (no write): three-way
 // mismatch (cust→shopA but shopA→custB), and shop claimed by another customer.
 async function reconcileOneCustomer(
-  customerId: string
+  customerId: string, healthT: HealthThresholds
 ): Promise<{healed: boolean; flagged: boolean; backfilled: boolean}> {
   const custRef = db.collection("customers").doc(customerId);
   const custSnap = await custRef.get();
@@ -811,6 +867,16 @@ async function reconcileOneCustomer(
           shopUpdate.searchName = shopWantSearch;
           if (shop.searchName === undefined) backfilled = true;
         }
+        const custDays = daysSinceMs(cust.lastOrderAt);
+        const band = computeCustomerBand(custDays, healthT, shop.inactiveDaysOverride);
+        const prevBand = shop.healthBand;
+        const staleMs = daysSinceMs(shop.healthComputedAt);
+        if (band !== prevBand || (staleMs != null && staleMs >= 1) || shop.healthComputedAt == null) {
+          shopUpdate.healthBand = band;
+          shopUpdate.healthDays = custDays;
+          shopUpdate.healthKind = "customer";
+          shopUpdate.healthComputedAt = stamp;
+        }
         if (Object.keys(shopUpdate).length > 0) {
           await shopRef.update(shopUpdate);
         }
@@ -858,10 +924,11 @@ async function reconcileOneCustomer(
 // visits shops reachable from a customer). Catches orphan flags on prospect
 // shops + backfills their searchName/hasCustomer.
 async function reconcileOrphanShops(
-  shopIds: string[]
+  shopIds: string[], healthT: HealthThresholds
 ): Promise<{healed: number; backfilled: number}> {
   let healed = 0;
   let backfilled = 0;
+  const stamp = admin.firestore.FieldValue.serverTimestamp();
   for (const id of shopIds) {
     const ref = db.collection("shops").doc(id);
     const snap = await ref.get();
@@ -880,6 +947,16 @@ async function reconcileOrphanShops(
       update.searchName = wantSearch;
       if (shop.searchName === undefined) backfilled++;
     }
+    const days = daysSinceMs(shop.lastVisitDate);
+    const band = computeProspectBand(days, healthT);
+    const prevBand = shop.healthBand;
+    const staleMs = daysSinceMs(shop.healthComputedAt);
+    if (band !== prevBand || (staleMs != null && staleMs >= 1) || shop.healthComputedAt == null) {
+      update.healthBand = band;
+      update.healthDays = days;
+      update.healthKind = "prospect";
+      update.healthComputedAt = stamp;
+    }
     if (Object.keys(update).length > 0) {
       await ref.update(update);
       healed++;
@@ -894,6 +971,7 @@ async function reconcileShopLinks(
   mode: "full" | "incremental"
 ): Promise<LinkReconSummary> {
   const summary: LinkReconSummary = {scanned: 0, healed: 0, flagged: 0, backfilled: 0};
+  const healthT = await getHealthThresholds();
 
   // ── customers ──
   const customerIds: string[] = [];
@@ -927,7 +1005,7 @@ async function reconcileShopLinks(
 
   for (const id of customerIds) {
     try {
-      const r = await reconcileOneCustomer(id);
+      const r = await reconcileOneCustomer(id, healthT);
       summary.scanned++;
       if (r.healed) summary.healed++;
       if (r.flagged) summary.flagged++;
@@ -955,7 +1033,7 @@ async function reconcileShopLinks(
       last = snap.docs[snap.docs.length - 1];
       if (snap.docs.length < pageSize) break;
     }
-    const orphan = await reconcileOrphanShops(shopIds);
+    const orphan = await reconcileOrphanShops(shopIds, healthT);
     summary.healed += orphan.healed;
     summary.backfilled += orphan.backfilled;
     summary.scanned += shopIds.length;
@@ -985,6 +1063,79 @@ export const nightlyLinkReconcile = onSchedule(
       return;
     }
     await reconcileShopLinks("incremental");
+  }
+);
+
+async function stampAllShopHealth(): Promise<{scanned: number; updated: number}> {
+  const t = await getHealthThresholds();
+  const stamp = admin.firestore.FieldValue.serverTimestamp();
+  const pageSize = 500;
+  let last: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  let scanned = 0; let updated = 0;
+
+  for (let page = 0; page < 40; page++) {
+    let q = db.collection("shops")
+      .where("tenantId", "==", 1)
+      .where("isDeleted", "==", false)
+      .orderBy("name")
+      .limit(pageSize);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const shop = doc.data();
+      scanned++;
+      let band: HealthBand; let days: number | null; let kind: "customer"|"prospect";
+      if (shop.linkedCustomerId) {
+        let lastOrderAt: any = null;
+        try {
+          const c = await db.collection("customers").doc(shop.linkedCustomerId).get();
+          lastOrderAt = c.exists ? c.data()?.lastOrderAt : null;
+        } catch {/* null */}
+        days = daysSinceMs(lastOrderAt);
+        band = computeCustomerBand(days, t, shop.inactiveDaysOverride);
+        kind = "customer";
+      } else {
+        days = daysSinceMs(shop.lastVisitDate);
+        band = computeProspectBand(days, t);
+        kind = "prospect";
+      }
+      // Manual refresh writes even if band unchanged, so healthDays reflects the true current day count on demand.
+      await doc.ref.update({healthBand: band, healthDays: days, healthKind: kind, healthComputedAt: stamp});
+      updated++;
+    }
+    last = snap.docs[snap.docs.length - 1];
+    if (snap.docs.length < pageSize) break;
+  }
+  console.log(`Shop health stamp: scanned ${scanned}, updated ${updated}`);
+  return {scanned, updated};
+}
+
+export const nightlyShopHealthStamp = onSchedule(
+  {
+    schedule: "every day 03:45",
+    timeZone: "America/Toronto",
+    region: "northamerica-northeast1",
+    timeoutSeconds: 540,
+    secrets: [],
+  },
+  async () => {
+    const enabled = await isShopHealthEnabled();
+    if (!enabled) {
+      console.log("Shop health computation disabled — skipping nightly");
+      return;
+    }
+    await stampAllShopHealth();
+  }
+);
+
+export const refreshShopHealthNow = onCall(
+  {region: "northamerica-northeast2", cors: true},
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Must be authenticated");
+    if (request.auth.token["role"] !== "admin") throw new HttpsError("permission-denied", "Admin only");
+    return await stampAllShopHealth();
   }
 );
 
@@ -5300,6 +5451,12 @@ export const placeOrder = onCall(
         isDeleted: false,
         confirmedAt: now,
         createdAt: now,
+      });
+
+      tx.update(custRef, {
+        lastOrderAt: now,
+        totalOrderedCents: (cust["totalOrderedCents"] || 0) + totalCents,
+        totalOwingCents: (cust["totalOwingCents"] || 0) + totalCents,
       });
 
       tx.set(seqRef, {sequence: nextSeq}, {merge: true});

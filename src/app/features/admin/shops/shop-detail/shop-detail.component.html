@@ -134,6 +134,26 @@
           <span class="label">Status</span>
           <span class="value"><span class="status-pill">{{ statusLabel() }}</span></span>
         </div>
+        <div class="detail-item">
+          <span class="label">Health</span>
+          <span class="value">
+            @if (shopHealth()?.known) {
+              <span class="health-pill"
+                [class.green]="shopHealth()!.tone==='green'"
+                [class.gold]="shopHealth()!.tone==='gold'"
+                [class.red]="shopHealth()!.tone==='red'">
+                {{ shopHealth()!.label }}
+              </span>
+              <span class="health-detail">
+                @if (shopHealth()!.days != null) {
+                  {{ shopHealth()!.days }}d since {{ shopHealth()!.kind === 'customer' ? 'last order' : 'last visit' }}
+                }
+              </span>
+            } @else {
+              <span class="health-pill gray">No Data</span>
+            }
+          </span>
+        </div>
         @if (s.status === 'prospect' && s.pipelineStage) {
         <div class="detail-item">
           <span class="label">Pipeline Stage</span>

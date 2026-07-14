@@ -44,7 +44,7 @@
     <div class="table-card">
       <div class="table-responsive">
         <table>
-          <thead><tr><th>Shop</th><th>Contact</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Shop</th><th>Contact</th><th>Location</th><th>Status</th><th>Health</th><th>Actions</th></tr></thead>
           <tbody>
             @for (shop of filteredShops(); track shop.id) {
               <tr (click)="goToDetails(shop.id)">
@@ -63,6 +63,14 @@
                   <div class="province">{{ shop.address?.province || '' }}</div>
                 </td>
                 <td><app-status-badge [status]="shop.status"></app-status-badge></td>
+                <td>
+                  <span class="health-pill" [class.green]="bandOf(shop).tone==='green'"
+                    [class.gold]="bandOf(shop).tone==='gold'" [class.red]="bandOf(shop).tone==='red'"
+                    [class.gray]="bandOf(shop).tone==='gray'">
+                    {{ bandOf(shop).label }}
+                    @if (bandOf(shop).days !== null) { <small>· {{ bandOf(shop).days }}d</small> }
+                  </span>
+                </td>
                 <td>
                   <div class="actions-cell">
                     <button class="action-btn" (click)="openLogVisit(shop, $event)" title="Log Visit">

@@ -16,6 +16,7 @@ import { Visit } from '../../../../core/models/shop.model';
 import { Product } from '../../../../core/models/product.model';
 import { where } from '@angular/fire/firestore';
 import { CommonModule, DatePipe } from '@angular/common';
+import { HEALTH_BAND_LABELS, HEALTH_BAND_TONE, HealthBand } from '../../../../shared/utils/shop-health.utils';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -116,6 +117,19 @@ export class ShopDetailComponent {
       first_contact: 'First Contact', manager_meeting: 'Manager Meeting',
       sample_left: 'Sample Left', decision: 'Decision', opened: 'Opened',
     } as any)[p] ?? p;
+  }
+
+  shopHealth(): { label: string; tone: string; days: number | null; kind: string; known: boolean } | null {
+    const s = this.shop();
+    if (!s) return null;
+    const band = (s.healthBand || 'unknown') as HealthBand;
+    return {
+      label: HEALTH_BAND_LABELS[band],
+      tone: HEALTH_BAND_TONE[band],
+      days: s.healthDays ?? null,
+      kind: s.healthKind || (s.linkedCustomerId ? 'customer' : 'prospect'),
+      known: band !== 'unknown',
+    };
   }
 
   getInitials(name: string): string {

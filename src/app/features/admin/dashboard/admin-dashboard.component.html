@@ -144,6 +144,11 @@
         </span>
       }
     </button>
+    <button class="tab-btn"
+      [class.active]="activeTab() === 'health'"
+      (click)="activeTab.set('health')">
+      Shop Health
+    </button>
   </div>
 
   <!-- ══ TAB 1: OVERVIEW ══════════════════════════════ -->
@@ -619,6 +624,8 @@
       </div>
 
     </div>
+
+
 
     <!-- Orders to fulfill -->
     <div class="dash-card full-width">
@@ -1573,6 +1580,127 @@
 
     </div>
 
+  }
+
+  <!-- ══ TAB 5: SHOP HEALTH ════════════════════════════ -->
+  @if (activeTab() === 'health') {
+    <div class="health-tab">
+      <div class="tab-header-row">
+        <div>
+          <h2>Shop Health</h2>
+          <p class="tab-sub">Accounts that need attention, by activity recency</p>
+        </div>
+        <button class="btn-refresh" (click)="refreshShopHealth()" [disabled]="isRefreshingHealth()">
+          <span class="refresh-ico" [class.spin]="isRefreshingHealth()">↻</span>
+          {{ isRefreshingHealth() ? 'Refreshing…' : 'Refresh Now' }}
+        </button>
+      </div>
+
+      <!-- Two summary cards: customers + prospects, each a row of band tiles -->
+      <div class="health-summary-grid">
+        <div class="health-card">
+          <div class="hc-title">Customers</div>
+          <div class="hc-bands">
+            <div class="band-tile green">
+              <span class="bt-num">{{ shopHealthSummary().customers.healthy }}</span>
+              <span class="bt-label">Healthy</span>
+            </div>
+            <div class="band-tile gold">
+              <span class="bt-num">{{ shopHealthSummary().customers.watch }}</span>
+              <span class="bt-label">Watch</span>
+            </div>
+            <div class="band-tile red">
+              <span class="bt-num">{{ shopHealthSummary().customers.at_risk }}</span>
+              <span class="bt-label">At Risk</span>
+            </div>
+          </div>
+        </div>
+        <div class="health-card">
+          <div class="hc-title">Prospects</div>
+          <div class="hc-bands">
+            <div class="band-tile green">
+              <span class="bt-num">{{ shopHealthSummary().prospects.warm }}</span>
+              <span class="bt-label">Warm</span>
+            </div>
+            <div class="band-tile gold">
+              <span class="bt-num">{{ shopHealthSummary().prospects.cooling }}</span>
+              <span class="bt-label">Cooling</span>
+            </div>
+            <div class="band-tile red">
+              <span class="bt-num">{{ shopHealthSummary().prospects.cold }}</span>
+              <span class="bt-label">Cold</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attention lists as cards -->
+      <div class="health-lists">
+        <div class="health-card">
+          <div class="hc-list-head">
+            <span class="dot red"></span>
+            <h3>At-Risk Customers</h3>
+            <span class="hc-count">{{ healthTabData().atRisk.length }}</span>
+          </div>
+          @if (healthTabData().atRisk.length === 0) {
+            <p class="hc-empty">No customers at risk — all ordering on schedule.</p>
+          } @else {
+            @for (s of healthTabData().atRisk; track s.id) {
+              <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+                <span class="hc-name">{{ s.name }}</span>
+                <span class="hc-meta red-text">
+                  {{ s.healthDays != null ? s.healthDays + 'd since order' : 'never ordered' }}
+                </span>
+              </a>
+            }
+          }
+        </div>
+
+        <div class="health-card">
+          <div class="hc-list-head">
+            <span class="dot red"></span>
+            <h3>Cold Prospects</h3>
+            <span class="hc-count">{{ healthTabData().cold.length }}</span>
+          </div>
+          @if (healthTabData().cold.length === 0) {
+            <p class="hc-empty">No cold prospects.</p>
+          } @else {
+            @for (s of healthTabData().cold; track s.id) {
+              <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+                <span class="hc-name">{{ s.name }}</span>
+                <span class="hc-meta red-text">
+                  {{ s.healthDays != null ? s.healthDays + 'd since visit' : 'never visited' }}
+                </span>
+              </a>
+            }
+          }
+        </div>
+
+        <div class="health-card">
+          <div class="hc-list-head">
+            <span class="dot gold"></span>
+            <h3>Watch &amp; Cooling</h3>
+            <span class="hc-count">{{ healthTabData().watch.length + healthTabData().cooling.length }}</span>
+          </div>
+          @if (healthTabData().watch.length + healthTabData().cooling.length === 0) {
+            <p class="hc-empty">Nothing cooling off.</p>
+          } @else {
+            @for (s of healthTabData().watch; track s.id) {
+              <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+                <span class="hc-name">{{ s.name }}</span>
+                <span class="hc-meta gold-text">{{ s.healthDays != null ? s.healthDays + 'd · watch' : 'watch' }}</span>
+              </a>
+            }
+            @for (s of healthTabData().cooling; track s.id) {
+              <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+                <span class="hc-name">{{ s.name }}</span>
+                <span class="hc-meta gold-text">{{ s.healthDays != null ? s.healthDays + 'd · cooling' : 'cooling' }}</span>
+              </a>
+            }
+          }
+        </div>
+      </div>
+    </div>
   }
 
   } <!-- end @else isLoading -->

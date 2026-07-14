@@ -80,6 +80,9 @@ export class VisitService {
         isDeleted: false,
       });
 
+      const shopRef = doc(db, `shops/${shopId}`);
+      batch.update(shopRef, { lastVisitDate: payload.visitDate });
+
       // Sample stock adjustments (catalog items only).
       for (const it of items) {
         if (!it.isSample || !it.productId || !it.sampleQty || it.sampleQty <= 0) continue;
@@ -119,6 +122,7 @@ export class VisitService {
 
   async updateVisit(
     visitId: string,
+    shopId: string,
     payload: {
       visitDate: Date;
       items: VisitItem[];
@@ -141,6 +145,7 @@ export class VisitService {
       notes: payload.notes ?? null,
       markedConversion: payload.markedConversion ?? false,
     });
+    await this.recomputeShopLastVisitForShop(shopId);
   }
 
   async deleteVisit(
@@ -187,6 +192,16 @@ export class VisitService {
           });
         }
       }
+    });
+    await this.recomputeShopLastVisitForShop(visit.shopId);
+  }
+
+  /** Recompute shop.lastVisitDate from its most recent non-deleted visit. */
+  async recomputeShopLastVisitForShop(shopId: string): Promise<void> {
+    const list = await this.listForShop(shopId, 1); // newest non-deleted first
+    const newest = list[0]?.visitDate ?? null;
+    await this.firestore.updateDocument(`shops/${shopId}`, {
+      lastVisitDate: newest,
     });
   }
 }
