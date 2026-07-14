@@ -1855,6 +1855,84 @@ export const onReturnNotification = onDocumentCreated(
   }
 );
 
+// ─── Back-in-Stock Notifications ────────────────────────────────────────────
+// Fires when a product's stock crosses from out-of-stock (<=0) to in-stock (>0)
+// — e.g. via a stock adjustment or PO receive. Emails every customer with a
+// pending stockNotificationRequest for that product, then marks them notified.
+export const onProductRestocked = onDocumentUpdated(
+  {
+    document: "products/{productId}",
+    database: DATABASE_ID,
+    region: "northamerica-northeast2",
+    secrets: [resendApiKey, fromEmail],
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    const prevStock = before.stock || 0;
+    const newStock = after.stock || 0;
+
+    // Only when crossing from out-of-stock into in-stock.
+    if (!(prevStock <= 0 && newStock > 0)) return;
+    if (after.isDeleted || after.active === false) return;
+
+    const productId = event.params.productId;
+    const productName = after.name || "A product";
+
+    // Pending requests for this product.
+    const reqSnap = await db
+      .collection("stockNotificationRequests")
+      .where("productId", "==", productId)
+      .where("status", "==", "pending")
+      .get();
+
+    if (reqSnap.empty) {
+      console.log(`Restock: ${productName} back in stock, no pending requests`);
+      return;
+    }
+
+    const resend = new Resend(resendApiKey.value());
+    const from = fromEmail.value();
+
+    let sent = 0;
+    for (const doc of reqSnap.docs) {
+      const req = doc.data();
+      const email = req.customerEmail;
+      if (!email) {
+        await doc.ref.update({
+          status: "notified",
+          notifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          error: "no-email",
+        });
+        continue;
+      }
+      try {
+        await resend.emails.send({
+          from: `Tropx Wholesale <${from}>`,
+          to: email,
+          subject: `Back in stock: ${productName}`,
+          html: backInStockEmailHtml(
+            req.customerName || "there",
+            productName,
+            after.sku || req.productSku || "",
+          ),
+        });
+        await doc.ref.update({
+          status: "notified",
+          notifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        sent++;
+      } catch (err) {
+        console.error(`Restock email failed for ${email}:`, err);
+        // Leave as pending so a future restock/backfill can retry.
+      }
+    }
+    console.log(`Restock: ${productName} — notified ${sent}/${reqSnap.size} customers`);
+  }
+);
+
 export const onLowStockAlert = onDocumentCreated(
   {
     document: "stockAdjustments/{adjustmentId}",
@@ -3188,6 +3266,57 @@ function returnNotificationEmailHtml(
 </html>`;
 }
 
+function backInStockEmailHtml(
+  customerName: string,
+  productName: string,
+  productSku: string,
+): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f5f7;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:580px;margin:40px auto;background:#fff;border-radius:12px;
+    overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background:#1a7c4a;padding:2rem 2.5rem;text-align:center;">
+      <span style="font-size:2.5rem;display:block;margin-bottom:0.5rem;">📦</span>
+      <h1 style="color:#fff;font-size:1.375rem;margin:0;font-weight:800;">Back in Stock!</h1>
+      <p style="color:#fff;margin:0.25rem 0 0;font-size:0.875rem;opacity:0.85;">
+        The item you wanted is available again
+      </p>
+    </div>
+    <div style="padding:2rem 2.5rem;">
+      <p style="font-size:1rem;color:#1c1c1c;margin-bottom:0.75rem;">Hi ${customerName},</p>
+      <p style="color:#555;line-height:1.7;font-size:0.95rem;margin-bottom:1.5rem;">
+        Good news — <strong>${productName}</strong>${productSku ? ` (SKU ${productSku})` : ""} 
+        is back in stock and ready to order. Popular items go quickly, so order soon to secure yours.
+      </p>
+      <div style="text-align:center;">
+        <a href="https://tropxwholesale.ca/portal/catalog" 
+           style="display:inline-block;background:#1a7c4a;color:#fff !important;
+           text-decoration:none;padding:0.875rem 2.5rem;border-radius:8px;
+           font-weight:600;font-size:1rem;">
+           Order Now →
+        </a>
+      </div>
+    </div>
+    <div style="background:#f8f9fa;padding:1.5rem 2.5rem;text-align:center;">
+      <p style="color:#8a94a6;font-size:0.8rem;margin:0.25rem 0;">
+        <strong>Tropx Enterprises Inc.</strong><br>Kitchener, Ontario, Canada
+      </p>
+      <p style="color:#8a94a6;font-size:0.8rem;margin:0.25rem 0;">
+        <a href="https://tropxwholesale.ca" style="color:#16588e;text-decoration:none;">tropxwholesale.ca</a>
+      </p>
+      <p style="margin-top:0.75rem;font-size:0.72rem;color:#9ca3af;">
+        You asked to be notified when this item returned. 
+        You won't receive further emails about it unless you request again.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function lowStockAlertEmailHtml(
   productName: string,
   productSku: string,
@@ -4008,7 +4137,7 @@ export const checkAbandonedCarts =
 
       // Get linked user for portal access
       const userSnap = await db
-        .collection("userProfiles")
+        .collection("users")
         .where("linkedCustomerId", "==", customerId)
         .limit(1)
         .get();
@@ -4999,3 +5128,210 @@ export const backfillLinkedCustomerIdClaims =
       return {updated, skipped, failed};
     }
   );
+
+// ═══ Order Placement (transactional) ═════════════════════════════════════
+// Replaces client-side placeOrder. A Firestore transaction re-reads stock and
+// the order sequence at commit time, so concurrent orders cannot oversell or
+// collide on order numbers. Pulls real cost from products for correct margin.
+// Stock floors at 0 for every item; backorder shortfall is captured explicitly.
+
+interface PlaceOrderItem { productId: string; quantity: number; }
+
+export const placeOrder = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const linkedCustomerId = auth.token["linkedCustomerId"] as string | undefined;
+    const role = (auth.token["role"] as string) || "none";
+    const isCustomer = role === "customer";
+    if (!isCustomer || !linkedCustomerId) {
+      throw new HttpsError("permission-denied", "Only customers can place portal orders");
+    }
+
+    const data = request.data || {};
+    const deliveryType: "delivery" | "pickup" = data.deliveryType === "pickup" ? "pickup" : "delivery";
+    const notes: string = (data.notes || "").toString().slice(0, 2000);
+    const rawItems: PlaceOrderItem[] = Array.isArray(data.items) ? data.items : [];
+
+    if (rawItems.length === 0) {
+      throw new HttpsError("invalid-argument", "Cart is empty");
+    }
+    // Collapse duplicate productIds, coerce qty to positive ints.
+    const wanted = new Map<string, number>();
+    for (const it of rawItems) {
+      const pid = (it.productId || "").toString();
+      const qty = Math.floor(Number(it.quantity) || 0);
+      if (!pid || qty <= 0) continue;
+      wanted.set(pid, (wanted.get(pid) || 0) + qty);
+    }
+    if (wanted.size === 0) throw new HttpsError("invalid-argument", "No valid items");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── customer ──
+      const custRef = db.collection("customers").doc(linkedCustomerId);
+      const custSnap = await tx.get(custRef);
+      if (!custSnap.exists) throw new HttpsError("not-found", "Customer not found");
+      const cust = custSnap.data() || {};
+
+      // ── ordering settings ──
+      const orderingSnap = await tx.get(db.collection("settings").doc("ordering"));
+      const ordering = orderingSnap.data() || {};
+      const prefix = ordering["orderPrefix"] || "TRX";
+      const taxRatePercent = ordering["defaultTaxRatePercent"] ?? 13;
+      const outOfStockBehavior = ordering["outOfStockBehavior"] || "show_disabled";
+
+      // ── read all products FIRST (transaction rule: all reads before writes) ──
+      const productRefs = [...wanted.keys()].map((pid) => db.collection("products").doc(pid));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      const lineItems: any[] = [];
+      let subtotalCents = 0;
+      let costTotalCents = 0;
+
+      for (let i = 0; i < productSnaps.length; i++) {
+        const snap = productSnaps[i];
+        const pid = productRefs[i].id;
+        const qty = wanted.get(pid)!;
+        if (!snap.exists) {
+          throw new HttpsError("failed-precondition", "A product is no longer available");
+        }
+        const p = snap.data() || {};
+        if (p["isDeleted"] || p["active"] === false) {
+          throw new HttpsError("failed-precondition", `${p["name"] || "An item"} is no longer available`);
+        }
+
+        const stock = p["stock"] || 0;
+        const perProductBehavior = p["outOfStockBehaviorOverride"] ?? outOfStockBehavior;
+        const allowBackorder = perProductBehavior === "allow_backorder";
+
+        // Oversell guard — re-checked at commit time. Backorder items are exempt.
+        if (!allowBackorder && qty > stock) {
+          throw new HttpsError(
+            "failed-precondition",
+            `${p["name"] || "An item"} — only ${stock} left (you asked for ${qty})`,
+            {productId: pid, available: stock, requested: qty, name: p["name"] || ""},
+          );
+        }
+
+        const unitPriceCents = p["priceCents"] ?? 0;
+        const unitCostCents = p["costCents"] ?? 0;
+        const lineTotal = unitPriceCents * qty;
+        subtotalCents += lineTotal;
+        costTotalCents += unitCostCents * qty;
+
+        // Stock floors at 0 for ALL items (keeps the app-wide stock>=0 invariant).
+        // For backorder items exceeding stock, record the shortfall explicitly so
+        // it's queryable and surfaced — never left implicit.
+        const backorderedQty = allowBackorder ? Math.max(0, qty - stock) : 0;
+
+        lineItems.push({
+          productId: pid,
+          productName: p["name"] || "Unnamed product",
+          productSku: p["sku"] || "",
+          quantity: qty,
+          unitPriceCents,
+          lineTotalCents: lineTotal,
+          costCents: unitCostCents,
+          lineCostCents: unitCostCents * qty,
+          lineMarginCents: lineTotal - unitCostCents * qty,
+          backorderedQty, // 0 when fully in stock
+          _newStock: Math.max(0, stock - qty), // never negative
+          _prevStock: stock,
+        });
+      }
+
+      // ── order sequence (transactional) ──
+      const seqRef = db.collection("settings").doc("orderSequence");
+      const seqSnap = await tx.get(seqRef);
+      const currentSeq = seqSnap.exists ? (seqSnap.data()?.["sequence"] || 0) : 0;
+      const nextSeq = currentSeq + 1;
+      const year = new Date().getFullYear();
+      const orderNumber = `${prefix}-${year}-${String(nextSeq).padStart(4, "0")}`;
+
+      // ── totals ──
+      const discountCents = 0;
+      const taxableCents = subtotalCents - discountCents;
+      const taxCents = Math.round((taxableCents * taxRatePercent) / 100);
+      const totalCents = taxableCents + taxCents;
+      const marginCents = subtotalCents - costTotalCents;
+
+      const hasBackorder = lineItems.some((li) => li.backorderedQty > 0);
+      const totalBackorderedUnits = lineItems.reduce((s, li) => s + li.backorderedQty, 0);
+
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const orderRef = db.collection("orders").doc();
+
+      // Strip internal _newStock/_prevStock; backorderedQty stays on the stored line.
+      const orderItems = lineItems.map(({_newStock, _prevStock, ...rest}) => rest);
+
+      // ── WRITES (all reads are done) ──
+      tx.set(orderRef, {
+        orderNumber,
+        customerId: linkedCustomerId,
+        customerName: cust["businessName"] ||
+          `${cust["ownerFirstName"] || ""} ${cust["ownerLastName"] || ""}`.trim(),
+        customerEmail: cust["email"] || "",
+        customerPhone: cust["phone"] || "",
+        serviceAreaId: cust["serviceAreaId"] || null,
+        serviceAreaName: cust["serviceAreaName"] || cust["serviceAreaCustom"] || "",
+        status: "confirmed",
+        source: "customer_portal",
+        deliveryType,
+        items: orderItems,
+        subtotalCents,
+        discountCents,
+        taxRatePercent,
+        taxCents,
+        totalCents,
+        costTotalCents,
+        marginCents,
+        hasBackorder,
+        totalBackorderedUnits,
+        amountPaidCents: 0,
+        balanceCents: totalCents,
+        paymentStatus: "unpaid",
+        customerNotes: notes,
+        tenantId: 1,
+        isDeleted: false,
+        confirmedAt: now,
+        createdAt: now,
+      });
+
+      tx.set(seqRef, {sequence: nextSeq}, {merge: true});
+
+      for (const li of lineItems) {
+        tx.update(db.collection("products").doc(li.productId), {stock: li._newStock});
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: li.productId,
+          productName: li.productName,
+          productSku: li.productSku,
+          type: "sold",
+          quantity: -li.quantity,
+          previousStock: li._prevStock,
+          newStock: li._newStock,
+          reason: `Order ${orderNumber} (portal)`,
+          adjustedBy: {
+            uid: auth.uid,
+            firstName: cust["ownerFirstName"] || cust["businessName"] || "Portal customer",
+            lastName: cust["ownerLastName"] || "",
+          },
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+          linkedOrderId: orderRef.id,
+          linkedOrderNumber: orderNumber,
+        });
+      }
+
+      return {orderId: orderRef.id, orderNumber, hasBackorder, totalBackorderedUnits};
+    });
+
+    return result;
+  }
+);

@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { take } from 'rxjs/operators';
 import { where } from '@angular/fire/firestore';
 import { doc, getDoc, serverTimestamp, Firestore } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { FirestoreService } from './firestore.service';
 import { AuthService } from './auth.service';
 import { SettingsService } from './settings.service';
@@ -15,6 +16,7 @@ export class PortalService {
   private readonly auth = inject(AuthService);
   private readonly firestore = inject(Firestore);
   private readonly settingsService = inject(SettingsService);
+  private readonly functions = inject(Functions);
 
   // Customer identity from auth profile
   customerId = computed(() =>
@@ -356,158 +358,44 @@ export class PortalService {
   async placeOrder(
     deliveryType: 'delivery' | 'pickup',
     notes: string,
-    settingsService: any
+    _settingsService?: any
   ): Promise<string> {
     const customerId = this.customerId();
     const profile = this.customerProfile() as any;
-    if (!customerId || !profile) {
-      throw new Error('Not authenticated');
-    }
+    if (!customerId || !profile) throw new Error('Not authenticated');
 
     const items = this.cartItems();
-    if (items.length === 0) {
-      throw new Error('Cart is empty');
+    if (items.length === 0) throw new Error('Cart is empty');
+
+    const callable = httpsCallable<
+      { deliveryType: string; notes: string; items: { productId: string; quantity: number }[] },
+      { orderId: string; orderNumber: string }
+    >(this.functions, 'placeOrder');
+
+    try {
+      const res = await callable({
+        deliveryType,
+        notes: notes || '',
+        items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+      });
+
+      await this.clearCart();
+      try {
+        await this.firestoreService.updateDocument(`portalCarts/${customerId}`, {
+          abandonedEmailSent24h: false,
+          abandonedEmailSent72h: false,
+          abandonedEmailSent7d: false,
+        });
+      } catch { /* non-fatal */ }
+
+      return res.data.orderId;
+    } catch (err: any) {
+      // Firebase callable errors: err.code like 'functions/failed-precondition',
+      // err.message carries the human text, err.details carries {productId, available, requested, name}.
+      const msg = err?.message || 'Could not place order. Please try again.';
+      // Re-throw with a clean message the checkout component can display.
+      throw new Error(msg);
     }
-
-    // Load customer doc
-    const customerDocRef = doc(this.firestore, `customers/${customerId}`);
-    const customerDocSnap = await getDoc(customerDocRef);
-    const customerDoc = customerDocSnap.exists() ? customerDocSnap.data() as any : {};
-
-    // Get next order number
-    const ordering = settingsService.ordering();
-    const prefix = ordering.orderPrefix || 'TRX';
-    const year = new Date().getFullYear();
-
-    // Read and increment sequence
-    const seqRef = doc(
-      this.firestore, 'settings/orderSequence'
-    );
-    const seqSnap = await getDoc(seqRef);
-    const currentSeq = seqSnap.data()?.['sequence'] || 0;
-    const nextSeq = currentSeq + 1;
-    const orderNumber =
-      `${prefix}-${year}-${String(nextSeq).padStart(4, '0')}`;
-
-    const taxRatePercent =
-      ordering.defaultTaxRatePercent || 13;
-    const subtotalCents = items.reduce(
-      (sum, i) => sum + i.priceCents * i.quantity, 0
-    );
-    const discountCents = 0;
-    const taxableCents = subtotalCents - discountCents;
-    const taxCents = Math.round(
-      taxableCents * taxRatePercent / 100
-    );
-    const totalCents = taxableCents + taxCents;
-
-    const orderItems = items.map(i => ({
-      productId: i.productId,
-      productName: i.productName || 'Unnamed product',
-      productSku: i.productSku || '',
-      quantity: i.quantity ?? 1,
-      unitPriceCents: i.priceCents ?? 0,
-      lineTotalCents: (i.priceCents ?? 0) * (i.quantity ?? 1),
-      costCents: 0,
-      lineMarginCents: 0,
-    }));
-
-    const orderData = {
-      orderNumber,
-      customerId,
-      customerName: profile.businessName ||
-        `${profile.firstName} ${profile.lastName}`.trim(),
-      customerEmail: profile.email || '',
-      customerPhone: profile.phone || '',
-      serviceAreaId: customerDoc.serviceAreaId || null,
-      serviceAreaName: customerDoc.serviceAreaName || customerDoc.serviceAreaCustom || '',
-      status: 'confirmed',
-      source: 'customer_portal',
-      deliveryType,
-      items: orderItems,
-      subtotalCents,
-      discountCents,
-      taxRatePercent,
-      taxCents,
-      totalCents,
-      marginCents: 0,
-      amountPaidCents: 0,
-      balanceCents: totalCents,
-      paymentStatus: 'unpaid',
-      customerNotes: notes || '',
-      tenantId: 1,
-      isDeleted: false,
-      confirmedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    };
-
-    // Run batch: create order + deduct stock
-    let orderId = '';
-
-    await this.firestoreService.runBatch(
-      async (batch: any, db: any) => {
-        // Create order
-        const { collection: col, doc: docFn } =
-          await import('@angular/fire/firestore');
-        const orderRef = docFn(col(db, 'orders'));
-        orderId = orderRef.id;
-        batch.set(orderRef, orderData);
-
-        // Update sequence
-        batch.update(seqRef, { sequence: nextSeq });
-
-
-
-        // Deduct stock + create stockAdjustments
-        for (const item of items) {
-          const productRef = docFn(
-            db, `products/${item.productId}`
-          );
-          const productSnap = await getDoc(productRef);
-          if (productSnap.exists()) {
-            const pd = productSnap.data();
-            const currentStock = pd['stock'] || 0;
-            const newStock = Math.max(
-              0, currentStock - item.quantity
-            );
-            batch.update(productRef, { stock: newStock });
-
-            const adjRef = docFn(col(db, 'stockAdjustments'));
-            batch.set(adjRef, {
-              productId: item.productId,
-              productName: item.productName,
-              productSku: item.productSku,
-              type: 'sold',
-              quantity: -item.quantity,
-              previousStock: currentStock,
-              newStock,
-              reason: `Order ${orderNumber} (portal)`,
-              adjustedBy: {
-                firstName: profile.firstName,
-                lastName: profile.lastName,
-                uid: profile.uid,
-              },
-              createdAt: serverTimestamp(),
-              tenantId: 1,
-              isDeleted: false,
-              linkedOrderId: orderRef.id,
-              linkedOrderNumber: orderNumber,
-            });
-          }
-        }
-      }
-    );
-
-    await this.clearCart();
-    await this.firestoreService.updateDocument(
-      `portalCarts/${customerId}`,
-      {
-        abandonedEmailSent24h: false,
-        abandonedEmailSent72h: false,
-        abandonedEmailSent7d: false,
-      }
-    );
-    return orderId;
   }
 
   // ── UTILS ─────────────────────────────────────────────

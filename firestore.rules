@@ -63,9 +63,7 @@ service cloud.firestore {
                   || doc == 'content'
                   || isCustomer()
                   || isStaff();
-      allow write: if doc == 'orderSequence'
-                   ? (isCustomer() || isStaff())
-                   : isStaff();
+      allow write: if isStaff();
     }
 
 
@@ -73,10 +71,7 @@ service cloud.firestore {
     // Public read (portal catalog). Staff write only.
     match /products/{doc} {
       allow read: if true;
-      allow write: if isStaff() ||
-        (isCustomer() &&
-         request.auth.token.linkedCustomerId
-         != null);
+      allow write: if isStaff();
     }
 
     match /categories/{doc} {
@@ -104,14 +99,8 @@ service cloud.firestore {
          request.auth.token.linkedCustomerId != null &&
          resource.data.customerId ==
          request.auth.token.linkedCustomerId);
-      allow create: if isStaff() ||
-        (isCustomer() &&
-         request.resource.data.customerId ==
-         request.auth.token.linkedCustomerId);
-      allow update: if isStaff() ||
-        (isCustomer() &&
-         resource.data.customerId ==
-         request.auth.token.linkedCustomerId);
+      allow create: if isStaff();
+      allow update: if isStaff();
       allow delete: if false;
     }
 
@@ -184,10 +173,7 @@ service cloud.firestore {
     // ── Admin-only collections ────────────────────────────
     match /stockAdjustments/{doc} {
       allow read: if isStaff();
-      allow write: if isStaff() ||
-        (isCustomer() &&
-         request.auth.token.linkedCustomerId
-         != null);
+      allow write: if isStaff();
     }
 
     match /suppliers/{doc} {
