@@ -1,0 +1,14 @@
+.bc-loading, .bc-empty { text-align:center; padding:4rem; color:var(--gray); }
+.bc-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
+.bc-stat { background:#fff; border:1px solid var(--border-light); border-radius:12px; padding:1.25rem; display:flex; flex-direction:column; gap:.25rem; }
+.bcs-num { font-size:1.75rem; font-weight:800; color:var(--navy-deep); font-variant-numeric:tabular-nums; }
+.bcs-lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--gray); font-weight:600; }
+.bc-card { background:#fff; border:1px solid var(--border-light); border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.5rem; }
+.bc-card h3 { margin:0 0 1rem; font-size:1rem; font-weight:700; color:var(--text-dark); }
+.bc-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+.bc-table th { text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--gray); font-weight:700; padding:.5rem .75rem; border-bottom:1px solid var(--border-light); }
+.bc-table th.r, .bc-table td.r { text-align:right; }
+.bc-table td { padding:.6rem .75rem; border-bottom:1px solid var(--border-light); color:var(--text-dark); }
+.bc-label { font-weight:600; }
+.bc-link { color:var(--gray); font-family:monospace; font-size:.78rem; }
+.bc-count { font-weight:800; color:var(--navy-deep); }

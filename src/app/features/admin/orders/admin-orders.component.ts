@@ -31,6 +31,7 @@ export class AdminOrdersComponent {
   showAreaFilter = signal(false);
   isLoading = signal(true);
   sourceFilter = signal<'all' | 'admin_created' | 'customer_portal'>('all');
+  backorderedOnly = signal(false);
 
   // Data
   private orders$ = this.firestore.getCollection<Order>(
@@ -63,6 +64,9 @@ export class AdminOrdersComponent {
           source === 'admin_created') {
         this.sourceFilter.set(source);
       }
+      if (params.get('filter') === 'backordered') {
+        this.backorderedOnly.set(true);
+      }
     });
   }
 
@@ -91,18 +95,21 @@ export class AdminOrdersComponent {
           this.sourceFilter() === 'all' ||
           o.source === this.sourceFilter();
 
-        let matchesDate = true;
-        if (date !== 'all') {
+        const matchesDate = (() => {
+          if (date === 'all') return true;
           const now = new Date();
           const orderDate = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
           const diffDays = (now.getTime() - orderDate.getTime()) / (1000 * 3600 * 24);
           
-          if (date === 'today') matchesDate = diffDays < 1;
-          else if (date === 'last_7') matchesDate = diffDays <= 7;
-          else if (date === 'last_30') matchesDate = diffDays <= 30;
-        }
+          if (date === 'today') return diffDays < 1;
+          if (date === 'last_7') return diffDays <= 7;
+          if (date === 'last_30') return diffDays <= 30;
+          return true;
+        })();
 
-        return matchesSearch && matchesStatus && matchesPayment && matchesDate && matchesArea && matchesSource;
+        const matchesBackorder = !this.backorderedOnly() || o.hasBackorder;
+
+        return matchesSearch && matchesStatus && matchesPayment && matchesDate && matchesArea && matchesSource && matchesBackorder;
       })
       .sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime();

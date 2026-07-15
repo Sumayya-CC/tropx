@@ -110,7 +110,7 @@ export class AdminDashboardComponent {
   );
 
   // Tabs
-  activeTab = signal<'overview' | 'financials' | 'orders' | 'products' | 'health'>('overview');
+  activeTab = signal<'overview' | 'financials' | 'orders' | 'products' | 'field_ops'>('overview');
 
   isRefreshingHealth = signal(false);
   async refreshShopHealth() {
@@ -410,6 +410,24 @@ export class AdminDashboardComponent {
     };
   });
 
+  // ── PIPELINE SUMMARY ───────────────────────────────
+  private pipelineShops = computed(() => this.allShops().filter(s => !s.isDeleted && s.status === 'prospect'));
+  pipelineSummary = computed(() => {
+    const ps = this.pipelineShops();
+    const stuck = ps.filter(s => s.pipelineStuck).length;
+    const ready = ps.filter(s => s.pipelineStage === 'opened').length;
+    const overdueFollowUps = ps.filter(s => {
+      const v: any = s.nextActionDate; if (!v) return false;
+      const d = v?.toDate ? v.toDate() : new Date(v);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const t = new Date(d); t.setHours(0,0,0,0);
+      return t <= today;
+    });
+    const stuckList = ps.filter(s => s.pipelineStuck)
+      .sort((a,b) => (b.daysInStage ?? 0) - (a.daysInStage ?? 0)).slice(0, 8);
+    return { active: ps.length, stuck, ready, overdueCount: overdueFollowUps.length, stuckList, overdueList: overdueFollowUps.slice(0,8) };
+  });
+
   // ── DELIVERY SCHEDULE ────────────────────────────────
   ordersToFulfill = computed(() => {
     const now = new Date();
@@ -447,6 +465,29 @@ export class AdminDashboardComponent {
         return this.toDate(b.confirmedAt).getTime() -
           this.toDate(a.confirmedAt).getTime();
       });
+  });
+
+  // ── BACKORDERS SUMMARY ───────────────────────────────
+  backorderSummary = computed(() => {
+    const orders = this.allOrders().filter(o =>
+      !o.isDeleted && o.hasBackorder &&
+      o.status !== 'cancelled' && o.status !== 'delivered');
+    const byProduct = new Map<string, { productName: string; units: number; orders: Set<string> }>();
+    let totalUnits = 0;
+    for (const o of orders) {
+      for (const it of (o.items || []) as any[]) {
+        const bq = it.backorderedQty || 0;
+        if (bq <= 0) continue;
+        totalUnits += bq;
+        const cur = byProduct.get(it.productId) || { productName: it.productName, units: 0, orders: new Set<string>() };
+        cur.units += bq; cur.orders.add(o.id);
+        byProduct.set(it.productId, cur);
+      }
+    }
+    const products = Array.from(byProduct.entries())
+      .map(([productId, v]) => ({ productId, productName: v.productName, units: v.units, orderCount: v.orders.size }))
+      .sort((a, b) => b.units - a.units);
+    return { totalUnits, orderCount: orders.length, products };
   });
 
   delayedOrdersCount = computed(() =>

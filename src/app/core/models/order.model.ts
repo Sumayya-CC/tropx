@@ -23,6 +23,7 @@ export interface OrderItem {
   lineTotalCents: number;    // unitPrice × quantity
   lineCostCents: number;     // unitCost × quantity
   currencyCode: string;
+  backorderedQty?: number;
 }
 
 export interface Order {
@@ -43,6 +44,7 @@ export interface Order {
   discountCents: number;     // manual discount
   totalCents: number;        // subtotal - discount + tax
   currencyCode: string;
+  hasBackorder?: boolean;
 
   // Margin (sum of lineCostCents vs lineTotalCents)
   totalCostCents: number;    // sum of lineCostCents

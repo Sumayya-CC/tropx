@@ -145,9 +145,12 @@
       }
     </button>
     <button class="tab-btn"
-      [class.active]="activeTab() === 'health'"
-      (click)="activeTab.set('health')">
-      Shop Health
+      [class.active]="activeTab() === 'field_ops'"
+      (click)="activeTab.set('field_ops')">
+      Field Ops
+      @if (shopHealthSummary().needsAttentionCount + pipelineSummary().stuck + pipelineSummary().overdueCount > 0) {
+        <span class="tab-badge">{{ shopHealthSummary().needsAttentionCount + pipelineSummary().stuck + pipelineSummary().overdueCount }}</span>
+      }
     </button>
   </div>
 
@@ -418,6 +421,29 @@
             </a>
           }
 
+        </div>
+      </div>
+    }
+
+    @if (backorderSummary().totalUnits > 0) {
+      <div class="dash-card backorder-card full-width" style="margin-bottom:1.5rem">
+        <div class="dash-card-header">
+          <h3>Backorders</h3>
+          <a routerLink="/admin/orders" [queryParams]="{ filter: 'backordered' }" class="header-link">View orders →</a>
+        </div>
+        <div class="dash-card-body">
+          <div class="bo-summary">
+            <span class="bo-total">{{ backorderSummary().totalUnits }}</span>
+            <span class="bo-total-lbl">units owed across {{ backorderSummary().orderCount }} order{{ backorderSummary().orderCount === 1 ? '' : 's' }}</span>
+          </div>
+          <div class="bo-list">
+            @for (p of backorderSummary().products; track p.productId) {
+              <a class="bo-row" [routerLink]="['/admin/products', p.productId]">
+                <span class="bo-name">{{ p.productName }}</span>
+                <span class="bo-units">{{ p.units }} owed <small>· {{ p.orderCount }} order{{ p.orderCount === 1 ? '' : 's' }}</small></span>
+              </a>
+            }
+          </div>
         </div>
       </div>
     }
@@ -1582,12 +1608,12 @@
 
   }
 
-  <!-- ══ TAB 5: SHOP HEALTH ════════════════════════════ -->
-  @if (activeTab() === 'health') {
+  <!-- ══ TAB 5: FIELD OPS ════════════════════════════ -->
+  @if (activeTab() === 'field_ops') {
     <div class="health-tab">
       <div class="tab-header-row">
         <div>
-          <h2>Shop Health</h2>
+          <h2>Field Ops</h2>
           <p class="tab-sub">Accounts that need attention, by activity recency</p>
         </div>
         <button class="btn-refresh" (click)="refreshShopHealth()" [disabled]="isRefreshingHealth()">
@@ -1700,6 +1726,46 @@
           }
         </div>
       </div>
+
+      <!-- Pipeline Section -->
+      <div class="fo-section">
+        <div class="fo-section-head">
+          <h2>Pipeline</h2>
+          <a routerLink="/admin/pipeline" class="header-link">Open pipeline →</a>
+        </div>
+        <div class="health-summary-grid">
+          <div class="health-card">
+            <div class="hc-title">Prospects</div>
+            <div class="hc-bands">
+              <div class="band-tile green"><span class="bt-num">{{ pipelineSummary().active }}</span><span class="bt-label">Active</span></div>
+              <div class="band-tile red"><span class="bt-num">{{ pipelineSummary().stuck }}</span><span class="bt-label">Stuck</span></div>
+              <div class="band-tile gold"><span class="bt-num">{{ pipelineSummary().ready }}</span><span class="bt-label">Ready</span></div>
+            </div>
+          </div>
+          <div class="health-card">
+            <div class="hc-list-head"><span class="dot red"></span><h3>Stuck Prospects</h3><span class="hc-count">{{ pipelineSummary().stuck }}</span></div>
+            @if (pipelineSummary().stuckList.length === 0) { <p class="hc-empty">Nothing stuck.</p> }
+            @for (s of pipelineSummary().stuckList; track s.id) {
+              <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+                <span class="hc-name">{{ s.name }}</span>
+                <span class="hc-meta red-text">{{ s.daysInStage ?? 0 }}d in stage</span>
+              </a>
+            }
+          </div>
+        </div>
+        @if (pipelineSummary().overdueList.length) {
+          <div class="health-card" style="margin-top:1.25rem;">
+            <div class="hc-list-head"><span class="dot gold"></span><h3>Overdue Follow-ups</h3><span class="hc-count">{{ pipelineSummary().overdueCount }}</span></div>
+            @for (s of pipelineSummary().overdueList; track s.id) {
+              <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+                <span class="hc-name">{{ s.name }}</span>
+                <span class="hc-meta gold-text">{{ s.nextActionNote || 'follow-up due' }}</span>
+              </a>
+            }
+          </div>
+        }
+      </div>
+
     </div>
   }
 

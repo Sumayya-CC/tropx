@@ -6,7 +6,9 @@ export type AdjustmentType =
   | 'damaged'       // Damaged/expired goods
   | 'returned'      // Customer return
   | 'correction'    // Manual count correction
-  | 'transfer';     // Transferred to another location
+  | 'transfer'      // Transferred to another location
+  | 'sample'
+  | 'sample_reversal';
 
 export interface StockAdjustment {
   id: string;
@@ -35,7 +37,9 @@ export const ADJUSTMENT_TYPE_LABELS: Record<AdjustmentType, string> = {
   damaged: 'Damaged',
   returned: 'Returned',
   correction: 'Correction',
-  transfer: 'Transfer'
+  transfer: 'Transfer',
+  sample: 'Sample',
+  sample_reversal: 'Sample Reversal'
 };
 
 // Indicates direction for UI (whether this type adds or removes stock)
@@ -45,5 +49,7 @@ export const ADJUSTMENT_TYPE_DIRECTION: Record<AdjustmentType, 'in' | 'out' | 'e
   damaged: 'out',
   returned: 'in',
   correction: 'either',
-  transfer: 'out'
+  transfer: 'out',
+  sample: 'out',
+  sample_reversal: 'in'
 };

@@ -318,6 +318,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'banner-clicks',
+        data: { roles: ['admin'], title: 'Banner Clicks' },
+        loadComponent: () => import('./features/admin/analytics/banner-clicks.component').then(m => m.BannerClicksComponent),
+      },
+      {
         path: 'settings',
         data: { roles: ['admin'], title: 'Settings' },
         loadComponent: () =>

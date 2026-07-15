@@ -1941,3 +1941,21 @@
   .hc-meta { font-size:.78rem; white-space:nowrap; }
   .red-text { color:var(--red); } .gold-text { color:#8a6d1f; }
   .hc-empty { color:var(--gray); font-size:.85rem; margin:.5rem 0 0; }
+
+.backorder-card .bo-summary { display:flex; align-items:baseline; gap:.5rem; margin-bottom:1rem; }
+.bo-total { font-size:1.75rem; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+.bo-total-lbl { font-size:.85rem; color:var(--gray); }
+.bo-list { display:flex; flex-direction:column; }
+.bo-row { display:flex; justify-content:space-between; padding:.55rem 0; border-bottom:1px solid var(--border-light); text-decoration:none; transition: background 0.15s; }
+.bo-row:hover { background: var(--cream); }
+.bo-row:last-child { border-bottom:none; }
+.bo-name { font-weight:600; color:var(--navy-deep); font-size:.875rem; }
+.bo-units { font-size:.82rem; color:#8a6d1f; font-weight:600; }
+.bo-units small { color:var(--gray); font-weight:400; }
+
+.fo-section { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border-light); }
+.fo-section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; }
+.fo-section-head h2 { margin:0; font-size:1.2rem; font-weight:700; color:var(--navy-deep); }
+.tab-badge { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px;
+  padding:0 5px; margin-left:.4rem; background:var(--red); color:#fff; font-size:.7rem; font-weight:700;
+  border-radius:20px; }

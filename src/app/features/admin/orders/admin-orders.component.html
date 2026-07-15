@@ -124,6 +124,11 @@
         }
       </div>
     </div>
+    <div class="filter-group">
+      <label class="filter-chip" style="margin-top: auto; margin-bottom: auto;">
+        <input type="checkbox" [ngModel]="backorderedOnly()" (ngModelChange)="backorderedOnly.set($event)"> Backordered only
+      </label>
+    </div>
     <div class="filter-group filter-group-export">
       <button class="btn-export-trigger" (click)="showExportModal.set(true)">
         <span>📥</span> Export CSV
@@ -176,6 +181,9 @@
                 <span class="order-num-text">
                   {{ order.orderNumber }}
                 </span>
+                @if (order.hasBackorder) {
+                  <span class="badge-backorder" style="margin-top: 4px;">Backorder</span>
+                }
                 @if (order.source === 'customer_portal') {
                   <span class="source-badge portal">
                     <svg xmlns="http://www.w3.org/2000/svg"

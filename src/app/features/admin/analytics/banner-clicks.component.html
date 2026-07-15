@@ -1,0 +1,45 @@
+<app-page-header title="Banner Clicks" subtitle="Featured banner engagement"></app-page-header>
+
+@if (isLoading()) {
+  <div class="bc-loading"><div class="spinner"></div><p>Loading…</p></div>
+} @else if (totalClicks() === 0) {
+  <div class="bc-empty"><p>No banner clicks recorded yet.</p></div>
+} @else {
+  <div class="bc-stats">
+    <div class="bc-stat"><span class="bcs-num">{{ totalClicks() }}</span><span class="bcs-lbl">Total Clicks</span></div>
+    <div class="bc-stat"><span class="bcs-num">{{ byButton().length }}</span><span class="bcs-lbl">Distinct Buttons</span></div>
+    <div class="bc-stat"><span class="bcs-num">{{ uniqueShops() }}</span><span class="bcs-lbl">Shops Engaged</span></div>
+  </div>
+
+  <div class="bc-card">
+    <h3>By Button</h3>
+    <table class="bc-table">
+      <thead><tr><th>Button</th><th>Link</th><th class="r">Clicks</th></tr></thead>
+      <tbody>
+        @for (b of byButton(); track b.label + b.link) {
+          <tr>
+            <td class="bc-label">{{ b.label }}</td>
+            <td class="bc-link">{{ b.link }}</td>
+            <td class="r bc-count">{{ b.count }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bc-card">
+    <h3>Recent Clicks</h3>
+    <table class="bc-table">
+      <thead><tr><th>Shop</th><th>Button</th><th>Date</th></tr></thead>
+      <tbody>
+        @for (c of recent(); track c.id) {
+          <tr>
+            <td>{{ c.businessName || '(guest)' }}</td>
+            <td>{{ c.buttonLabel || '—' }}</td>
+            <td>{{ clickDate(c.clickedAt) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

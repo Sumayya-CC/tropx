@@ -98,6 +98,7 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
 
     const profile = this.portal.customerProfile() as any;
     const customerId = this.portal.customerId();
+    const businessName = this.portal.businessName();
 
     // Fire-and-forget click log — don't block navigation
     // on it, and don't let a logging failure break the
@@ -108,7 +109,7 @@ export class PortalHomeComponent implements OnInit, OnDestroy {
         buttonLabel: overlay.buttonLabel || '',
         buttonLink: overlay.buttonLink,
         customerId: customerId || null,
-        businessName: profile?.businessName || null,
+        businessName: businessName || null,
         clickedAt: new Date(),
         tenantId: 1,
       });
