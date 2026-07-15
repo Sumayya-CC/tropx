@@ -235,6 +235,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'pipeline',
+        loadComponent: () =>
+          import('./features/admin/shops/pipeline/pipeline-board.component').then(m => m.PipelineBoardComponent),
+      },
+      {
         path: 'orders',
         data: { title: 'Orders' },
         children: [

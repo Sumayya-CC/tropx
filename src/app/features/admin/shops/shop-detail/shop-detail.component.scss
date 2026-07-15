@@ -577,3 +577,11 @@
 .health-pill.red   { background:rgba(231,34,46,.1); color:var(--red); }
 .health-pill.gray  { background:#f1f5f9; color:var(--gray); }
 .health-detail { display:block; font-size:.78rem; color:var(--gray); margin-top:.25rem; }
+
+.pl-stage-inline { padding:.35rem .5rem; border:1px solid var(--border-light); border-radius:6px; font-size:.85rem; }
+.link-btn { background:none; border:none; color:var(--navy-deep); font-weight:600; cursor:pointer; font-size:.8rem; padding:0 .25rem; }
+.pl-history { margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border-light); }
+.pl-history-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--gray); font-weight:700; margin-bottom:.5rem; }
+.pl-history-row { display:flex; justify-content:space-between; padding:.35rem 0; font-size:.82rem; }
+.plh-stage { font-weight:600; color:var(--text-dark); }
+.plh-date { color:var(--gray); }

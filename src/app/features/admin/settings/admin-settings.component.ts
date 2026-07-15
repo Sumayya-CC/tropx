@@ -13,8 +13,10 @@ import { where } from '@angular/fire/firestore';
 import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct, FeaturedBannerOverlay, BannerTextAlign, BannerTextColor, BannerProductPlacement, MAX_BANNER_PRODUCTS, resolveHidePrice, PopularProductsSettings, DEFAULT_POPULAR_PRODUCTS_SETTINGS } from '../../../core/models/storefront-settings.model';
 import { Product } from '../../../core/models/product.model';
 import { Functions, getFunctions, httpsCallable } from '@angular/fire/functions';
+
 import { FirebaseApp } from '@angular/fire/app';
 import { DEFAULT_HEALTH_THRESHOLDS } from '../../../shared/utils/shop-health.utils';
+import { DEFAULT_STUCK_THRESHOLDS } from '../../../shared/utils/pipeline.utils';
 type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications' | 'system';
 
 @Component({
@@ -64,6 +66,14 @@ export class AdminSettingsComponent {
   shCustomerAtRisk = signal(DEFAULT_HEALTH_THRESHOLDS.customerAtRiskDays);
   shProspectCooling = signal(DEFAULT_HEALTH_THRESHOLDS.prospectCoolingDays);
   shProspectCold = signal(DEFAULT_HEALTH_THRESHOLDS.prospectColdDays);
+
+  editingPipeline = signal(false);
+  plEnabled = signal(true);
+  plFirstContact = signal(DEFAULT_STUCK_THRESHOLDS.first_contact);
+  plManagerMeeting = signal(DEFAULT_STUCK_THRESHOLDS.manager_meeting);
+  plSampleLeft = signal(DEFAULT_STUCK_THRESHOLDS.sample_left);
+  plDecision = signal(DEFAULT_STUCK_THRESHOLDS.decision);
+  plOpened = signal(DEFAULT_STUCK_THRESHOLDS.opened);
 
   // Reconciliation form signals
   shopLinkReconEnabled = signal(true);
@@ -421,6 +431,14 @@ export class AdminSettingsComponent {
       this.shCustomerAtRisk.set(sh.customerAtRiskDays ?? DEFAULT_HEALTH_THRESHOLDS.customerAtRiskDays);
       this.shProspectCooling.set(sh.prospectCoolingDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectCoolingDays);
       this.shProspectCold.set(sh.prospectColdDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectColdDays);
+      
+      const pl = (r as any).pipeline || {}; const st = pl.stuckThresholds || {};
+      this.plEnabled.set(pl.enabled !== false);
+      this.plFirstContact.set(st.first_contact ?? DEFAULT_STUCK_THRESHOLDS.first_contact);
+      this.plManagerMeeting.set(st.manager_meeting ?? DEFAULT_STUCK_THRESHOLDS.manager_meeting);
+      this.plSampleLeft.set(st.sample_left ?? DEFAULT_STUCK_THRESHOLDS.sample_left);
+      this.plDecision.set(st.decision ?? DEFAULT_STUCK_THRESHOLDS.decision);
+      this.plOpened.set(st.opened ?? DEFAULT_STUCK_THRESHOLDS.opened);
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -1576,6 +1594,38 @@ export class AdminSettingsComponent {
     this.shProspectCooling.set(sh.prospectCoolingDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectCoolingDays);
     this.shProspectCold.set(sh.prospectColdDays ?? DEFAULT_HEALTH_THRESHOLDS.prospectColdDays);
     this.editingShopHealth.set(false);
+  }
+
+  async savePipeline() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.updateDocument('settings/reconciliation', {
+        pipeline: {
+          enabled: this.plEnabled(),
+          stuckThresholds: {
+            first_contact: this.plFirstContact(),
+            manager_meeting: this.plManagerMeeting(),
+            sample_left: this.plSampleLeft(),
+            decision: this.plDecision(),
+            opened: this.plOpened(),
+          },
+        },
+      });
+      this.toast.success('Pipeline settings saved');
+      this.editingPipeline.set(false);
+    } catch (e) { console.error(e); this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelPipeline() {
+    const pl = (this.settings.reconciliation() as any).pipeline || {}; const st = pl.stuckThresholds || {};
+    this.plEnabled.set(pl.enabled !== false);
+    this.plFirstContact.set(st.first_contact ?? DEFAULT_STUCK_THRESHOLDS.first_contact);
+    this.plManagerMeeting.set(st.manager_meeting ?? DEFAULT_STUCK_THRESHOLDS.manager_meeting);
+    this.plSampleLeft.set(st.sample_left ?? DEFAULT_STUCK_THRESHOLDS.sample_left);
+    this.plDecision.set(st.decision ?? DEFAULT_STUCK_THRESHOLDS.decision);
+    this.plOpened.set(st.opened ?? DEFAULT_STUCK_THRESHOLDS.opened);
+    this.editingPipeline.set(false);
   }
 
   onLogoSelected(event: Event) {

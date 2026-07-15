@@ -122,6 +122,16 @@ export interface ReconciliationSettings {
   autoCorrectEnabled: boolean;
   notifyAdmin: boolean;
   tenantId: number;
+  pipeline?: {
+    enabled: boolean;
+    stuckThresholds: {
+      first_contact: number;
+      manager_meeting: number;
+      sample_left: number;
+      decision: number;
+      opened: number;
+    };
+  };
 }
 
 export const DEFAULT_RECONCILIATION: ReconciliationSettings = {

@@ -1,0 +1,112 @@
+<app-page-header
+  title="Pipeline"
+  subtitle="Work prospects through to customers">
+</app-page-header>
+
+<div class="pl-toolbar">
+  <div class="pl-search">
+    <input type="text" placeholder="Search prospects…"
+      [ngModel]="filterQuery()" (ngModelChange)="filterQuery.set($event)">
+  </div>
+  <label class="pl-stuck-toggle">
+    <input type="checkbox" [ngModel]="filterStuckOnly()" (ngModelChange)="filterStuckOnly.set($event)">
+    Stuck only
+  </label>
+</div>
+
+@if (isLoading()) {
+  <div class="pl-loading"><div class="spinner"></div><p>Loading pipeline…</p></div>
+} @else {
+  <div class="pl-overview">
+    <div class="pl-metrics">
+      <div class="pl-metric"><span class="pm-num">{{ overview().active }}</span><span class="pm-lbl">Active</span></div>
+      <div class="pl-metric"><span class="pm-num red">{{ overview().stuck }}</span><span class="pm-lbl">Stuck</span></div>
+      <div class="pl-metric"><span class="pm-num green">{{ overview().ready }}</span><span class="pm-lbl">Ready</span></div>
+      <div class="pl-metric"><span class="pm-num">{{ overview().avgDays ?? '—' }}<small>{{ overview().avgDays != null ? 'd' : '' }}</small></span><span class="pm-lbl">Avg to Convert</span></div>
+      <div class="pl-metric"><span class="pm-num">{{ overview().rate }}<small>%</small></span><span class="pm-lbl">Conversion</span></div>
+    </div>
+
+    <div class="pl-attention-grid">
+      <div class="pl-att-card">
+        <h4>Needs Attention</h4>
+        @if (needsAttention().length === 0) { <p class="pl-att-empty">Nothing stuck or overdue 🎉</p> }
+        @for (a of needsAttention(); track a.shop.id) {
+          <a class="pl-att-row" [routerLink]="['/admin/shops', a.shop.id]">
+            <span class="pl-att-name">{{ a.kind === 'overdue' ? '📅' : '⚠' }} {{ a.shop.name }}</span>
+            <span class="pl-att-reason">{{ a.reason }}</span>
+          </a>
+        }
+      </div>
+      <div class="pl-att-card">
+        <h4>Ready to Convert</h4>
+        @if (readyToConvert().length === 0) { <p class="pl-att-empty">None yet.</p> }
+        @for (s of readyToConvert(); track s.id) {
+          <div class="pl-att-row">
+            <a class="pl-att-name" [routerLink]="['/admin/shops', s.id]">✅ {{ s.name }}</a>
+            <button class="pl-convert sm" (click)="convert(s, $event)">Convert →</button>
+          </div>
+        }
+      </div>
+      <div class="pl-att-card">
+        <h4>Today's Follow-ups</h4>
+        @if (todaysFollowUps().length === 0) { <p class="pl-att-empty">Nothing due today.</p> }
+        @for (s of todaysFollowUps(); track s.id) {
+          <a class="pl-att-row" [routerLink]="['/admin/shops', s.id]">
+            <span class="pl-att-name">{{ s.name }}</span>
+            <span class="pl-att-reason" [class.overdue-text]="nextActionDue(s)==='overdue'">{{ nextActionLabel(s) }}</span>
+          </a>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="pl-board">
+    @for (col of columns(); track col.stage) {
+      <div class="pl-col">
+        <div class="pl-col-head">
+          <span class="pl-col-name">{{ col.label }}</span>
+          <span class="pl-col-count">{{ col.shops.length }}</span>
+        </div>
+        <div class="pl-col-body">
+          @if (col.shops.length === 0) {
+            <div class="pl-col-empty">No prospects here</div>
+          }
+          @for (shop of col.shops; track shop.id) {
+            <div class="pl-card" [class.stuck]="isStuck(shop)" [class.moving]="movingId() === shop.id"
+              (click)="goToShop(shop.id)">
+              <div class="pl-card-top">
+                <span class="pl-card-name">{{ shop.name }}</span>
+                <span class="pl-health-dot" [class.green]="healthTone(shop)==='green'"
+                  [class.gold]="healthTone(shop)==='gold'" [class.red]="healthTone(shop)==='red'"
+                  [class.gray]="healthTone(shop)==='gray'" [title]="healthLabel(shop)"></span>
+              </div>
+              @if (shop.address?.city) {
+                <div class="pl-card-loc">📍 {{ shop.address?.city }}</div>
+              }
+              <div class="pl-card-meta">
+                <span class="pl-days" [class.warn]="isStuck(shop)">
+                  ⏱ {{ daysInStage(shop) ?? 0 }}d @if (isStuck(shop)) { ⚠ }
+                </span>
+              </div>
+              @if (nextActionDue(shop)) {
+                <div class="pl-next" [class.overdue]="nextActionDue(shop)==='overdue'"
+                  [class.today]="nextActionDue(shop)==='today'">
+                  📅 {{ nextActionLabel(shop) }}
+                </div>
+              }
+              <div class="pl-card-actions" (click)="$event.stopPropagation()">
+                <select class="pl-stage-select" [ngModel]="shop.pipelineStage || 'first_contact'"
+                  (ngModelChange)="onStageChange(shop, $event)">
+                  @for (s of stages; track s) { <option [value]="s">{{ stageLabels[s] }}</option> }
+                </select>
+                @if (shop.pipelineStage === 'opened') {
+                  <button class="pl-convert" (click)="convert(shop, $event)">Convert →</button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}

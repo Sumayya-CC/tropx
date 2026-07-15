@@ -33,7 +33,7 @@ export class LogVisitComponent implements OnInit {
   @Input({ required: true }) shop!: Shop;
   @Input() editVisit: Visit | null = null;
   @Input() customerName: string | null = null;
-  @Output() saved = new EventEmitter<string>();   // emits new visit id
+  @Output() saved = new EventEmitter<{ id: string; outcome: string | null; markedConversion: boolean }>();
   @Output() close = new EventEmitter<void>();
 
   private readonly firestore = inject(FirestoreService);
@@ -245,7 +245,11 @@ export class LogVisitComponent implements OnInit {
         id = await this.visits.saveVisit(this.shop.id, this.shop.name, body, actionBy);
         this.toast.success('Visit saved');
       }
-      this.saved.emit(id);
+      this.saved.emit({
+        id,
+        outcome: this.markedConversion() ? 'converted' : this.outcome(),
+        markedConversion: this.markedConversion(),
+      });
     } catch (e) {
       console.error('Save visit failed', e);
       this.toast.error('Failed to save visit');

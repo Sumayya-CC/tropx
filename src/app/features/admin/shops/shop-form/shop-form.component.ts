@@ -213,10 +213,23 @@ export class ShopFormComponent implements OnInit {
         this.toast.success('Shop updated');
         this.router.navigate(['/admin/shops', this.shopId()]);
       } else {
-        const ref = await this.firestore.addDocument('shops', {
+        const val = this.form.getRawValue();
+        const isProspect = val.status === 'prospect';
+        
+        const createPayload = {
           ...payload, linkedCustomerId: null, hasCustomer: false, tenantId: 1, isDeleted: false,
-          createdAt: serverTimestamp(), createdBy: actionBy
-        });
+          createdAt: serverTimestamp(), createdBy: actionBy,
+          ...(isProspect ? {
+            pipelineEnteredStageAt: serverTimestamp(),
+            pipelineHistory: [{
+              stage: (val.pipelineStage || 'first_contact'),
+              enteredAt: new Date(),
+              by: actionBy,
+            }]
+          } : {})
+        };
+
+        const ref = await this.firestore.addDocument('shops', createPayload);
         
         const fromCustomer = this.fromCustomerId();
         if (fromCustomer) {

@@ -1139,6 +1139,116 @@ export const refreshShopHealthNow = onCall(
   }
 );
 
+interface StuckThresholds {
+  first_contact: number; manager_meeting: number; sample_left: number;
+  decision: number; opened: number;
+}
+
+async function getPipelineConfig(): Promise<{enabled: boolean; thresholds: StuckThresholds}> {
+  try {
+    const doc = await db.collection("settings").doc("reconciliation").get();
+    const p = (doc.data() || {}).pipeline || {};
+    const st = p.stuckThresholds || {};
+    return {
+      enabled: p.enabled !== false, // default ON
+      thresholds: {
+        first_contact: st.first_contact ?? 7,
+        manager_meeting: st.manager_meeting ?? 10,
+        sample_left: st.sample_left ?? 14,
+        decision: st.decision ?? 7,
+        opened: st.opened ?? 3,
+      },
+    };
+  } catch {
+    return {
+      enabled: true,
+      thresholds: {first_contact: 7, manager_meeting: 10, sample_left: 14, decision: 7, opened: 3},
+    };
+  }
+}
+
+async function stampAllPipelineStuck(): Promise<{scanned: number; updated: number; backfilled: number}> {
+  const {thresholds} = await getPipelineConfig();
+  const stamp = admin.firestore.FieldValue.serverTimestamp();
+  const pageSize = 500;
+  let last: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  let scanned = 0; let updated = 0; let backfilled = 0;
+
+  for (let page = 0; page < 40; page++) {
+    let q = db.collection("shops")
+      .where("tenantId", "==", 1)
+      .where("isDeleted", "==", false)
+      .where("status", "==", "prospect")
+      .orderBy("name")
+      .limit(pageSize);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const shop = doc.data();
+      scanned++;
+      const stage = shop.pipelineStage || "first_contact";
+
+      let enteredAt = shop.pipelineEnteredStageAt;
+      const update: Record<string, any> = {};
+      if (!enteredAt) {
+        enteredAt = shop.createdAt || stamp;
+        update.pipelineEnteredStageAt = enteredAt;
+        if (!shop.pipelineHistory || shop.pipelineHistory.length === 0) {
+          update.pipelineHistory = [{stage, enteredAt: enteredAt, by: null}];
+        }
+        backfilled++;
+      }
+
+      const days = daysSinceMs(enteredAt);
+      const threshold = (thresholds as any)[stage] ?? 14;
+      const stuck = days != null && days > threshold;
+
+      if (shop.pipelineStuck !== stuck || shop.daysInStage !== days || update.pipelineEnteredStageAt) {
+        update.pipelineStuck = stuck;
+        update.daysInStage = days;
+        update.pipelineStuckComputedAt = stamp;
+      }
+
+      if (Object.keys(update).length > 0) {
+        await doc.ref.update(update);
+        updated++;
+      }
+    }
+    last = snap.docs[snap.docs.length - 1];
+    if (snap.docs.length < pageSize) break;
+  }
+  console.log(`Pipeline stuck stamp: scanned ${scanned}, updated ${updated}, backfilled ${backfilled}`);
+  return {scanned, updated, backfilled};
+}
+
+export const nightlyPipelineStuckStamp = onSchedule(
+  {
+    schedule: "every day 04:00",
+    timeZone: "America/Toronto",
+    region: "northamerica-northeast1",
+    timeoutSeconds: 540,
+    secrets: [],
+  },
+  async () => {
+    const {enabled} = await getPipelineConfig();
+    if (!enabled) {
+      console.log("Pipeline stamping disabled — skipping"); return;
+    }
+    await stampAllPipelineStuck();
+  }
+);
+
+export const refreshPipelineStuckNow = onCall(
+  {region: "northamerica-northeast2", cors: true},
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Must be authenticated");
+    if (request.auth.token["role"] !== "admin") throw new HttpsError("permission-denied", "Admin only");
+    return await stampAllPipelineStuck();
+  }
+);
+
 // Weekly full — backstop that catches dormant/legacy drift the incremental misses.
 export const weeklyLinkReconcile = onSchedule(
   {

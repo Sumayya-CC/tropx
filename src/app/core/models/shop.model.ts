@@ -28,6 +28,16 @@ export interface Shop {
 
   status: ShopStatus;
   pipelineStage?: PipelineStage;
+  pipelineEnteredStageAt?: Date;                 // when current stage began (drives days-in-stage)
+  pipelineHistory?: PipelineHistoryEntry[];      // full stage-change log
+  nextActionDate?: Date | null;                  // scheduled follow-up
+  nextActionNote?: string | null;
+  pipelinePriority?: 'low' | 'medium' | 'high';
+  expectedValueCents?: number | null;            // gut-feel monthly value (cents, per app convention)
+  // Stamped nightly by the pipeline sweep (like healthBand):
+  pipelineStuck?: boolean;
+  daysInStage?: number | null;
+  pipelineStuckComputedAt?: Date;
 
   linkedCustomerId?: string;
   hasCustomer?: boolean;
@@ -47,6 +57,12 @@ export interface Shop {
   isDeleted: boolean;
   isDeletedAt?: Date;
   deletedBy?: ActionBy;
+}
+
+export interface PipelineHistoryEntry {
+  stage: PipelineStage;
+  enteredAt: Date;
+  by?: ActionBy;
 }
 
 export interface VisitItem {

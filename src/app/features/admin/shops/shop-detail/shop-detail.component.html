@@ -126,6 +126,46 @@
   </div>
 
   <div class="right-col">
+    @if (isProspect()) {
+      <div class="detail-card">
+        <h3 class="card-title">Pipeline</h3>
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="label">Stage</span>
+            <span class="value">
+              <select class="pl-stage-inline" [ngModel]="shop()!.pipelineStage || 'first_contact'"
+                (ngModelChange)="changeStage($event)">
+                @for (st of pipelineStages; track st) { <option [value]="st">{{ pipelineStageLabels[st] }}</option> }
+              </select>
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Next Action</span>
+            <span class="value">
+              @if (shop()!.nextActionDate) {
+                {{ shop()!.nextActionNote || 'Scheduled' }}
+                <button class="link-btn" (click)="openNextAction()">edit</button>
+              } @else {
+                <button class="link-btn" (click)="openNextAction()">+ Set follow-up</button>
+              }
+            </span>
+          </div>
+        </div>
+  
+        @if (historyEntries().length) {
+          <div class="pl-history">
+            <div class="pl-history-title">Stage History</div>
+            @for (h of historyEntries(); track $index) {
+              <div class="pl-history-row">
+                <span class="plh-stage">{{ h.label }}</span>
+                <span class="plh-date">{{ h.date | date:'mediumDate' }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
     <!-- Details Card -->
     <div class="detail-card">
       <h3 class="card-title">Shop Details</h3>
@@ -308,6 +348,40 @@
     <div class="unlink-actions">
       <button class="btn btn-outline" (click)="showDeleteVisit.set(null)">Cancel</button>
       <button class="btn-unlink-confirm" (click)="confirmDeleteVisit()">Delete Visit</button>
+    </div>
+  </div>
+}
+
+@if (showNextAction()) {
+  <div class="unlink-backdrop" (click)="showNextAction.set(false)"></div>
+  <div class="unlink-modal">
+    <h3>Set Next Action</h3>
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" [ngModel]="naDate()" (ngModelChange)="naDate.set($event)">
+    </div>
+    <div class="form-group">
+      <label>Note</label>
+      <input type="text" placeholder="e.g. call manager, bring pricing"
+        [ngModel]="naNote()" (ngModelChange)="naNote.set($event)">
+    </div>
+    <div class="unlink-actions">
+      @if (shop()!.nextActionDate) { <button class="btn btn-outline" (click)="clearNextAction()">Clear</button> }
+      <button class="btn btn-outline" (click)="showNextAction.set(false)">Cancel</button>
+      <button class="btn btn-primary" (click)="saveNextAction()">Save</button>
+    </div>
+  </div>
+}
+
+@if (showAdvancePrompt() && advanceToStage()) {
+  <div class="unlink-backdrop" (click)="showAdvancePrompt.set(false)"></div>
+  <div class="unlink-modal">
+    <h3>Advance stage?</h3>
+    <p>You logged a sample drop. Move <strong>{{ shop()?.name }}</strong> to
+      <strong>{{ pipelineStageLabels[advanceToStage()!] }}</strong>?</p>
+    <div class="unlink-actions">
+      <button class="btn btn-outline" (click)="showAdvancePrompt.set(false)">Not now</button>
+      <button class="btn btn-primary" (click)="confirmAdvance()">Advance →</button>
     </div>
   </div>
 }

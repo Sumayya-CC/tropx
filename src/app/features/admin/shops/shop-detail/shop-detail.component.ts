@@ -18,6 +18,10 @@ import { where } from '@angular/fire/firestore';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HEALTH_BAND_LABELS, HEALTH_BAND_TONE, HealthBand } from '../../../../shared/utils/shop-health.utils';
 import { FormsModule } from '@angular/forms';
+import { PipelineService } from '../../../../core/services/pipeline.service';
+import { PIPELINE_STAGES, PIPELINE_STAGE_LABELS, isForward, stageIndex } from '../../../../shared/utils/pipeline.utils';
+import { PipelineStage } from '../../../../core/models/shop.model';
+import { toDateInputValue, dateInputToLocalDate } from '../../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-shop-detail',
@@ -34,6 +38,7 @@ export class ShopDetailComponent {
   private readonly auth = inject(AuthService);
   private readonly shopLink = inject(ShopLinkService);
   private readonly visits = inject(VisitService);
+  private readonly pipeline = inject(PipelineService);
 
   shop = signal<Shop | null>(null);
   linkedCustomer = signal<Customer | null>(null);
@@ -58,6 +63,64 @@ export class ShopDetailComponent {
     if (!s || s.linkedCustomerId) return null;
     return this.visitHistory().find(v => v.markedConversion) ?? null;
   });
+
+  readonly pipelineStages = PIPELINE_STAGES;
+  readonly pipelineStageLabels = PIPELINE_STAGE_LABELS;
+  showNextAction = signal(false);
+  naDate = signal<string>('');
+  naNote = signal('');
+  showAdvancePrompt = signal(false);
+  advanceToStage = signal<PipelineStage | null>(null);
+
+  isProspect(): boolean { return this.shop()?.status === 'prospect'; }
+
+  async changeStage(newStage: string) {
+    const s = this.shop();
+    if (!s || s.pipelineStage === newStage) return;
+    try {
+      await this.pipeline.changeStage(s, newStage as PipelineStage);
+      this.toast.success(`Stage → ${this.pipelineStageLabels[newStage as PipelineStage]}`);
+      this.loadShop(s.id);
+    } catch (e) { console.error(e); this.toast.error('Failed to change stage'); }
+  }
+
+  openNextAction() {
+    const s = this.shop();
+    const v: any = s?.nextActionDate;
+    if (v) {
+      const d = v?.toDate ? v.toDate() : new Date(v);
+      this.naDate.set(toDateInputValue(d));
+    } else { this.naDate.set(''); }
+    this.naNote.set(s?.nextActionNote || '');
+    this.showNextAction.set(true);
+  }
+  async saveNextAction() {
+    const s = this.shop();
+    if (!s) return;
+    const date = this.naDate() ? dateInputToLocalDate(this.naDate()) : null;
+    try {
+      await this.pipeline.setNextAction(s.id, date, this.naNote());
+      this.toast.success('Next action saved');
+      this.showNextAction.set(false);
+      this.loadShop(s.id);
+    } catch (e) { console.error(e); this.toast.error('Failed'); }
+  }
+  async clearNextAction() {
+    const s = this.shop();
+    if (!s) return;
+    await this.pipeline.clearNextAction(s.id);
+    this.showNextAction.set(false);
+    this.loadShop(s.id);
+  }
+
+  historyEntries(): { stage: string; date: Date; label: string }[] {
+    const s = this.shop();
+    return (s?.pipelineHistory || []).map(h => {
+      const v: any = h.enteredAt;
+      const d = v?.toDate ? v.toDate() : new Date(v);
+      return { stage: h.stage, date: d, label: this.pipelineStageLabels[h.stage as PipelineStage] };
+    });
+  }
 
   canRestock = computed(() => {
     const s = this.shop();
@@ -272,12 +335,43 @@ export class ShopDetailComponent {
     }
   }
   
-  async onVisitSaved(_id: string) {
+  async onVisitSaved(payload: { id: string; outcome: string | null; markedConversion: boolean }) {
     this.showLogVisit.set(false);
     this.editingVisit.set(null);
     const s = this.shop();
     if (s) await this.loadVisits(s.id);
-    if (this.pendingConversion() && !s?.linkedCustomerId) this.showConvertPrompt.set(true);
+    const shop = this.shop();
+    if (!shop) return;
+
+    // Path A: conversion intent → auto-advance to 'opened' (forward only), then existing convert prompt.
+    if (payload.markedConversion && shop.status === 'prospect') {
+      if (shop.pipelineStage !== 'opened' && isForward(shop.pipelineStage || 'first_contact', 'opened')) {
+        try { await this.pipeline.changeStage(shop, 'opened'); await this.loadShop(shop.id); } catch (e) { console.error(e); }
+      }
+      // existing Phase-2 convert prompt (pendingConversion) fires as before — do NOT add another modal
+      if (this.pendingConversion() && !shop.linkedCustomerId) this.showConvertPrompt.set(true);
+      return; // Path A owns this; never fall through to Path B
+    }
+
+    // Path B: sample_left outcome on an earlier-stage prospect → single advance prompt.
+    if (shop.status === 'prospect' && payload.outcome === 'sample_left'
+        && isForward(shop.pipelineStage || 'first_contact', 'sample_left')) {
+      this.advanceToStage.set('sample_left');
+      this.showAdvancePrompt.set(true);
+      return;
+    }
+
+    // Otherwise nothing pipeline-related.
+    if (this.pendingConversion() && !shop.linkedCustomerId) this.showConvertPrompt.set(true);
+  }
+
+  async confirmAdvance() {
+    const shop = this.shop(); const stage = this.advanceToStage();
+    if (!shop || !stage) { this.showAdvancePrompt.set(false); return; }
+    try { await this.pipeline.changeStage(shop, stage); await this.loadShop(shop.id);
+      this.toast.success(`Advanced to ${this.pipelineStageLabels[stage]}`); }
+    catch (e) { console.error(e); this.toast.error('Failed to advance'); }
+    finally { this.showAdvancePrompt.set(false); this.advanceToStage.set(null); }
   }
 
   private async loadVisits(shopId: string) {
