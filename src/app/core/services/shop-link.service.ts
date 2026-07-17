@@ -28,7 +28,11 @@ export class ShopLinkService {
       const custUpdate: any = { linkedShopId: shopId, hasShop: true };
       if (!custHasAddr && shopHasAddr) custUpdate.address = shop.address;
 
-      const shopUpdate: any = { linkedCustomerId: customerId, hasCustomer: true, status: 'customer' };
+      const shopUpdate: any = { 
+        linkedCustomerId: customerId, hasCustomer: true, status: 'customer',
+        serviceAreaId: customer.serviceAreaId ?? null,
+        serviceAreaName: customer.serviceAreaName ?? customer.serviceAreaCustom ?? null,
+      };
       if (!shopHasAddr && custHasAddr) shopUpdate.address = customer.address;
 
       batch.update(doc(db, 'customers', customerId), custUpdate);

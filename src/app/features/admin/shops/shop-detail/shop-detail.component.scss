@@ -585,3 +585,5 @@
 .pl-history-row { display:flex; justify-content:space-between; padding:.35rem 0; font-size:.82rem; }
 .plh-stage { font-weight:600; color:var(--text-dark); }
 .plh-date { color:var(--gray); }
+.nav-coord-toggle { display:inline-flex; align-items:center; gap:.4rem; font-size:.85rem; cursor:pointer; }
+.nav-coord-toggle small { color:var(--gray); }

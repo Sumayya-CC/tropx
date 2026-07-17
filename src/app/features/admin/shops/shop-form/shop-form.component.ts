@@ -7,6 +7,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { Shop } from '../../../../core/models/shop.model';
 import { serverTimestamp } from '@angular/fire/firestore';
+import { where } from '@angular/fire/firestore';
 import { normalizeSearchName } from '../../../../shared/utils/text.utils';
 import { ShopLinkService } from '../../../../core/services/shop-link.service';
 import { Customer } from '../../../../core/models/customer.model';
@@ -34,6 +35,7 @@ export class ShopFormComponent implements OnInit {
   shopId = signal<string | null>(null);
   shop = signal<Shop | null>(null);
   fromCustomerId = signal<string | null>(null);
+  serviceAreas = signal<{ id: string; name: string }[]>([]);
 
   provinces = [
     { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'British Columbia' },
@@ -50,6 +52,7 @@ export class ShopFormComponent implements OnInit {
   ];
 
   pipelineStages = [
+    { value: 'to_visit', label: 'To Visit' },
     { value: 'first_contact', label: 'First Contact' }, { value: 'manager_meeting', label: 'Manager Meeting' },
     { value: 'sample_left', label: 'Sample Left' }, { value: 'decision', label: 'Decision' },
     { value: 'opened', label: 'Opened' }
@@ -66,17 +69,22 @@ export class ShopFormComponent implements OnInit {
     otherStoresOwned: [''],
     productsOfInterest: [''], // comma-separated -> string[]
     status: ['prospect', [Validators.required]],
-    pipelineStage: ['first_contact'],
+    pipelineStage: ['to_visit'],
+    serviceAreaId: [null],
     address: this.fb.group({
       street: [''], city: [''], province: [''], postalCode: [''],
       country: [{ value: 'Canada', disabled: true }]
     }),
     lat: [null],
     lng: [null],
+    preferCoordinatesForNav: [false],
     notes: ['']
   });
 
   ngOnInit() {
+    this.firestore.getCollection<any>('serviceAreas', where('tenantId','==',1), where('isDeleted','==',false))
+      .subscribe(d => this.serviceAreas.set(d.map((a:any)=>({id:a.id,name:a.name}))));
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) { this.isEditMode.set(true); this.shopId.set(id); this.loadShop(id); }
     else {
@@ -125,7 +133,8 @@ export class ShopFormComponent implements OnInit {
           otherStoresOwned: data.otherStoresOwned || '',
           productsOfInterest: (data.productsOfInterest || []).join(', '),
           status: data.status,
-          pipelineStage: data.pipelineStage || 'first_contact',
+          pipelineStage: data.pipelineStage || 'to_visit',
+          serviceAreaId: data.serviceAreaId || null,
           address: {
             street: data.address?.street || '', city: data.address?.city || '',
             province: data.address?.province || '', postalCode: data.address?.postalCode || '',
@@ -133,6 +142,7 @@ export class ShopFormComponent implements OnInit {
           },
           lat: data.coordinates?.lat ?? null,
           lng: data.coordinates?.lng ?? null,
+          preferCoordinatesForNav: data.preferCoordinatesForNav ?? false,
           notes: data.notes || ''
         });
         this.isLoading.set(false);
@@ -189,12 +199,15 @@ export class ShopFormComponent implements OnInit {
       productsOfInterest: products,
       status: val.status,
       pipelineStage: val.status === 'prospect' ? val.pipelineStage : null,
+      serviceAreaId: val.serviceAreaId || null,
+      serviceAreaName: val.serviceAreaId ? this.serviceAreas().find(a => a.id === val.serviceAreaId)?.name || null : null,
       notes: val.notes || null,
       address: hasAddress ? {
         street: val.address.street || '', city: val.address.city || '',
         province: val.address.province || '', postalCode: val.address.postalCode || '', country: 'Canada'
       } : null,
       coordinates: hasCoords ? { lat: val.lat, lng: val.lng } : null,
+      preferCoordinatesForNav: val.preferCoordinatesForNav || false,
     } as any;
   }
 
@@ -222,7 +235,7 @@ export class ShopFormComponent implements OnInit {
           ...(isProspect ? {
             pipelineEnteredStageAt: serverTimestamp(),
             pipelineHistory: [{
-              stage: (val.pipelineStage || 'first_contact'),
+              stage: (val.pipelineStage || 'to_visit'),
               enteredAt: new Date(),
               by: actionBy,
             }]

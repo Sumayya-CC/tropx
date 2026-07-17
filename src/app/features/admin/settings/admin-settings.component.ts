@@ -69,6 +69,7 @@ export class AdminSettingsComponent {
 
   editingPipeline = signal(false);
   plEnabled = signal(true);
+  plToVisit = signal(DEFAULT_STUCK_THRESHOLDS.to_visit);
   plFirstContact = signal(DEFAULT_STUCK_THRESHOLDS.first_contact);
   plManagerMeeting = signal(DEFAULT_STUCK_THRESHOLDS.manager_meeting);
   plSampleLeft = signal(DEFAULT_STUCK_THRESHOLDS.sample_left);
@@ -82,6 +83,16 @@ export class AdminSettingsComponent {
   reconAutoCorrectMaxDollars = signal(50);
   reconAutoCorrectEnabled = signal(true);
   reconNotifyAdmin = signal(true);
+
+  // Routing form signals
+  rtStarts = signal<{label:string;lat:number;lng:number}[]>([]);
+  rtMaxWaypoints = signal(9);
+  rtClusterRadius = signal(3);
+  rtTravelMode = signal<'driving'|'walking'|'bicycling'>('driving');
+  rtFuelPerKm = signal<number|null>(null);
+  rtDefaultCenter = signal<{lat:number;lng:number}>({lat: 43.4516, lng: -80.4925});
+  editingRouting = signal(false);
+  gettingLocation = signal(false);
 
   // Storefront — Featured Banner
   editingFeaturedBanner = signal(false);
@@ -434,6 +445,7 @@ export class AdminSettingsComponent {
       
       const pl = (r as any).pipeline || {}; const st = pl.stuckThresholds || {};
       this.plEnabled.set(pl.enabled !== false);
+      this.plToVisit.set(st.to_visit ?? DEFAULT_STUCK_THRESHOLDS.to_visit);
       this.plFirstContact.set(st.first_contact ?? DEFAULT_STUCK_THRESHOLDS.first_contact);
       this.plManagerMeeting.set(st.manager_meeting ?? DEFAULT_STUCK_THRESHOLDS.manager_meeting);
       this.plSampleLeft.set(st.sample_left ?? DEFAULT_STUCK_THRESHOLDS.sample_left);
@@ -477,6 +489,16 @@ export class AdminSettingsComponent {
           cfg.minPercent ?? 0
         );
       }
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const rt = this.settings.routing();
+      this.rtStarts.set([...(rt.startLocations || [])]);
+      this.rtMaxWaypoints.set(rt.maxWaypointsPerLeg ?? 9);
+      this.rtClusterRadius.set(rt.clusterRadiusKm ?? 3);
+      this.rtTravelMode.set(rt.defaultTravelMode || 'driving');
+      this.rtFuelPerKm.set(rt.vehicleFuelPerKm ?? null);
+      this.rtDefaultCenter.set(rt.defaultCenter ?? {lat: 43.4516, lng: -80.4925});
     }, { allowSignalWrites: true });
   }
 
@@ -1603,6 +1625,7 @@ export class AdminSettingsComponent {
         pipeline: {
           enabled: this.plEnabled(),
           stuckThresholds: {
+            to_visit: this.plToVisit(),
             first_contact: this.plFirstContact(),
             manager_meeting: this.plManagerMeeting(),
             sample_left: this.plSampleLeft(),
@@ -1620,12 +1643,79 @@ export class AdminSettingsComponent {
   cancelPipeline() {
     const pl = (this.settings.reconciliation() as any).pipeline || {}; const st = pl.stuckThresholds || {};
     this.plEnabled.set(pl.enabled !== false);
+    this.plToVisit.set(st.to_visit ?? DEFAULT_STUCK_THRESHOLDS.to_visit);
     this.plFirstContact.set(st.first_contact ?? DEFAULT_STUCK_THRESHOLDS.first_contact);
     this.plManagerMeeting.set(st.manager_meeting ?? DEFAULT_STUCK_THRESHOLDS.manager_meeting);
     this.plSampleLeft.set(st.sample_left ?? DEFAULT_STUCK_THRESHOLDS.sample_left);
     this.plDecision.set(st.decision ?? DEFAULT_STUCK_THRESHOLDS.decision);
     this.plOpened.set(st.opened ?? DEFAULT_STUCK_THRESHOLDS.opened);
     this.editingPipeline.set(false);
+  }
+
+  async saveRouting() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument('settings/routing', {
+        startLocations: this.rtStarts(),
+        maxWaypointsPerLeg: this.rtMaxWaypoints(),
+        clusterRadiusKm: this.rtClusterRadius(),
+        defaultTravelMode: this.rtTravelMode(),
+        vehicleFuelPerKm: this.rtFuelPerKm(),
+        defaultCenter: this.rtDefaultCenter(),
+      });
+      this.toast.success('Routing settings saved');
+      this.editingRouting.set(false);
+    } catch (e) { console.error(e); this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelRouting() {
+    const rt = this.settings.routing();
+    this.rtStarts.set([...(rt.startLocations || [])]);
+    this.rtMaxWaypoints.set(rt.maxWaypointsPerLeg ?? 9);
+    this.rtClusterRadius.set(rt.clusterRadiusKm ?? 3);
+    this.rtTravelMode.set(rt.defaultTravelMode || 'driving');
+    this.rtFuelPerKm.set(rt.vehicleFuelPerKm ?? null);
+    this.rtDefaultCenter.set(rt.defaultCenter ?? {lat: 43.4516, lng: -80.4925});
+    this.editingRouting.set(false);
+  }
+
+  addRoutingStart() {
+    this.rtStarts.update(s => [...s, { label: '', lat: 0, lng: 0 }]);
+  }
+  removeRoutingStart(idx: number) {
+    this.rtStarts.update(s => s.filter((_, i) => i !== idx));
+  }
+
+  useCurrentLocation(rowIndex: number) {
+    if (!navigator.geolocation) { this.toast.error('Geolocation not available'); return; }
+    this.gettingLocation.set(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        this.rtStarts.update(list => list.map((r, i) =>
+          i === rowIndex ? { ...r, lat: +latitude.toFixed(6), lng: +longitude.toFixed(6) } : r));
+        this.gettingLocation.set(false);
+        this.toast.success('Location captured');
+      },
+      err => { console.error(err); this.gettingLocation.set(false); this.toast.error('Could not get location'); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
+  useCurrentLocationForCenter() {
+    if (!navigator.geolocation) { this.toast.error('Geolocation not available'); return; }
+    this.gettingLocation.set(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        this.rtDefaultCenter.set({ lat: +latitude.toFixed(6), lng: +longitude.toFixed(6) });
+        this.gettingLocation.set(false);
+        this.toast.success('Location captured');
+      },
+      err => { console.error(err); this.gettingLocation.set(false); this.toast.error('Could not get location'); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   }
 
   onLogoSelected(event: Event) {

@@ -175,6 +175,10 @@
           <span class="value"><span class="status-pill">{{ statusLabel() }}</span></span>
         </div>
         <div class="detail-item">
+          <span class="label">Service Area</span>
+          <span class="value">{{ shop()?.serviceAreaName || '—' }}</span>
+        </div>
+        <div class="detail-item">
           <span class="label">Health</span>
           <span class="value">
             @if (shopHealth()?.known) {
@@ -213,6 +217,15 @@
           <span class="value">
             @if (s.coordinates) { {{ s.coordinates.lat }}, {{ s.coordinates.lng }} }
             @else { — }
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Map Navigation</span>
+          <span class="value">
+            <label class="nav-coord-toggle">
+              <input type="checkbox" [checked]="shop()?.preferCoordinatesForNav" (change)="toggleNavCoords()">
+              Use exact coordinates <small>(if address geocodes poorly)</small>
+            </label>
           </span>
         </div>
         <div class="detail-item">

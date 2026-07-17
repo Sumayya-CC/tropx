@@ -84,6 +84,18 @@ export class ShopDetailComponent {
     } catch (e) { console.error(e); this.toast.error('Failed to change stage'); }
   }
 
+  async toggleNavCoords() {
+    const s = this.shop(); if (!s) return;
+    const next = !s.preferCoordinatesForNav;
+    try {
+      const writes: Promise<any>[] = [this.firestore.updateDocument(`shops/${s.id}`, { preferCoordinatesForNav: next })];
+      if (s.linkedCustomerId) writes.push(this.firestore.updateDocument(`customers/${s.linkedCustomerId}`, { preferCoordinatesForNav: next }));
+      await Promise.all(writes);
+      this.toast.success(next ? 'Navigation will use exact coordinates' : 'Navigation will use address');
+      this.loadShop(s.id);
+    } catch (e) { console.error(e); this.toast.error('Failed to update'); }
+  }
+
   openNextAction() {
     const s = this.shop();
     const v: any = s?.nextActionDate;

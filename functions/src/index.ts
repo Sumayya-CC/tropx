@@ -1140,7 +1140,7 @@ export const refreshShopHealthNow = onCall(
 );
 
 interface StuckThresholds {
-  first_contact: number; manager_meeting: number; sample_left: number;
+  to_visit: number; first_contact: number; manager_meeting: number; sample_left: number;
   decision: number; opened: number;
 }
 
@@ -1152,6 +1152,7 @@ async function getPipelineConfig(): Promise<{enabled: boolean; thresholds: Stuck
     return {
       enabled: p.enabled !== false, // default ON
       thresholds: {
+        to_visit: st.to_visit ?? 10,
         first_contact: st.first_contact ?? 7,
         manager_meeting: st.manager_meeting ?? 10,
         sample_left: st.sample_left ?? 14,
@@ -1162,7 +1163,7 @@ async function getPipelineConfig(): Promise<{enabled: boolean; thresholds: Stuck
   } catch {
     return {
       enabled: true,
-      thresholds: {first_contact: 7, manager_meeting: 10, sample_left: 14, decision: 7, opened: 3},
+      thresholds: {to_visit: 10, first_contact: 7, manager_meeting: 10, sample_left: 14, decision: 7, opened: 3},
     };
   }
 }

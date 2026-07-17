@@ -137,6 +137,12 @@
             <input type="number" step="any" formControlName="lat" placeholder="Latitude">
             <input type="number" step="any" formControlName="lng" placeholder="Longitude">
           </div>
+          <div style="margin-top: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--charcoal);">
+              <input type="checkbox" formControlName="preferCoordinatesForNav">
+              Use exact coordinates for navigation (address geocodes poorly)
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -165,6 +171,16 @@
           </select>
         </div>
         }
+
+        <div class="form-group">
+          <label for="serviceAreaId">Service Area</label>
+          <select id="serviceAreaId" formControlName="serviceAreaId">
+            <option [value]="null">None</option>
+            @for (area of serviceAreas(); track area.id) {
+            <option [value]="area.id">{{ area.name }}</option>
+            }
+          </select>
+        </div>
       </div>
 
       <!-- Interests & Notes -->

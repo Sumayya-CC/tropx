@@ -66,6 +66,7 @@ export class PipelineBoardComponent {
     const p = (this.settings.reconciliation() as any).pipeline || {};
     const st = p.stuckThresholds || {};
     return {
+      to_visit: st.to_visit ?? DEFAULT_STUCK_THRESHOLDS.to_visit,
       first_contact: st.first_contact ?? DEFAULT_STUCK_THRESHOLDS.first_contact,
       manager_meeting: st.manager_meeting ?? DEFAULT_STUCK_THRESHOLDS.manager_meeting,
       sample_left: st.sample_left ?? DEFAULT_STUCK_THRESHOLDS.sample_left,
@@ -87,7 +88,7 @@ export class PipelineBoardComponent {
     const days = this.daysInStage(shop);
     if (days == null) return false;
     const t = this.thresholds();
-    const threshold = (t as any)[shop.pipelineStage || 'first_contact'] ?? 14;
+    const threshold = (t as any)[shop.pipelineStage || 'to_visit'] ?? 14;
     return days > threshold;
   }
 
@@ -153,7 +154,7 @@ export class PipelineBoardComponent {
 
   needsAttention = computed(() => {
     const stuck = this.prospects().filter(s => this.isStuck(s))
-      .map(s => ({ shop: s, reason: `${this.daysInStage(s)}d in ${this.stageLabels[s.pipelineStage || 'first_contact']}`, kind: 'stuck' as const }));
+      .map(s => ({ shop: s, reason: `${this.daysInStage(s)}d in ${this.stageLabels[s.pipelineStage || 'to_visit']}`, kind: 'stuck' as const }));
     const overdue = this.prospects().filter(s => this.nextActionDue(s) === 'overdue')
       .map(s => ({ shop: s, reason: `follow-up overdue`, kind: 'overdue' as const }));
     // de-dupe (a shop can be both); prefer overdue label
@@ -185,7 +186,7 @@ export class PipelineBoardComponent {
     return this.stages.map(stage => ({
       stage,
       label: this.stageLabels[stage],
-      shops: list.filter(s => (s.pipelineStage || 'first_contact') === stage)
+      shops: list.filter(s => (s.pipelineStage || 'to_visit') === stage)
         .sort((a, b) => (this.daysInStage(b) ?? 0) - (this.daysInStage(a) ?? 0)),
     }));
   });

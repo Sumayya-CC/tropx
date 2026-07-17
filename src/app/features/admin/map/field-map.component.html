@@ -1,0 +1,29 @@
+<app-page-header title="Field Map" subtitle="Your shops, mapped"></app-page-header>
+
+<div class="fm-toolbar">
+  <div class="fm-filters">
+    <button [class.active]="filter()==='all'" (click)="setFilter('all')">All</button>
+    <button [class.active]="filter()==='customers'" (click)="setFilter('customers')">Customers</button>
+    <button [class.active]="filter()==='prospects'" (click)="setFilter('prospects')">Prospects</button>
+    <button [class.active]="filter()==='attention'" (click)="setFilter('attention')">At Risk</button>
+  </div>
+  <a class="fm-route-link" routerLink="/admin/route">Plan a route →</a>
+</div>
+
+@if (selectedCount() > 0) {
+  <div class="fm-selbar">
+    <span>{{ selectedCount() }} shop{{ selectedCount() === 1 ? '' : 's' }} selected</span>
+    <button class="btn btn-outline sm" (click)="clearSelection()">Clear</button>
+    <button class="btn btn-primary sm" (click)="planRoute()">Plan Route ({{ selectedCount() }}) →</button>
+  </div>
+}
+
+<div #mapContainer class="fm-map"></div>
+
+<div class="fm-legend">
+  <span><i class="dot green"></i> {{ legend().active }} Active</span>
+  <span><i class="dot gold"></i> {{ legend().watch }} Watch</span>
+  <span><i class="dot red"></i> {{ legend().dormant }} At-Risk</span>
+  <span><i class="dot blue"></i> {{ legend().prospects }} Prospects</span>
+  @if (legend().missing > 0) { <span class="fm-missing">⚠ {{ legend().missing }} missing location</span> }
+</div>

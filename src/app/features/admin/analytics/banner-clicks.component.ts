@@ -18,7 +18,7 @@ interface BannerClick {
 @Component({
   selector: 'app-banner-clicks',
   standalone: true,
-  imports: [RouterLink, PageHeaderComponent],
+  imports: [PageHeaderComponent],
   templateUrl: './banner-clicks.component.html',
   styleUrl: './banner-clicks.component.scss',
 })

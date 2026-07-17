@@ -4,6 +4,7 @@ import { ActionBy } from './action-by.model';
 export type ShopStatus = 'prospect' | 'customer' | 'not_interested' | 'dormant';
 
 export type PipelineStage =
+  | 'to_visit'
   | 'first_contact'
   | 'manager_meeting'
   | 'sample_left'
@@ -15,6 +16,7 @@ export interface Shop {
   name: string;
   address?: Address;
   coordinates?: Coordinates;
+  preferCoordinatesForNav?: boolean;
 
   ownerFirstName?: string;
   ownerLastName?: string;
@@ -41,6 +43,8 @@ export interface Shop {
 
   linkedCustomerId?: string;
   hasCustomer?: boolean;
+  serviceAreaId?: string;
+  serviceAreaName?: string;
   searchName?: string;
   inactiveDaysOverride?: number; // Phase 3 — defined now to avoid a later model edit
   lastVisitDate?: Date;   // denormalized: most recent non-deleted visit's visitDate

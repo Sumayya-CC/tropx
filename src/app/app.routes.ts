@@ -240,6 +240,14 @@ export const routes: Routes = [
           import('./features/admin/shops/pipeline/pipeline-board.component').then(m => m.PipelineBoardComponent),
       },
       {
+        path: 'map',
+        loadComponent: () => import('./features/admin/map/field-map.component').then(m => m.FieldMapComponent)
+      },
+      {
+        path: 'route',
+        loadComponent: () => import('./features/admin/route/route-planner.component').then(m => m.RoutePlannerComponent)
+      },
+      {
         path: 'orders',
         data: { title: 'Orders' },
         children: [

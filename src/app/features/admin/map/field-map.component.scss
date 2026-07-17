@@ -1,0 +1,29 @@
+:host { display:block; }
+.fm-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:.75rem; }
+.fm-filters { display:flex; gap:.5rem; }
+.fm-filters button { padding:.45rem 1rem; border:1px solid var(--border-light); background:#fff;
+  border-radius:20px; font-size:.82rem; font-weight:600; color:var(--charcoal); cursor:pointer; }
+.fm-filters button.active { background:var(--navy-deep); color:#fff; border-color:var(--navy-deep); }
+.fm-route-link { color:var(--navy-deep); font-weight:700; text-decoration:none; font-size:.9rem; }
+.fm-map { height:70vh; min-height:480px; width:100%; border-radius:12px; overflow:hidden;
+  border:1px solid var(--border-light); z-index:0; }
+.fm-legend { display:flex; gap:1.25rem; flex-wrap:wrap; margin-top:1rem; font-size:.85rem; color:var(--charcoal); }
+.fm-legend .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:.35rem; }
+.dot.green{background:#1a7c4a;} .dot.gold{background:#c9952a;} .dot.red{background:#e7222e;} .dot.blue{background:#16588e;}
+.fm-missing { color:#8a6d1f; font-weight:600; }
+
+/* colored pin (divIcon) */
+:host ::ng-deep .fm-pin span {
+  display:block; width:18px; height:18px; border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.4);
+}
+:host ::ng-deep .fm-popup { min-width:160px; }
+:host ::ng-deep .fm-popup-name { font-weight:700; color:#0a2d4a; font-size:.95rem; }
+:host ::ng-deep .fm-popup-status { font-size:.8rem; color:#64748b; margin:.2rem 0 .5rem; text-transform:capitalize; }
+:host ::ng-deep .fm-popup-actions { display:flex; gap:.5rem; align-items:center; margin-top:.5rem; }
+:host ::ng-deep .fm-popup-actions a { color:#16588e; font-weight:600; font-size:.82rem; text-decoration:none; }
+:host ::ng-deep .fm-add-btn { background:var(--navy-deep); color:#fff; border:none; border-radius:6px; padding:.3rem .6rem; font-size:.78rem; font-weight:700; cursor:pointer; }
+:host ::ng-deep .fm-add-btn.added { background:var(--green); }
+:host ::ng-deep .fm-selected { outline:3px solid var(--navy-deep); outline-offset:2px; border-radius:50%; }
+
+.fm-selbar { display:flex; align-items:center; gap:.75rem; background:#fff; border:1px solid var(--border-light); border-radius:10px; padding:.6rem 1rem; margin-bottom:1rem; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:.85rem; font-weight:600; }

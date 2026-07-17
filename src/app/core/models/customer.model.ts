@@ -30,7 +30,9 @@ export interface Customer {
   address: Address;
   // Manual coordinates avoid expensive auto-geocoding for future route planning
   coordinates?: Coordinates;
+  preferCoordinatesForNav?: boolean;
   serviceAreaId?: string;
+  serviceAreaName?: string;
   /** @deprecated Use serviceAreaId instead.
    *  Kept for backward compatibility only. */
   serviceAreaCustom?: string;

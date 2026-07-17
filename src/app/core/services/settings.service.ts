@@ -142,6 +142,24 @@ export const DEFAULT_RECONCILIATION: ReconciliationSettings = {
   tenantId: 1,
 };
 
+export interface RoutingSettings {
+  startLocations?: { label: string; lat: number; lng: number }[];
+  maxWaypointsPerLeg?: number;
+  clusterRadiusKm?: number;
+  defaultTravelMode?: 'driving' | 'walking' | 'bicycling';
+  vehicleFuelPerKm?: number | null;
+  defaultCenter?: { lat: number; lng: number };
+}
+
+export const DEFAULT_ROUTING: RoutingSettings = {
+  startLocations: [],
+  maxWaypointsPerLeg: 9,
+  clusterRadiusKm: 3,
+  defaultTravelMode: 'driving',
+  vehicleFuelPerKm: null,
+  defaultCenter: { lat: 43.4516, lng: -80.4925 },
+};
+
 export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   newOrderAlert: true,
   accessRequestAlert: true,
@@ -257,6 +275,7 @@ export class SettingsService {
   private _notificationsData = signal<NotificationSettings | null>(null);
   private _inventory = signal<InventorySettings | null>(null);
   private _reconciliation = signal<ReconciliationSettings | null>(null);
+  private _routing = signal<RoutingSettings | null>(null);
 
   constructor() {
     this.firestore.getDocument<BusinessSettings>('settings/business')
@@ -273,6 +292,8 @@ export class SettingsService {
       .subscribe(v => this._inventory.set(v));
     this.firestore.getDocument<ReconciliationSettings>('settings/reconciliation')
       .subscribe(v => this._reconciliation.set(v));
+    this.firestore.getDocument<RoutingSettings>('settings/routing')
+      .subscribe(v => this._routing.set(v));
   }
 
   business = computed(() => ({
@@ -308,6 +329,11 @@ export class SettingsService {
   reconciliation = computed(() => ({
     ...DEFAULT_RECONCILIATION,
     ...(this._reconciliation() ?? {})
+  }));
+
+  routing = computed(() => ({
+    ...DEFAULT_ROUTING,
+    ...(this._routing() ?? {})
   }));
 
 

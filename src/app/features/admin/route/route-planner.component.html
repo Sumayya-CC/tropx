@@ -1,0 +1,178 @@
+<app-page-header title="Route Planner" subtitle="Build and optimize a run"></app-page-header>
+
+<div class="rp-layout">
+  <div class="rp-panel">
+    <div class="rp-block">
+      <div class="rp-label">Saved routes</div>
+      @for (t of templates(); track t.id) {
+        <div class="rp-tpl">
+          @if (confirmDeleteTpl() === t.id) {
+            <span class="rp-tpl-confirm">Delete "{{ t.name }}"?</span>
+            <button class="rp-confirm-yes" (click)="doDeleteTemplate(t)">Yes</button>
+            <button class="rp-confirm-no" (click)="cancelDeleteTpl()">No</button>
+          } @else {
+            <button class="rp-tpl-load" (click)="loadTemplate(t)">{{ t.name }} <small>{{ t.stopIds.length }} stops</small></button>
+            <button class="rp-tpl-del" (click)="askDeleteTemplate(t.id, $event)" title="Delete">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>
+            </button>
+          }
+        </div>
+      }
+      <div class="rp-tpl-save">
+        <input placeholder="Save current as…" [ngModel]="templateName()" (ngModelChange)="templateName.set($event)">
+        <button class="btn btn-outline sm" (click)="saveTemplate()">Save</button>
+      </div>
+    </div>
+
+    <!-- mode -->
+    <div class="rp-seg">
+      <button [class.active]="mode()==='delivery'" (click)="mode.set('delivery')">Delivery (orders)</button>
+      <button [class.active]="mode()==='visit'" (click)="mode.set('visit')">Visit (any shops)</button>
+    </div>
+
+    <!-- service areas -->
+    <div class="rp-block">
+      <div class="rp-label">Service areas</div>
+      <div class="rp-areas">
+        @for (a of serviceAreas(); track a.id) {
+          <label class="rp-chip" [class.on]="selectedAreaIds().includes(a.id)">
+            <input type="checkbox" [checked]="selectedAreaIds().includes(a.id)" (change)="toggleArea(a.id)"> {{ a.name }}
+          </label>
+        }
+      </div>
+      <button class="btn btn-outline" (click)="pullStops()" [disabled]="busy()">
+        {{ busy() ? 'Loading…' : 'Load stops' }}
+      </button>
+    </div>
+
+    <!-- manual add -->
+    <div class="rp-block">
+      <div class="rp-label">Add specific shops</div>
+      <input class="rp-search" placeholder="Search shop…" [ngModel]="shopSearch()" (ngModelChange)="shopSearch.set($event)">
+      @for (r of searchResults(); track r.id) {
+        <button class="rp-search-row" (click)="addManual(r)">{{ r.name }} <small>{{ r.kind }}</small></button>
+      }
+    </div>
+
+    <!-- start -->
+    <div class="rp-block">
+      <div class="rp-label">Start from</div>
+      <select [ngModel]="selectedStartIdx()" (ngModelChange)="selectedStartIdx.set($event); startChoice.set('saved')">
+        @for (s of savedStarts(); track $index) { <option [value]="$index">{{ s.label }}</option> }
+      </select>
+      <button class="btn btn-outline sm" (click)="useCurrentLocation()">📍 Use current location</button>
+      @if (startChoice()==='current' && currentLoc()) { <span class="rp-cur">Using current location ✓</span> }
+      <label class="rp-return"><input type="checkbox" [ngModel]="returnToStart()" (ngModelChange)="returnToStart.set($event)"> Return to start</label>
+      <label class="rp-return">
+        <input type="checkbox" [ngModel]="forceCoordinates()" (ngModelChange)="forceCoordinates.set($event)">
+        Navigate by exact coordinates (ignore addresses)
+      </label>
+    </div>
+
+    <!-- stops list -->
+    <div class="rp-block">
+      <div class="rp-label">Stops ({{ combinedStops().length }})</div>
+      @for (s of combinedStops(); track s.id) {
+        <div class="rp-stop">
+          <span>{{ s.name }}
+            <span class="rp-kind" [class.cust]="s.kind==='customer'" [class.prosp]="s.kind==='prospect'">
+              {{ s.kind === 'customer' ? 'Customer' : 'Prospect' }}
+            </span>
+          </span>
+          <button class="rp-x" (click)="removeStop(s.id)">✕</button>
+        </div>
+      }
+      <button class="btn btn-primary" (click)="optimize()">Optimize route</button>
+      @if (excludedStops().length) {
+        <div class="rp-excluded">
+          ⚠ {{ excludedStops().length }} shop(s) skipped — no location:
+          @for (e of excludedStops(); track e.id) { <span>{{ e.name }}{{ $last ? '' : ', ' }}</span> }
+          ... set coordinates to include them.
+        </div>
+      }
+    </div>
+
+    <!-- result -->
+    @if (optimized().length) {
+      <div class="rp-result">
+        <div class="rp-total">{{ totalKm() | number:'1.0-1' }} km · {{ optimized().length }} stops</div>
+        <ol class="rp-order">
+          @for (s of optimized(); track s.id) {
+            <li>
+              <span class="rp-num">{{ $index + 1 }}</span>
+              {{ s.name }}
+              <span class="rp-kind" [class.cust]="s.kind==='customer'" [class.prosp]="s.kind==='prospect'">
+                {{ s.kind === 'customer' ? 'Customer' : 'Prospect' }}
+              </span>
+              <button class="rp-coordflag" (click)="toggleStopCoords(s, $event)"
+                [class.on]="s.preferCoordinatesForNav || forceCoordinates()"
+                [title]="s.preferCoordinatesForNav ? 'Navigates by coordinates (saved)' : 'Navigates by address'">
+                {{ s.preferCoordinatesForNav || forceCoordinates() ? '📍 coords' : '🏠 address' }}
+              </button>
+              @if (s.amountCents) { <span class="rp-amt">${{ (s.amountCents/100) | number:'1.2-2' }}</span> }
+            </li>
+          }
+        </ol>
+        <div class="rp-legs">
+          @for (leg of legs(); track $index) {
+            <button class="btn btn-primary rp-leg" (click)="openLeg(leg.url)">
+              Open Leg {{ $index+1 }} ({{ leg.stops.length }} stops) in Google Maps →
+            </button>
+          }
+        </div>
+        <div style="margin-top: 1rem;">
+          <button class="btn btn-outline" (click)="printSheet()">🖨 Print route sheet</button>
+        </div>
+      </div>
+    }
+
+    @if (optimized().length) {
+      @if (atRiskOnRoute().length) {
+        <div class="rp-block rp-overlay">
+          <div class="rp-label">⚠ At-risk on this route ({{ atRiskOnRoute().length }})</div>
+          @for (s of atRiskOnRoute(); track s.id) { <div class="rp-overlay-row">{{ s.name }} — overdue</div> }
+        </div>
+      }
+      <div class="rp-block rp-nearby">
+        <div class="rp-label">Near your route <small>(within {{ clusterRadiusKm() }} km)</small></div>
+
+        @if (nearby().prospects.length) {
+          <div class="rp-nearby-group">
+            <div class="rp-nearby-head">🔵 Prospects to pitch</div>
+            @for (x of nearby().prospects; track x.shop.id) {
+              <div class="rp-nearby-row">
+                <span>{{ x.shop.name }} <small>within {{ x.nearestKm | number:'1.1-1' }} km</small></span>
+                <button class="btn btn-outline sm" (click)="addInfillToRoute(x.shop)">Add</button>
+              </div>
+            }
+          </div>
+        }
+
+        @if (nearby().customers.length) {
+          <div class="rp-nearby-group">
+            <div class="rp-nearby-head">🔷 Customers nearby (not on route)</div>
+            @for (x of nearby().customers; track x.shop.id) {
+              <div class="rp-nearby-row">
+                <span>{{ x.shop.name }} <small>within {{ x.nearestKm | number:'1.1-1' }} km</small></span>
+                <button class="btn btn-outline sm" (click)="addInfillToRoute(x.shop)">Add</button>
+              </div>
+            }
+          </div>
+        }
+
+        @if (nearby().prospects.length === 0 && nearby().customers.length === 0) {
+          <p class="rp-muted">No other shops within {{ clusterRadiusKm() }} km of this route.</p>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="rp-map-col">
+    <div #mapContainer class="rp-map"></div>
+    <div class="rp-legend">
+      <span><i class="rp-dot cust"></i> Customer</span>
+      <span><i class="rp-dot prosp"></i> Prospect</span>
+      <span><i class="rp-dot start"></i> Start</span>
+    </div>
+  </div>
+</div>
