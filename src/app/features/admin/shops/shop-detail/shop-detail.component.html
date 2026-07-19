@@ -289,7 +289,7 @@
 <app-entity-link-modal title="Link this shop to a customer" addNewLabel="Create new customer from this shop"
   searchPlaceholder="Search customers without a shop…" emptyText="No unlinked customers. Create a new one."
   [items]="linkItems()" [suggestedIds]="linkSuggestedIds()" [busy]="linkBusy()" (link)="onLinkCustomer($event)"
-  (addNew)="onAddNewCustomer()" (close)="showLinkModal.set(false)">
+  (addNew)="onAddNewCustomer()" (close)="closeLinkModal()">
 </app-entity-link-modal>
 }
 
@@ -335,13 +335,13 @@
 }
 
 @if (showConvertPrompt()) {
-  <div class="unlink-backdrop" (click)="showConvertPrompt.set(false)"></div>
+  <div class="unlink-backdrop" (click)="dismissConvertPrompt()"></div>
   <div class="unlink-modal">
     <h3>🎉 Visit saved!</h3>
     <p>You marked this shop ready to become a customer. Convert now?</p>
     <div class="unlink-actions">
-      <button class="btn btn-outline" (click)="showConvertPrompt.set(false)">Later</button>
-      <button class="btn btn-primary" (click)="showConvertPrompt.set(false); makeCustomer()">Convert Now →</button>
+      <button class="btn btn-outline" (click)="dismissConvertPrompt()">Later</button>
+      <button class="btn btn-primary" (click)="convertNow()">Convert Now →</button>
     </div>
   </div>
 }
@@ -387,14 +387,24 @@
 }
 
 @if (showAdvancePrompt() && advanceToStage()) {
-  <div class="unlink-backdrop" (click)="showAdvancePrompt.set(false)"></div>
+  <div class="unlink-backdrop" (click)="dismissAdvancePrompt()"></div>
   <div class="unlink-modal">
     <h3>Advance stage?</h3>
     <p>You logged a sample drop. Move <strong>{{ shop()?.name }}</strong> to
       <strong>{{ pipelineStageLabels[advanceToStage()!] }}</strong>?</p>
     <div class="unlink-actions">
-      <button class="btn btn-outline" (click)="showAdvancePrompt.set(false)">Not now</button>
+      <button class="btn btn-outline" (click)="dismissAdvancePrompt()">Not now</button>
       <button class="btn btn-primary" (click)="confirmAdvance()">Advance →</button>
     </div>
   </div>
+}
+
+@if (showFuelPopup()) {
+  <app-expense-form-modal
+    title="Add a fuel log for this trip?"
+    presetCategory="fuel"
+    [presetAmountCents]="settings.expenses().defaultFuelCents"
+    [linkedVisitId]="pendingFuelVisitId() || undefined"
+    (closed)="closeFuelPopup()">
+  </app-expense-form-modal>
 }

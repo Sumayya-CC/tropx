@@ -8,5 +8,13 @@ service firebase.storage {
     match /{allPaths=**} {
       allow read, write: if false;
     }
+
+    match /expenses/receipts/{fileName} {
+      function isStaff() {
+        return request.auth != null &&
+          request.auth.token.get('role', 'none') in ['admin', 'manager', 'sales_rep', 'warehouse'];
+      }
+      allow read, write: if isStaff();
+    }
   }
 }

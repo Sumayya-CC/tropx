@@ -22,6 +22,7 @@ import { Product } from '../../../core/models/product.model';
 import { Shop } from '../../../core/models/shop.model';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
+import { LogFuelButtonComponent } from './log-fuel-button/log-fuel-button.component';
 
 type DatePreset = 'today' | 'week' | 'month' | 'days30' | 'months3' | 'months6' | 'year' | 'custom';
 
@@ -35,7 +36,8 @@ import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
     FormsModule,
     RouterModule,
     StatusBadgeComponent,
-    LoadingSpinnerComponent
+    LoadingSpinnerComponent,
+    LogFuelButtonComponent
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'

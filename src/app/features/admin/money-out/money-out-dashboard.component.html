@@ -1,0 +1,134 @@
+<app-page-header
+  title="Money Out"
+  subtitle="Expenses, bills, and operating margin — this month">
+</app-page-header>
+
+@if (isLoading()) {
+  <div class="loading-state">
+    <app-loading-spinner></app-loading-spinner>
+  </div>
+} @else {
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi-tile card">
+      <span class="kpi-value">{{ centsToDisplay(expensesThisMonth()) }}</span>
+      <span class="kpi-label">Expenses</span>
+    </div>
+    <div class="kpi-tile card">
+      <span class="kpi-value">{{ centsToDisplay(billsOwed()) }}</span>
+      <span class="kpi-label">Bills Owed</span>
+    </div>
+    <div class="kpi-tile card" [class.warn]="overdueAmount() > 0">
+      <span class="kpi-value">{{ centsToDisplay(overdueAmount()) }}</span>
+      <span class="kpi-label">Overdue ⚠️</span>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Fuel Trend -->
+    <div class="card section">
+      <h3>Fuel Trend</h3>
+      <div class="fuel-trend-row">
+        <div class="fuel-month">
+          <span class="fm-label">Last Month</span>
+          <span class="fm-value">{{ centsToDisplay(fuelLastMonth()) }}</span>
+        </div>
+        <div class="fuel-month">
+          <span class="fm-label">This Month</span>
+          <span class="fm-value">
+            {{ centsToDisplay(fuelThisMonth()) }}
+            @if (fuelTrend() === 'up') { <span class="trend-up">↑</span> }
+            @if (fuelTrend() === 'down') { <span class="trend-down">↓</span> }
+          </span>
+        </div>
+      </div>
+      <div class="fuel-avg">Avg per fuel log: {{ centsToDisplay(avgPerFuelLog()) }}</div>
+    </div>
+
+    <!-- Upcoming Bills -->
+    <div class="card section">
+      <h3>Upcoming Bills</h3>
+      @if (upcomingBills().length === 0) {
+        <p class="empty-hint">Nothing due in the next 14 days.</p>
+      } @else {
+        <div class="upcoming-list">
+          @for (b of upcomingBills(); track b.id) {
+            <a class="upcoming-row" [routerLink]="['/admin/bills', b.id]">
+              <span class="ur-supplier">{{ b.supplierName }}</span>
+              <span class="ur-amount">{{ centsToDisplay(b.balanceCents) }}</span>
+              <span class="ur-due" [class.overdue]="daysUntil(b.dueDate) < 0">
+                {{ daysUntil(b.dueDate) < 0 ? 'Overdue by ' + (-daysUntil(b.dueDate)) + 'd' : 'Due in ' + daysUntil(b.dueDate) + 'd' }}
+              </span>
+            </a>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Operating Margin -->
+  <div class="card section">
+    <h3>Operating Margin (This Month)</h3>
+    <div class="margin-grid">
+      <div class="margin-row">
+        <span>Revenue</span>
+        <span>{{ centsToDisplay(revenueThisMonth()) }}</span>
+      </div>
+      <div class="margin-row">
+        <span>Cost of Goods</span>
+        <span>-{{ centsToDisplay(cogsThisMonth()) }}</span>
+      </div>
+      <div class="margin-row subtotal">
+        <span>Gross Margin</span>
+        <span>{{ centsToDisplay(grossMarginThisMonth()) }}</span>
+      </div>
+      <div class="margin-row">
+        <span>Expenses</span>
+        <span>-{{ centsToDisplay(expensesThisMonth()) }}</span>
+      </div>
+      <div class="margin-row">
+        <span>Bills (incurred this month)</span>
+        <span>-{{ centsToDisplay(billsIncurredThisMonth()) }}</span>
+      </div>
+      <div class="margin-row total" [class.negative]="adjustedMarginThisMonth() < 0">
+        <span>Adjusted Operating Margin</span>
+        <span>{{ centsToDisplay(adjustedMarginThisMonth()) }}</span>
+      </div>
+    </div>
+    <p class="margin-hint">
+      A rough operational view, not an official P&amp;L — Zoho Books remains the accounting system of record.
+    </p>
+  </div>
+
+  <!-- Revenue Concentration -->
+  <div class="card section">
+    <h3>Revenue by Customer (This Month)</h3>
+    @if (revenueByCustomer().length === 0) {
+      <p class="empty-hint">No orders confirmed yet this month.</p>
+    } @else {
+      <div class="concentration-list">
+        @for (c of revenueByCustomer(); track c.customerId) {
+          <div class="concentration-row">
+            <div class="cr-top">
+              <span class="cr-name">{{ c.customerName }}</span>
+              <span class="cr-value">{{ centsToDisplay(c.revenueCents) }} · {{ c.pctOfTotal.toFixed(0) }}%</span>
+            </div>
+            <div class="cr-bar-track">
+              <div class="cr-bar-fill" [style.width.%]="c.pctOfTotal"></div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Export -->
+  <div class="card section export-section">
+    <h3>Export for Zoho Books</h3>
+    <p class="margin-hint">Download this month's expenses and bills as CSV to feed into the manual bookkeeping bridge.</p>
+    <div class="export-actions">
+      <button class="btn-export" (click)="exportExpensesCsv()">📄 Export Expenses (CSV)</button>
+      <button class="btn-export" (click)="exportBillsCsv()">📄 Export Bills (CSV)</button>
+    </div>
+  </div>
+}

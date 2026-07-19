@@ -6,8 +6,12 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { where, orderBy, serverTimestamp, collection, getDocs, query, Firestore } from '@angular/fire/firestore';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { Supplier } from '../../../core/models/supplier.model';
+import { Bill } from '../../../core/models/bill.model';
+import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { TENANT_ID } from '../../../core/config/tenant.config';
 
 @Component({
   selector: 'app-admin-suppliers',
@@ -24,6 +28,19 @@ export class AdminSuppliersComponent {
 
   suppliers = signal<Supplier[]>([]);
   isLoading = signal(true);
+
+  centsToDisplay = centsToDisplay;
+  private bills$ = this.firestore.getCollection<Bill>('bills', where('tenantId', '==', TENANT_ID));
+  private allBills = toSignal(this.bills$, { initialValue: [] as Bill[] });
+
+  outstandingBySupplier = computed(() => {
+    const map = new Map<string, number>();
+    for (const b of this.allBills()) {
+      if (b.isDeleted || b.status === 'paid') continue;
+      map.set(b.supplierId, (map.get(b.supplierId) ?? 0) + b.balanceCents);
+    }
+    return map;
+  });
 
   // Modal State
   showModal = signal(false);
@@ -200,6 +217,19 @@ export class AdminSuppliersComponent {
 
       if (count > 0) {
         this.toast.error(`Cannot delete — ${count} purchase orders reference this supplier`);
+        this.deletingId.set(null);
+        return;
+      }
+
+      const billsRef = collection(this.db, 'bills');
+      const billsQ = query(
+        billsRef,
+        where('supplierId', '==', id),
+        where('isDeleted', '==', false)
+      );
+      const billsSnap = await getDocs(billsQ);
+      if (billsSnap.size > 0) {
+        this.toast.error(`Cannot delete — ${billsSnap.size} bills reference this supplier`);
         this.deletingId.set(null);
         return;
       }

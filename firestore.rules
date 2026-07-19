@@ -176,7 +176,20 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    match /expenses/{doc} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
     match /suppliers/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /bills/{doc} {
+      allow read, write: if isStaff();
+    }
+
+    match /billPayments/{doc} {
       allow read, write: if isStaff();
     }
 

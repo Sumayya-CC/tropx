@@ -1,0 +1,120 @@
+<div class="expenses-header">
+  <div class="title-group">
+    <h1>Expenses</h1>
+    <p class="subtitle">Track fuel, supplies, and other operational costs</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn-log-fuel" (click)="openFuelModal()">⛽ Log Fuel</button>
+    <button class="btn-log-expense" (click)="openNewModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      Log Expense
+    </button>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="summary-card card">
+  <div class="summary-cards">
+    @for (c of categorySummary(); track c.category) {
+      <div class="summary-tile">
+        <span class="tile-icon">{{ c.icon }}</span>
+        <span class="tile-value">{{ centsToDisplay(c.amountCents) }}</span>
+        <span class="tile-label">{{ c.label }}</span>
+      </div>
+    }
+    @if (categorySummary().length === 0) {
+      <div class="summary-empty">No expenses logged for this period.</div>
+    }
+  </div>
+  <div class="summary-total">
+    <span class="total-label">Total</span>
+    <span class="total-value">{{ centsToDisplay(totalThisPeriod()) }}</span>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar card">
+  <select class="filter-select" [(ngModel)]="monthFilter">
+    @for (m of monthOptions; track m.value) {
+      <option [value]="m.value">{{ m.label }}</option>
+    }
+  </select>
+  <select class="filter-select" [(ngModel)]="categoryFilter">
+    @for (c of categoryOptions(); track c.value) {
+      <option [value]="c.value">{{ c.label }}</option>
+    }
+  </select>
+</div>
+
+<!-- Table -->
+<div class="table-container card">
+  @if (isLoading()) {
+    <div class="skeleton-state">
+      <app-loading-spinner></app-loading-spinner>
+      <span>Loading expenses...</span>
+    </div>
+  } @else if (filteredExpenses().length === 0) {
+    <div class="empty-state">
+      <h3>No expenses found</h3>
+      <p>Try adjusting your filters or log a new expense.</p>
+    </div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Category</th>
+          <th class="text-right">Amount</th>
+          <th>Vendor / Note</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of filteredExpenses(); track e.id) {
+          <tr>
+            <td>{{ formatDate(e.expenseDate) }}</td>
+            <td>
+              <span class="category-cell">
+                <span class="cat-icon">{{ categoryIcon(e.category) }}</span>
+                {{ categoryLabel(e.category) }}
+                @if (e.linkedVisitId) {
+                  <span class="link-tag">via visit</span>
+                } @else if (e.linkedRouteId) {
+                  <span class="link-tag">via route</span>
+                }
+              </span>
+            </td>
+            <td class="text-right amount-cell">{{ centsToDisplay(e.amountCents) }}</td>
+            <td>
+              <span class="vendor-note">
+                @if (e.vendor) { <strong>{{ e.vendor }}</strong> }
+                @if (e.note) { <span class="note">{{ e.note }}</span> }
+                @if (e.receiptUrl) {
+                  <a class="receipt-link" [href]="e.receiptUrl" target="_blank" rel="noopener" (click)="$event.stopPropagation()">📎 Receipt</a>
+                }
+              </span>
+            </td>
+            <td class="text-right row-actions">
+              <button class="btn-icon" (click)="openEditModal(e)" title="Edit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </button>
+              <button class="btn-icon danger" (click)="deleteExpense(e)" title="Delete">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+@if (isModalOpen()) {
+  <app-expense-form-modal
+    [expense]="selectedExpense()"
+    [presetCategory]="isFuelPreset() ? 'fuel' : undefined"
+    [presetAmountCents]="isFuelPreset() ? settings.expenses().defaultFuelCents : undefined"
+    [title]="isFuelPreset() ? 'Log Fuel' : 'Log Expense'"
+    (closed)="closeModal($event)">
+  </app-expense-form-modal>
+}

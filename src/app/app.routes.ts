@@ -167,6 +167,22 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'expenses',
+        data: { roles: ['admin', 'manager'], title: 'Expenses' },
+        loadComponent: () =>
+          import('./features/admin/expenses/admin-expenses.component').then(
+            m => m.AdminExpensesComponent
+          ),
+      },
+      {
+        path: 'money-out',
+        data: { roles: ['admin', 'manager'], title: 'Money Out' },
+        loadComponent: () =>
+          import('./features/admin/money-out/money-out-dashboard.component').then(
+            m => m.MoneyOutDashboardComponent
+          ),
+      },
+      {
         path: 'customers',
         data: { title: 'Customers' },
         loadComponent: () =>
@@ -387,6 +403,43 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/admin/purchase-orders/po-form/po-form.component').then(
                 m => m.PoFormComponent
+              ),
+          },
+        ]
+      },
+      {
+        path: 'bills',
+        data: { roles: ['admin', 'manager'], title: 'Bills' },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/admin/bills/admin-bills.component').then(
+                m => m.AdminBillsComponent
+              ),
+          },
+          {
+            path: 'new',
+            data: { title: 'New Bill' },
+            loadComponent: () =>
+              import('./features/admin/bills/bill-form/bill-form.component').then(
+                m => m.BillFormComponent
+              ),
+          },
+          {
+            path: ':id',
+            data: { title: 'Bill Details' },
+            loadComponent: () =>
+              import('./features/admin/bills/bill-detail/bill-detail.component').then(
+                m => m.BillDetailComponent
+              ),
+          },
+          {
+            path: ':id/edit',
+            data: { title: 'Edit Bill' },
+            loadComponent: () =>
+              import('./features/admin/bills/bill-form/bill-form.component').then(
+                m => m.BillFormComponent
               ),
           },
         ]

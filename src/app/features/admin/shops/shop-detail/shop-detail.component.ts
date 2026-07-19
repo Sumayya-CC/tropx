@@ -22,11 +22,13 @@ import { PipelineService } from '../../../../core/services/pipeline.service';
 import { PIPELINE_STAGES, PIPELINE_STAGE_LABELS, isForward, stageIndex } from '../../../../shared/utils/pipeline.utils';
 import { PipelineStage } from '../../../../core/models/shop.model';
 import { toDateInputValue, dateInputToLocalDate } from '../../../../shared/utils/date.utils';
+import { SettingsService } from '../../../../core/services/settings.service';
+import { ExpenseFormModalComponent } from '../../expenses/expense-form-modal/expense-form-modal.component';
 
 @Component({
   selector: 'app-shop-detail',
   standalone: true,
-  imports: [RouterLink, LoadingSpinnerComponent, OwnerFullNamePipe, EntityLinkModalComponent, LogVisitComponent, CommonModule, FormsModule],
+  imports: [RouterLink, LoadingSpinnerComponent, OwnerFullNamePipe, EntityLinkModalComponent, LogVisitComponent, CommonModule, FormsModule, ExpenseFormModalComponent],
   templateUrl: './shop-detail.component.html',
   styleUrl: './shop-detail.component.scss'
 })
@@ -39,6 +41,7 @@ export class ShopDetailComponent {
   private readonly shopLink = inject(ShopLinkService);
   private readonly visits = inject(VisitService);
   private readonly pipeline = inject(PipelineService);
+  protected readonly settings = inject(SettingsService);
 
   shop = signal<Shop | null>(null);
   linkedCustomer = signal<Customer | null>(null);
@@ -71,6 +74,9 @@ export class ShopDetailComponent {
   naNote = signal('');
   showAdvancePrompt = signal(false);
   advanceToStage = signal<PipelineStage | null>(null);
+
+  showFuelPopup = signal(false);
+  pendingFuelVisitId = signal<string | null>(null);
 
   isProspect(): boolean { return this.shop()?.status === 'prospect'; }
 
@@ -256,14 +262,19 @@ export class ShopDetailComponent {
     try {
       await this.shopLink.linkCustomerAndShop(customerId, s.id);
       this.toast.success('Shop linked to customer');
-      this.showLinkModal.set(false);
-      this.loadShop(s.id); 
+      this.closeLinkModal();
+      this.loadShop(s.id);
     } catch (e) {
       console.error('Link failed', e);
       this.toast.error('Failed to link');
     } finally {
       this.linkBusy.set(false);
     }
+  }
+
+  closeLinkModal() {
+    this.showLinkModal.set(false);
+    this.maybeShowFuelPopup();
   }
 
   onAddNewCustomer() {
@@ -353,6 +364,7 @@ export class ShopDetailComponent {
     const s = this.shop();
     if (s) await this.loadVisits(s.id);
     const shop = this.shop();
+    this.pendingFuelVisitId.set(payload.id);
     if (!shop) return;
 
     // Path A: conversion intent → auto-advance to 'opened' (forward only), then existing convert prompt.
@@ -361,7 +373,11 @@ export class ShopDetailComponent {
         try { await this.pipeline.changeStage(shop, 'opened'); await this.loadShop(shop.id); } catch (e) { console.error(e); }
       }
       // existing Phase-2 convert prompt (pendingConversion) fires as before — do NOT add another modal
-      if (this.pendingConversion() && !shop.linkedCustomerId) this.showConvertPrompt.set(true);
+      if (this.pendingConversion() && !shop.linkedCustomerId) {
+        this.showConvertPrompt.set(true);
+      } else {
+        this.maybeShowFuelPopup();
+      }
       return; // Path A owns this; never fall through to Path B
     }
 
@@ -374,7 +390,11 @@ export class ShopDetailComponent {
     }
 
     // Otherwise nothing pipeline-related.
-    if (this.pendingConversion() && !shop.linkedCustomerId) this.showConvertPrompt.set(true);
+    if (this.pendingConversion() && !shop.linkedCustomerId) {
+      this.showConvertPrompt.set(true);
+    } else {
+      this.maybeShowFuelPopup();
+    }
   }
 
   async confirmAdvance() {
@@ -383,7 +403,37 @@ export class ShopDetailComponent {
     try { await this.pipeline.changeStage(shop, stage); await this.loadShop(shop.id);
       this.toast.success(`Advanced to ${this.pipelineStageLabels[stage]}`); }
     catch (e) { console.error(e); this.toast.error('Failed to advance'); }
-    finally { this.showAdvancePrompt.set(false); this.advanceToStage.set(null); }
+    finally { this.showAdvancePrompt.set(false); this.advanceToStage.set(null); this.maybeShowFuelPopup(); }
+  }
+
+  dismissAdvancePrompt() {
+    this.showAdvancePrompt.set(false);
+    this.advanceToStage.set(null);
+    this.maybeShowFuelPopup();
+  }
+
+  dismissConvertPrompt() {
+    this.showConvertPrompt.set(false);
+    this.maybeShowFuelPopup();
+  }
+
+  convertNow() {
+    this.showConvertPrompt.set(false);
+    this.makeCustomer(); // opens the link-customer picker — fuel popup fires once that resolves (closeLinkModal)
+  }
+
+  private maybeShowFuelPopup() {
+    if (!this.pendingFuelVisitId()) return;
+    if (this.settings.expenses()?.fuelReminderOnVisit === false) {
+      this.pendingFuelVisitId.set(null);
+      return;
+    }
+    this.showFuelPopup.set(true);
+  }
+
+  closeFuelPopup() {
+    this.showFuelPopup.set(false);
+    this.pendingFuelVisitId.set(null);
   }
 
   private async loadVisits(shopId: string) {

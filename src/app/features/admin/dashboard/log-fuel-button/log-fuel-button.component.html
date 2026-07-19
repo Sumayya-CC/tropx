@@ -1,0 +1,12 @@
+<button class="fuel-trigger" (click)="open()">
+  ⛽ Log Fuel
+</button>
+
+@if (showModal()) {
+  <app-expense-form-modal
+    title="Log Fuel"
+    presetCategory="fuel"
+    [presetAmountCents]="settings.expenses().defaultFuelCents"
+    (closed)="close()">
+  </app-expense-form-modal>
+}

@@ -1,0 +1,149 @@
+@if (isLoading()) {
+  <div class="loading-state">
+    <app-loading-spinner></app-loading-spinner>
+  </div>
+} @else if (!bill()) {
+  <div class="not-found-state">
+    <h3>Bill not found</h3>
+    <a routerLink="/admin/bills">← Back to Bills</a>
+  </div>
+} @else {
+  <app-page-header
+    [title]="bill()!.billNumber"
+    backLink="/admin/bills"
+    backLinkLabel="Bills">
+  </app-page-header>
+
+  <div class="bill-detail">
+    <div class="detail-layout">
+      <div class="left-col">
+        <div class="detail-section">
+          <div class="section-header-row">
+            <h3>Bill Details</h3>
+            <app-status-badge [status]="bill()!.status" [label]="getStatusLabel(bill()!.status)"></app-status-badge>
+          </div>
+
+          @if (isOverdue()) {
+            <div class="overdue-banner">⚠️ Overdue — due {{ formatDate(bill()!.dueDate) }}</div>
+          }
+
+          @if (bill()!.linkedPurchaseOrderNumber) {
+            <a class="po-link" [routerLink]="['/admin/purchase-orders', bill()!.linkedPurchaseOrderId]">
+              Linked Purchase Order: {{ bill()!.linkedPurchaseOrderNumber }}
+            </a>
+          }
+
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Supplier</label>
+              <span>{{ bill()!.supplierName }}</span>
+            </div>
+            <div class="info-item">
+              <label>Bill Date</label>
+              <span>{{ formatDate(bill()!.billDate) }}</span>
+            </div>
+            <div class="info-item">
+              <label>Due Date</label>
+              <span>{{ bill()!.dueDate ? formatDate(bill()!.dueDate) : '—' }}</span>
+            </div>
+          </div>
+
+          @if (bill()!.notes) {
+            <div class="notes-block">
+              <label>Notes</label>
+              <p>{{ bill()!.notes }}</p>
+            </div>
+          }
+
+          <a class="edit-link" [routerLink]="['/admin/bills', bill()!.id, 'edit']">Edit Bill</a>
+        </div>
+
+        <div class="detail-section">
+          <h3>Line Items</h3>
+          <table class="line-items-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of bill()!.lineItems; track $index) {
+                <tr>
+                  <td>{{ item.description }}</td>
+                  <td class="text-right">{{ formatCurrency(item.lineTotalCents) }}</td>
+                </tr>
+              }
+              @if (!bill()!.lineItems || bill()!.lineItems!.length === 0) {
+                <tr>
+                  <td colspan="2" class="empty-items">No line items</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <div class="detail-section">
+          <h3>Payment</h3>
+          <div class="payment-summary">
+            <div class="summary-row">
+              <span class="label">Subtotal</span>
+              <span class="value">{{ formatCurrency(bill()!.subtotalCents) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Tax</span>
+              <span class="value">{{ formatCurrency(bill()!.taxCents) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Total Bill</span>
+              <span class="value">{{ formatCurrency(bill()!.totalCents) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Amount Paid</span>
+              <span class="value paid">{{ formatCurrency(bill()!.amountPaidCents) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Balance Due</span>
+              <span class="value balance">{{ formatCurrency(bill()!.balanceCents) }}</span>
+            </div>
+          </div>
+
+          @if (bill()!.status !== 'paid') {
+            <button class="btn-action" (click)="showPaymentModal.set(true)">
+              💰 Record Payment
+            </button>
+          }
+
+          @if (showPaymentModal()) {
+            <app-record-bill-payment-modal
+              [bill]="bill()!"
+              (closed)="onPaymentModalClosed()">
+            </app-record-bill-payment-modal>
+          }
+
+          @if (activePayments().length > 0) {
+            <div class="payment-history">
+              <div class="ph-title">Payment History</div>
+              @for (p of activePayments(); track p.id) {
+                <div class="ph-row">
+                  <div class="ph-left">
+                    <span class="ph-method">{{ getMethodLabel(p.method) }}</span>
+                    @if (p.referenceNumber) {
+                      <span class="ph-ref">Ref: {{ p.referenceNumber }}</span>
+                    }
+                  </div>
+                  <div class="ph-right">
+                    <span class="ph-date">{{ p.paidDate }}</span>
+                    <span class="ph-amount">{{ formatCurrency(p.amountCents) }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}

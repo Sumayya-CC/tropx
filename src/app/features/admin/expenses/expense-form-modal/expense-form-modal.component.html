@@ -1,0 +1,84 @@
+<div class="modal-overlay" (click)="cancel()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isEditing() ? 'Edit Expense' : title() }}</h2>
+      <button class="btn-close" (click)="cancel()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (linkedVisitId()) {
+        <div class="link-hint">Linked to this visit</div>
+      } @else if (linkedRouteId()) {
+        <div class="link-hint">Linked to this route</div>
+      }
+
+      <div class="row">
+        <div class="col form-group">
+          <label>Category <span class="required">*</span></label>
+          <select [ngModel]="category()" (ngModelChange)="category.set($event)">
+            @for (c of categoryOptions(); track c.value) {
+              <option [value]="c.value">{{ c.icon ? c.icon + ' ' : '' }}{{ c.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="col form-group">
+          <label>Amount <span class="required">*</span></label>
+          <div class="amount-input">
+            <span class="prefix">$</span>
+            <input type="number" min="0" step="0.01" [ngModel]="amount()" (ngModelChange)="amount.set(+$event)" placeholder="0.00">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" [ngModel]="expenseDateStr()" (ngModelChange)="expenseDateStr.set($event)">
+      </div>
+
+      <div class="form-group">
+        <label>Vendor <span class="optional">(optional)</span></label>
+        <input type="text" [ngModel]="vendor()" (ngModelChange)="vendor.set($event)" placeholder="e.g. Petro-Canada">
+      </div>
+
+      <div class="form-group">
+        <label>Note <span class="optional">(optional)</span></label>
+        <textarea rows="2" [ngModel]="note()" (ngModelChange)="note.set($event)" placeholder="Additional details..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Receipt Photo <span class="optional">(optional)</span></label>
+        @if (receiptFile()) {
+          <div class="receipt-preview">
+            <span>{{ receiptFile()!.name }}</span>
+            <button type="button" class="btn-remove-receipt" (click)="removeReceipt()">Remove</button>
+          </div>
+        } @else if (receiptUrl()) {
+          <div class="receipt-preview">
+            <a [href]="receiptUrl()" target="_blank" rel="noopener">View current receipt</a>
+            <button type="button" class="btn-remove-receipt" (click)="removeReceipt()">Remove</button>
+          </div>
+        } @else {
+          <input type="file" accept="image/*" (change)="onReceiptSelected($event)">
+        }
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="cancel()" [disabled]="isSaving()">
+        @if (linkedVisitId()) { Skip } @else { Cancel }
+      </button>
+      <button class="btn-save" (click)="save()" [disabled]="isSaving() || !isValid()">
+        @if (isSaving()) {
+          {{ isUploadingReceipt() ? 'Uploading receipt...' : 'Saving...' }}
+        } @else if (isEditing()) {
+          Save Changes
+        } @else {
+          Log Expense
+        }
+      </button>
+    </div>
+  </div>
+</div>

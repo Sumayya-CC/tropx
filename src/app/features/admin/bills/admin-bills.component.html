@@ -1,0 +1,75 @@
+<app-page-header
+  title="Bills"
+  subtitle="Track what you owe your suppliers"
+  buttonLabel="New Bill"
+  (buttonClick)="router.navigate(['/admin/bills/new'])">
+</app-page-header>
+
+<div class="outstanding-banner card">
+  <span class="outstanding-label">Outstanding</span>
+  <span class="outstanding-value">{{ centsToDisplay(outstanding().total) }}</span>
+  <span class="outstanding-count">across {{ outstanding().count }} bill{{ outstanding().count === 1 ? '' : 's' }}</span>
+</div>
+
+<div class="filter-bar card">
+  <div class="search-input">
+    <input type="text" [(ngModel)]="searchQuery" placeholder="Search supplier, bill #, or PO #...">
+  </div>
+  <select class="filter-select" [(ngModel)]="statusFilter">
+    @for (s of statusOptions; track s.value) {
+      <option [value]="s.value">{{ s.label }}</option>
+    }
+  </select>
+</div>
+
+<div class="table-container card">
+  @if (isLoading()) {
+    <div class="skeleton-state">
+      <app-loading-spinner></app-loading-spinner>
+      <span>Loading bills...</span>
+    </div>
+  } @else if (filteredBills().length === 0) {
+    <div class="empty-state">
+      <h3>No bills found</h3>
+      <p>Try adjusting your filters or create a new bill.</p>
+    </div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Supplier</th>
+          <th>Bill #</th>
+          <th>PO #</th>
+          <th class="text-right">Balance</th>
+          <th>Due Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (b of filteredBills(); track b.id) {
+          <tr (click)="openBill(b)">
+            <td class="urgency-cell">{{ urgencyIcon(b) }}</td>
+            <td class="supplier-cell">{{ b.supplierName }}</td>
+            <td class="mono-cell">{{ b.billNumber }}</td>
+            <td class="mono-cell">{{ b.linkedPurchaseOrderNumber || '—' }}</td>
+            <td class="text-right balance-cell" [class.overdue]="isOverdue(b)">{{ centsToDisplay(b.balanceCents) }}</td>
+            <td [class.overdue]="isOverdue(b)">{{ formatDate(b.dueDate) }}</td>
+            <td class="text-right">
+              @if (b.status !== 'paid') {
+                <button class="btn-record" (click)="openRecordPayment($event, b)">Record Payment</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+@if (payingBill()) {
+  <app-record-bill-payment-modal
+    [bill]="payingBill()!"
+    (closed)="closePaymentModal()">
+  </app-record-bill-payment-modal>
+}

@@ -10,6 +10,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import { RouteStop, LatLng, findNearbyShops } from '../../../shared/utils/geo.utils';
 import { RouteSelectionService } from '../../../core/services/route-selection.service';
 import { DecimalPipe } from '@angular/common';
+import { centsToDisplay } from '../../../shared/utils/currency.utils';
 
 type Mode = 'delivery' | 'visit';
 
@@ -21,6 +22,7 @@ type Mode = 'delivery' | 'visit';
   styleUrl: './route-planner.component.scss',
 })
 export class RoutePlannerComponent implements OnDestroy {
+  protected readonly centsToDisplay = centsToDisplay;
   private readonly firestore = inject(FirestoreService);
   private readonly routing = inject(RoutingService);
   private readonly settings = inject(SettingsService);
@@ -59,6 +61,16 @@ export class RoutePlannerComponent implements OnDestroy {
   maxWaypoints = computed(() => (this.settings.routing?.() as any)?.maxWaypointsPerLeg ?? 9);
   travelMode = computed(() => (this.settings.routing?.() as any)?.defaultTravelMode ?? 'driving');
   clusterRadiusKm = computed(() => (this.settings.routing?.() as any)?.clusterRadiusKm ?? 3);
+
+  // Fuel cost estimate — L/km x $/L x km. Both settings must be set or this stays null
+  // (never guess a made-up rate; "not set" is more honest than a silently wrong number).
+  estimatedFuelCents = computed(() => {
+    const rt = this.settings.routing();
+    const perKm = rt.vehicleFuelPerKm;
+    const priceCents = rt.fuelPriceCentsPerLiter;
+    if (!perKm || !priceCents || this.totalKm() <= 0) return null;
+    return Math.round(this.totalKm() * perKm * priceCents);
+  });
 
   legs = computed(() => {
     const start = this.startPoint();

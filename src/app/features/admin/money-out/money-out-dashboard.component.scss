@@ -1,0 +1,227 @@
+.loading-state {
+  display: flex;
+  justify-content: center;
+  padding: 5rem 2rem;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 1.5rem;
+
+  .kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--navy-deep);
+    line-height: 1;
+  }
+
+  .kpi-label {
+    font-size: 0.8125rem;
+    color: var(--gray);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &.warn .kpi-value { color: var(--red); }
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.section {
+  margin-bottom: 1.5rem;
+
+  h3 {
+    margin: 0 0 1rem;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+  }
+}
+
+.fuel-trend-row {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.fuel-month {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  .fm-label {
+    font-size: 0.75rem;
+    color: var(--gray);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .fm-value {
+    font-size: 1.375rem;
+    font-weight: 800;
+    color: var(--navy-deep);
+  }
+}
+
+.trend-up { color: var(--red); font-weight: 800; }
+.trend-down { color: var(--green); font-weight: 800; }
+
+.fuel-avg {
+  font-size: 0.8125rem;
+  color: var(--gray);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.empty-hint {
+  color: var(--gray);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upcoming-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.15s;
+
+  &:hover { background: var(--cream); }
+
+  .ur-supplier { font-weight: 600; color: var(--navy-deep); flex: 1; }
+  .ur-amount { font-weight: 700; color: var(--navy-deep); }
+  .ur-due {
+    font-size: 0.75rem;
+    color: var(--gray);
+    white-space: nowrap;
+
+    &.overdue { color: var(--red); font-weight: 700; }
+  }
+}
+
+.margin-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.margin-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9375rem;
+  color: var(--gray);
+  padding: 0.375rem 0;
+
+  &.subtotal {
+    font-weight: 700;
+    color: var(--navy-deep);
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.625rem;
+  }
+
+  &.total {
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--green);
+    border-top: 2px solid var(--color-border);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+
+    &.negative { color: var(--red); }
+  }
+}
+
+.margin-hint {
+  margin: 1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--gray);
+  font-style: italic;
+}
+
+.concentration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.concentration-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.cr-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+
+  .cr-name { font-weight: 600; color: var(--navy-deep); }
+  .cr-value { color: var(--gray); }
+}
+
+.cr-bar-track {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cr-bar-fill {
+  height: 100%;
+  background: var(--navy);
+  border-radius: 3px;
+}
+
+.export-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.btn-export {
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--navy);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { background: var(--cream); border-color: var(--navy); }
+}

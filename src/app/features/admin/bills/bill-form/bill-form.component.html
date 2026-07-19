@@ -1,0 +1,120 @@
+<app-page-header
+  [title]="isEditing() ? 'Edit Bill' : 'New Bill'"
+  backLink="/admin/bills"
+  backLinkLabel="Bills">
+</app-page-header>
+
+<div class="form-grid">
+  <!-- Left Column: Details & Items -->
+  <div class="main-column">
+    <div class="card form-section">
+      <h3>Bill Details</h3>
+
+      @if (linkedPurchaseOrderNumber()) {
+        <div class="po-link-banner">Linked to Purchase Order {{ linkedPurchaseOrderNumber() }}</div>
+      }
+
+      <div class="form-row">
+        <div class="form-group half">
+          <label>Supplier *</label>
+          <select [ngModel]="formSupplierId()" (ngModelChange)="onSupplierChange($event)">
+            <option value="">-- Select Supplier --</option>
+            @for (s of suppliers(); track s.id) {
+              <option [value]="s.id">{{ s.displayName }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group half">
+          <label>Bill Date</label>
+          <input type="date" [ngModel]="formBillDate()" (ngModelChange)="onBillDateChange($event)">
+        </div>
+        <div class="form-group half">
+          <label>Due Date</label>
+          <input type="date" [ngModel]="formDueDate()" (ngModelChange)="formDueDate.set($event)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-section">
+      <h3>Line Items</h3>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th style="width: 120px; text-align: right;">Amount</th>
+            <th style="width: 50px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track $index; let i = $index) {
+            <tr>
+              <td>
+                <input type="text" placeholder="e.g. Case of tomatoes, Freight"
+                  [ngModel]="item.description"
+                  (ngModelChange)="updateItemDescription(i, $event)">
+              </td>
+              <td>
+                <div class="currency-input">
+                  <span>$</span>
+                  <input type="number" min="0" step="0.01"
+                    [ngModel]="formatCurrencyInput(item.lineTotalCents)"
+                    (ngModelChange)="updateItemAmount(i, $event)">
+                </div>
+              </td>
+              <td style="text-align: right;">
+                <button class="icon-btn delete" (click)="removeItem(i)">✕</button>
+              </td>
+            </tr>
+          }
+          @if (items().length === 0) {
+            <tr>
+              <td colspan="3" class="empty-items">No line items yet.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <button type="button" class="btn-add-item" (click)="addLineItem()">+ Add Line Item</button>
+    </div>
+
+    <div class="card form-section">
+      <h3>Notes</h3>
+      <div class="form-group">
+        <textarea rows="3" [ngModel]="formNotes()" (ngModelChange)="formNotes.set($event)" placeholder="Internal notes..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Summary -->
+  <div class="side-column">
+    <div class="card summary-card">
+      <h3>Summary</h3>
+
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span>{{ (subtotalCents() / 100) | currency:'CAD':'symbol-narrow' }}</span>
+      </div>
+
+      <div class="summary-row input-row">
+        <span>Tax</span>
+        <div class="currency-input">
+          <span>$</span>
+          <input type="number" min="0" step="0.01" class="tax-input" [ngModel]="formTaxCents()" (ngModelChange)="onTaxChange($event)">
+        </div>
+      </div>
+
+      <div class="summary-row total">
+        <span>Total</span>
+        <span>{{ (totalCents() / 100) | currency:'CAD':'symbol-narrow' }}</span>
+      </div>
+
+      <button class="btn-save" (click)="saveBill()" [disabled]="isSaving()">
+        {{ isSaving() ? 'Saving...' : (isEditing() ? 'Update Bill' : 'Create Bill') }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -642,4 +642,8 @@ export class PoDetailComponent {
   receiveItems() {
     this.router.navigate(['/admin/purchase-orders', this.poId, 'receive']);
   }
+
+  createBillFromPo() {
+    this.router.navigate(['/admin/bills/new'], { queryParams: { poId: this.poId } });
+  }
 }

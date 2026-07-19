@@ -90,8 +90,14 @@ export class AdminSettingsComponent {
   rtClusterRadius = signal(3);
   rtTravelMode = signal<'driving'|'walking'|'bicycling'>('driving');
   rtFuelPerKm = signal<number|null>(null);
+  rtFuelPriceCentsPerLiter = signal<number|null>(null);
   rtDefaultCenter = signal<{lat:number;lng:number}>({lat: 43.4516, lng: -80.4925});
   editingRouting = signal(false);
+
+  expDefaultFuel = signal(30); // dollars, converted to cents on save
+  expFuelReminder = signal(true);
+  expCategories = signal<{value: string; label: string; icon?: string}[]>([]);
+  editingExpenses = signal(false);
   gettingLocation = signal(false);
 
   // Storefront — Featured Banner
@@ -498,7 +504,15 @@ export class AdminSettingsComponent {
       this.rtClusterRadius.set(rt.clusterRadiusKm ?? 3);
       this.rtTravelMode.set(rt.defaultTravelMode || 'driving');
       this.rtFuelPerKm.set(rt.vehicleFuelPerKm ?? null);
+      this.rtFuelPriceCentsPerLiter.set(rt.fuelPriceCentsPerLiter ?? null);
       this.rtDefaultCenter.set(rt.defaultCenter ?? {lat: 43.4516, lng: -80.4925});
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const exp = this.settings.expenses();
+      this.expDefaultFuel.set((exp.defaultFuelCents ?? 3000) / 100);
+      this.expFuelReminder.set(exp.fuelReminderOnVisit ?? true);
+      this.expCategories.set([...(exp.categories ?? [])]);
     }, { allowSignalWrites: true });
   }
 
@@ -1661,6 +1675,7 @@ export class AdminSettingsComponent {
         clusterRadiusKm: this.rtClusterRadius(),
         defaultTravelMode: this.rtTravelMode(),
         vehicleFuelPerKm: this.rtFuelPerKm(),
+        fuelPriceCentsPerLiter: this.rtFuelPriceCentsPerLiter(),
         defaultCenter: this.rtDefaultCenter(),
       });
       this.toast.success('Routing settings saved');
@@ -1676,6 +1691,7 @@ export class AdminSettingsComponent {
     this.rtClusterRadius.set(rt.clusterRadiusKm ?? 3);
     this.rtTravelMode.set(rt.defaultTravelMode || 'driving');
     this.rtFuelPerKm.set(rt.vehicleFuelPerKm ?? null);
+    this.rtFuelPriceCentsPerLiter.set(rt.fuelPriceCentsPerLiter ?? null);
     this.rtDefaultCenter.set(rt.defaultCenter ?? {lat: 43.4516, lng: -80.4925});
     this.editingRouting.set(false);
   }
@@ -1685,6 +1701,43 @@ export class AdminSettingsComponent {
   }
   removeRoutingStart(idx: number) {
     this.rtStarts.update(s => s.filter((_, i) => i !== idx));
+  }
+
+  async saveExpenses() {
+    this.isSaving.set(true);
+    try {
+      await this.firestore.setDocument('settings/expenses', {
+        defaultFuelCents: Math.round(this.expDefaultFuel() * 100),
+        fuelReminderOnVisit: this.expFuelReminder(),
+        categories: this.expCategories(),
+      });
+      this.toast.success('Expense settings saved');
+      this.editingExpenses.set(false);
+    } catch (e) { console.error(e); this.toast.error('Failed to save'); }
+    finally { this.isSaving.set(false); }
+  }
+
+  cancelExpenses() {
+    const exp = this.settings.expenses();
+    this.expDefaultFuel.set((exp.defaultFuelCents ?? 3000) / 100);
+    this.expFuelReminder.set(exp.fuelReminderOnVisit ?? true);
+    this.expCategories.set([...(exp.categories ?? [])]);
+    this.editingExpenses.set(false);
+  }
+
+  addExpenseCategory() {
+    this.expCategories.update(c => [...c, { value: '', label: '', icon: '' }]);
+  }
+  removeExpenseCategory(idx: number) {
+    this.expCategories.update(c => c.filter((_, i) => i !== idx));
+  }
+  updateExpenseCategoryLabel(idx: number, label: string) {
+    this.expCategories.update(c => c.map((cat, i) => i === idx
+      ? { ...cat, label, value: cat.value || label.trim().toLowerCase().replace(/\s+/g, '_') }
+      : cat));
+  }
+  updateExpenseCategoryIcon(idx: number, icon: string) {
+    this.expCategories.update(c => c.map((cat, i) => i === idx ? { ...cat, icon } : cat));
   }
 
   useCurrentLocation(rowIndex: number) {

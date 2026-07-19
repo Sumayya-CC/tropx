@@ -95,7 +95,12 @@
     <!-- result -->
     @if (optimized().length) {
       <div class="rp-result">
-        <div class="rp-total">{{ totalKm() | number:'1.0-1' }} km · {{ optimized().length }} stops</div>
+        <div class="rp-total">
+          {{ totalKm() | number:'1.0-1' }} km · {{ optimized().length }} stops
+          @if (estimatedFuelCents() != null) {
+            · ⛽ ~{{ centsToDisplay(estimatedFuelCents()!) }} estimated fuel
+          }
+        </div>
         <ol class="rp-order">
           @for (s of optimized(); track s.id) {
             <li>

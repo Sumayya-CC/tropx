@@ -30,6 +30,10 @@
     @if (po()!.status === 'sent' || po()!.status === 'partially_received') {
       <button class="btn-primary" (click)="receiveItems()">Receive Items</button>
     }
+
+    @if (po()!.status === 'sent' || po()!.status === 'partially_received' || po()!.status === 'received') {
+      <button class="btn-outline" (click)="createBillFromPo()">Create Bill</button>
+    }
   </div>
 
   @if (showCancelForm()) {

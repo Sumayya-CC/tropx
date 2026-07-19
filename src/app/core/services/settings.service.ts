@@ -148,6 +148,7 @@ export interface RoutingSettings {
   clusterRadiusKm?: number;
   defaultTravelMode?: 'driving' | 'walking' | 'bicycling';
   vehicleFuelPerKm?: number | null;
+  fuelPriceCentsPerLiter?: number | null;
   defaultCenter?: { lat: number; lng: number };
 }
 
@@ -157,7 +158,33 @@ export const DEFAULT_ROUTING: RoutingSettings = {
   clusterRadiusKm: 3,
   defaultTravelMode: 'driving',
   vehicleFuelPerKm: null,
+  fuelPriceCentsPerLiter: null,
   defaultCenter: { lat: 43.4516, lng: -80.4925 },
+};
+
+export interface ExpenseCategoryOption {
+  value: string;
+  label: string;
+  icon?: string;
+}
+
+export interface ExpensesSettings {
+  defaultFuelCents?: number;
+  fuelReminderOnVisit?: boolean;
+  categories?: ExpenseCategoryOption[];
+}
+
+export const DEFAULT_EXPENSES: ExpensesSettings = {
+  defaultFuelCents: 3000,
+  fuelReminderOnVisit: true,
+  categories: [
+    { value: 'fuel', label: 'Fuel', icon: '⛽' },
+    { value: 'supplies', label: 'Supplies', icon: '📦' },
+    { value: 'vehicle', label: 'Vehicle', icon: '🚗' },
+    { value: 'software', label: 'Software', icon: '💻' },
+    { value: 'phone', label: 'Phone', icon: '📱' },
+    { value: 'other', label: 'Other', icon: '🔧' },
+  ],
 };
 
 export const DEFAULT_NOTIFICATIONS: NotificationSettings = {
@@ -276,6 +303,7 @@ export class SettingsService {
   private _inventory = signal<InventorySettings | null>(null);
   private _reconciliation = signal<ReconciliationSettings | null>(null);
   private _routing = signal<RoutingSettings | null>(null);
+  private _expenses = signal<ExpensesSettings | null>(null);
 
   constructor() {
     this.firestore.getDocument<BusinessSettings>('settings/business')
@@ -294,6 +322,8 @@ export class SettingsService {
       .subscribe(v => this._reconciliation.set(v));
     this.firestore.getDocument<RoutingSettings>('settings/routing')
       .subscribe(v => this._routing.set(v));
+    this.firestore.getDocument<ExpensesSettings>('settings/expenses')
+      .subscribe(v => this._expenses.set(v));
   }
 
   business = computed(() => ({
@@ -336,6 +366,11 @@ export class SettingsService {
     ...(this._routing() ?? {})
   }));
 
+  expenses = computed(() => ({
+    ...DEFAULT_EXPENSES,
+    ...(this._expenses() ?? {})
+  }));
+
 
 
   async uploadLogo(file: File): Promise<string> {
@@ -372,10 +407,27 @@ export class SettingsService {
       const nextNum = data['nextNumber'] || 1;
       const prefix = data['prefix'] || 'GRN';
       const padding = data['padding'] || 5;
-      
+
       tx.set(ref, { ...data, nextNumber: nextNum + 1 });
-      
+
       return `${prefix}-${String(nextNum).padStart(padding, '0')}`;
+    });
+  }
+
+  async getNextBillNumber(): Promise<string> {
+    const { runTransaction } = await import('@angular/fire/firestore');
+    return runTransaction(this.firestoreDb, async (tx) => {
+      const ref = doc(this.firestoreDb, 'settings/billSequence');
+      const snap = await tx.get(ref);
+      const data = (snap.exists() ? snap.data() : { prefix: 'BILL', lastNumber: 0 }) as any;
+      const lastNumber = data['lastNumber'] || 0;
+      const prefix = data['prefix'] || 'BILL';
+      const nextNumber = lastNumber + 1;
+      const year = new Date().getFullYear();
+
+      tx.set(ref, { ...data, lastNumber: nextNumber });
+
+      return `${prefix}-${year}-${String(nextNumber).padStart(4, '0')}`;
     });
   }
 }

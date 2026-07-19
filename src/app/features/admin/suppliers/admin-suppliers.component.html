@@ -29,6 +29,7 @@
             <th>Phone</th>
             <th>Terms</th>
             <th>Lead Time</th>
+            <th>Outstanding</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -42,6 +43,13 @@
               <td>{{ supplier.phone }}</td>
               <td>{{ supplier.paymentTermsDays }} days</td>
               <td>{{ supplier.leadTimeDays }} days</td>
+              <td [class.fw-bold]="outstandingBySupplier().get(supplier.id)">
+                @if (outstandingBySupplier().get(supplier.id); as owed) {
+                  <span style="color: var(--red);">{{ centsToDisplay(owed) }}</span>
+                } @else {
+                  <span style="color: var(--gray);">—</span>
+                }
+              </td>
               <td>
                 @if (supplier.active) {
                   <app-status-badge status="active"></app-status-badge>
