@@ -111,6 +111,14 @@
 .supplier-cell { font-weight: 600; }
 .mono-cell { font-family: monospace; font-size: 0.8125rem; color: var(--gray); }
 
+.total-cell {
+  color: var(--navy);
+}
+
+.paid-cell {
+  color: var(--green);
+}
+
 .balance-cell {
   font-weight: 700;
   color: var(--navy-deep);

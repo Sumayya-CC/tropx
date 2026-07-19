@@ -41,6 +41,8 @@
           <th>Supplier</th>
           <th>Bill #</th>
           <th>PO #</th>
+          <th class="text-right">Total</th>
+          <th class="text-right">Paid</th>
           <th class="text-right">Balance</th>
           <th>Due Date</th>
           <th></th>
@@ -53,6 +55,8 @@
             <td class="supplier-cell">{{ b.supplierName }}</td>
             <td class="mono-cell">{{ b.billNumber }}</td>
             <td class="mono-cell">{{ b.linkedPurchaseOrderNumber || '—' }}</td>
+            <td class="text-right total-cell">{{ centsToDisplay(b.totalCents) }}</td>
+            <td class="text-right paid-cell">{{ centsToDisplay(b.amountPaidCents) }}</td>
             <td class="text-right balance-cell" [class.overdue]="isOverdue(b)">{{ centsToDisplay(b.balanceCents) }}</td>
             <td [class.overdue]="isOverdue(b)">{{ formatDate(b.dueDate) }}</td>
             <td class="text-right">
