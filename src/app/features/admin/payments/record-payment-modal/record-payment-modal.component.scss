@@ -160,7 +160,7 @@
     cursor: pointer;
     transition: all 0.2s;
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not(.active) {
       border-color: var(--navy);
       background: var(--cream);
     }
