@@ -74,7 +74,7 @@
           (click)="showAccountMenu.set(
             !showAccountMenu()
           )">
-          <div class="account-avatar">
+          <div class="account-avatar" [class.has-logo]="logoUrl()">
             @if (logoUrl()) {
               <img [src]="logoUrl()!"
                 alt="Logo"

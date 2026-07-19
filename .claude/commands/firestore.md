@@ -19,7 +19,7 @@ Review or design Firestore data access for the current change. This codebase's d
 
 ## Query scale
 
-- Browsable entity lists paginate with **indexed server-side queries** and a normalized `searchName` field. No client-side filtering of large collections. Any new browsable entity gets `searchName` + pagination from the start.
+- Browsable entity lists paginate with **indexed server-side queries** and a normalized `searchName` field — this is the target convention, proven today on `visits` (a real composite index exists). Some existing lists (customers, orders) still sort/filter client-side in memory — that's tracked debt, not the pattern to copy. Any *new* browsable entity gets `searchName` + pagination from the start.
 - Every query and write carries `tenantId`.
 
 ## Batches and invariants

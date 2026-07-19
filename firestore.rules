@@ -143,15 +143,27 @@ service cloud.firestore {
     }
 
     // ── Customers ────────────────────────────────────────
-    // Staff only. Customers read their own record via
-    // the linked customerId on their profile, not directly.
+    // Staff: full access. Customers: read their own record via
+    // the linked customerId on their profile, and may update a
+    // narrow allowlist of self-service profile fields only —
+    // money/status/link fields (totalOwingCents, status,
+    // linkedShopId, etc.) stay staff-only even on their own doc.
     match /customers/{doc} {
       allow read: if isStaff() ||
         (isCustomer() &&
          request.auth.token.linkedCustomerId != null &&
          doc ==
          request.auth.token.linkedCustomerId);
-      allow write: if isStaff();
+      allow update: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId != null &&
+         doc == request.auth.token.linkedCustomerId &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly([
+             'businessName', 'ownerFirstName', 'ownerLastName',
+             'phone', 'address', 'logoUrl'
+           ]));
+      allow create, delete: if isStaff();
     }
 
     // ── User profiles ────────────────────────────────────

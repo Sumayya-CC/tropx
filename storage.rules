@@ -1,9 +1,91 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return request.auth.token.get('role', 'none');
+    }
+
+    function isStaff() {
+      return isSignedIn() && role() in [
+        'admin', 'manager', 'sales_rep', 'warehouse'
+      ];
+    }
+
+    function isCustomer() {
+      return isSignedIn() && role() == 'customer';
+    }
+
+    // ── Public storefront assets ──────────────────────────
+    // Business logo, product/category/brand images, storefront
+    // banners/gallery, and content (client showcase) are shown
+    // on the public marketing site and portal catalog with no
+    // login required. Staff manage them; nobody else may write.
+    match /settings/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isStaff();
+    }
+
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /categories/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /brands/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /storefront/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /content/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ── Customer business logo ────────────────────────────
+    // Not shown on any public page — only in the admin customer
+    // record and the customer's own portal profile. Staff manage
+    // any customer's logo; a customer may only manage their own.
+    match /customers/{customerId}/{allPaths=**} {
+      allow read: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId == customerId);
+      allow write: if isStaff() ||
+        (isCustomer() &&
+         request.auth.token.linkedCustomerId == customerId);
+    }
+
+    // ── Staff profile avatars ─────────────────────────────
+    // Self-service, staff only — never shown to customers.
+    match /userProfiles/{uid}/{allPaths=**} {
+      allow read: if isStaff();
+      allow write: if isStaff() && request.auth.uid == uid;
+    }
+
+    // ── Expense receipts ───────────────────────────────────
+    // Financial documents — staff only, never public.
+    match /expenses/receipts/{fileName} {
+      allow read, write: if isStaff();
+    }
+
+    // ── Fallback ───────────────────────────────────────────
+    // Any unlisted path denies by default, matching the
+    // Firestore rules' staff-only fallback pattern.
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

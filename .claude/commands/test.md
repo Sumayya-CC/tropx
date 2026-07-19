@@ -5,7 +5,7 @@ Design or review tests for the current change. Testing here is invariant-driven,
 ## What must always be tested
 
 - **Money math** — tax (`(subtotal − discount) × rate`), discount (fixed and %), balance (`total − amountPaid`), reconciliation recompute. Assert **exact integer cents**, never approximate. Test the cents↔dollars boundary conversions explicitly.
-- **Stock invariants** — clamp at zero while the adjustment records the full amount; ATP = `stock − committed` (committed = confirmed + out_for_delivery); cancellation and return restoration; sample deduction.
+- **Stock invariants** — clamp at zero while the adjustment records the full amount; `product.stock` **is** ATP as stored (decremented at order confirmation, not delivery — never subtract `committed`, which sums `confirmed` + `preparing` + `out_for_delivery` orders and is only used to reconstruct gross on-hand count); cancellation and return restoration; sample deduction.
 - **Order editing** — reduce-only quantities, total recompute, customer counter adjustment in the same batch, lock at delivered/cancelled.
 - **Link integrity** — shop↔customer dual-side writes; conversion preserves visit history (visits keyed on shopId survive the link).
 - **Idempotency** — run any reconcile/stamp sweep **twice**; assert no change on the second pass.

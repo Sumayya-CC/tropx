@@ -12,7 +12,7 @@ This is multi-tenant, multi-warehouse infrastructure for a 1000+ store wholesale
 
 - **Denormalized counters and stamped fields are deliberate, not lazy.** Customer balances, shop `healthBand`/`healthDays`, pipeline `stuck` flags, `hasShop`/`hasCustomer` — all stamped onto documents by background jobs so list/dashboard reads are a single indexed query with zero per-row cross-loads. At 1000+ stores, computing these per-row client-side is not an option. When adding a new list-surfaced metric, follow this: stamp it in a sweep, read the field. Do not add a client-side compute-per-row.
 - **The source of truth vs the denormalized copy are different things.** Orders and payments are authoritative; the customer's `totalOwingCents`/`totalOrderedCents` are a cache that reconciliation recomputes and can correct or freeze. Never treat a denormalized counter as truth — recompute from source when correctness matters.
-- **`searchName` normalized fields + server-side pagination exist because client-side filtering does not scale.** Any new browsable entity list follows this pattern from day one, not "later when it's slow."
+- **`searchName` normalized fields + server-side pagination are the target convention because client-side filtering does not scale.** This is proven on `visits` (composite index + tenantId/shopId/isDeleted/visitDate). Some existing lists (e.g. customers, orders) still sort/filter in memory — that's accumulated debt, not the intended pattern. Any *new* browsable entity list should follow the indexed/paginated pattern from day one, not "later when it's slow."
 - **Idempotency is a requirement, not a nice-to-have,** because the same recompute logic is invoked by both real-time triggers and scheduled sweeps. Anything a sweep touches must be safe to run twice with no change on the second pass.
 
 ## Decisions We Made And Why (and what we rejected)
@@ -46,7 +46,7 @@ This is multi-tenant, multi-warehouse infrastructure for a 1000+ store wholesale
 ## Testing Philosophy
 
 - Money math and cents↔display conversions are the highest-value tests — assert exact integer cents, never approximate.
-- Invariants over happy paths: stock clamps at zero while the adjustment records the full amount; ATP = stock − committed; cancellation/return restoration; dual-side shop↔customer link integrity; conversion preserving visit history.
+- Invariants over happy paths: stock clamps at zero while the adjustment records the full amount; `stock` is already ATP (no subtraction — see Domain terminology below); cancellation/return restoration; dual-side shop↔customer link integrity; conversion preserving visit history.
 - Anything touching rules, triggers, or batches is tested against the emulators; idempotency is verified by running a sweep twice and asserting no change on the second pass.
 - Rules are tested per role claim and for the public-create collections.
 
@@ -83,6 +83,8 @@ A single large file (Gen2, `firebase-functions/v2`). Key patterns:
 ### Firestore security rules (`firestore.rules`)
 - Custom-claim based: `role()` reads `request.auth.token.role` (a custom claim, not the Firestore profile doc) via helpers `isSignedIn()`, `isAdmin()`, `isStaff()`, `isCustomer()`. When adding a new collection, follow the existing `isStaff()`/`isAdmin()`/scoped-to-own-doc pattern rather than inventing new access logic.
 - A few collections allow unauthenticated `create` (e.g. `accessRequests`) to support public-facing forms (request access, contact) — read/update/delete still requires the appropriate role.
+- `customers/{doc}`: staff have full access; a customer may `update` their **own** record (scoped by `linkedCustomerId` claim) but only through a narrow field allowlist (`businessName`, `ownerFirstName`, `ownerLastName`, `phone`, `address`, `logoUrl` — self-service profile fields only). Money/status/link fields (`totalOwingCents`, `status`, `linkedShopId`, etc.) stay staff-only even on the customer's own doc; `create`/`delete` are staff-only. Follow this allowlist pattern (`request.resource.data.diff(resource.data).affectedKeys().hasOnly([...])`) for any future customer self-edit capability rather than opening full document write access.
+- Storage rules (`storage.rules`) mirror this: deny-by-default per path, with public read + staff-write for storefront-facing assets (`settings/`, `products/`, `categories/`, `brands/`, `storefront/`, `content/`), staff-or-self write for a customer's own logo (`customers/{customerId}/`) and a staff member's own avatar (`userProfiles/{uid}/`), and staff-only for `expenses/receipts/`. Any change to `storage.rules` prompted by a permission-denied error must add a scoped rule for that specific path — never widen the fallback or use a bare `allow write: if request.auth != null`, which erases the staff/customer boundary for every path at once.
 
 ## Conventions worth knowing
 - Config-driven UI: dropdown/label/status metadata (`USER_ROLES`, `ORDER_STATUSES`, `ADJUSTMENT_TYPES`, etc.) lives centrally in `core/config/*.config.ts` — update those, don't hardcode labels/strings in components/templates.
@@ -99,7 +101,7 @@ A single large file (Gen2, `firebase-functions/v2`). Key patterns:
 - **Shop** = a physical location you visit. **Customer** = a shop that has a portal account and orders. Every customer is a shop; not every shop is a customer (prospects are shops without accounts). This distinction is foundational — see module relationships below.
 - **Sell-in vs sell-through**: opening orders are sell-in; true demand is sell-through (refill orders only). Visit `Left/Found/Added` captures sell-through directly (`sold = left − found`).
 - **Infill prospect**: a prospect shop geographically inside an existing customer cluster, so adding it costs near-zero extra driving.
-- **ATP** (available-to-promise) = `stock − committed`, where committed sums quantities across `confirmed` + `out_for_delivery` orders.
+- **ATP** (available-to-promise) **is** `product.stock` as stored — no subtraction needed. Stock is decremented at order confirmation (not at delivery), so the stored value already excludes everything committed to open orders. `committed` (sum of quantities across `confirmed` + `preparing` + `out_for_delivery` orders, via `StockAvailabilityService.committedFor()`) is used the other direction — `available + committed` reconstructs the gross physical count still sitting in the warehouse. Never subtract `committed` from `stock` again; that would double-count the deduction already applied at confirmation.
 
 ### Module relationships (field ops)
 - **Shop ↔ Customer** are linked symmetrically: `shop.linkedCustomerId` ↔ `customer.linkedShopId`, with `hasShop`/`hasCustomer` boolean flags and normalized `searchName` fields for indexed queries. `ShopLinkService` performs **dual-side batch writes** — never update one side of the link without the other. A reconciliation Cloud Function heals link drift (nightly incremental + weekly full + on-demand callable).
@@ -121,7 +123,7 @@ A single large file (Gen2, `firebase-functions/v2`). Key patterns:
 - Coerce `[ngModel]` on `<input type="number">` via a `toNum()` helper before writing to numeric signals — ngModel returns strings.
 - When injecting SVG via `innerHTML`, use `DomSanitizer.bypassSecurityTrustHtml` (Angular strips SVG otherwise).
 - Give each independently-editable settings card its own `editing*` signal + own save/cancel; use `updateDocument` (partial merge) per card so cards don't overwrite each other's fields on the same settings doc.
-- Entity lists (shops, customers) must paginate with indexed server-side queries and normalized `searchName` fields — never client-side filter at national scale.
+- New browsable entity lists should paginate with indexed server-side queries and normalized `searchName` fields — this is the target convention (proven on `visits`), not yet applied to every existing list (customers/orders still sort client-side in memory today). Don't add a *new* client-side-filtered list at national scale; closing the gap on existing ones is tracked separately, not a license to add more.
 
 ### Never
 - Never write true negative `product.stock`. Clamp with `Math.max(0, stock − qty)` everywhere (orders, edits, samples), but still record the **full** amount in `stockAdjustments` so the audit trail is honest even when the counter clamps. Visits/samples must not become the one path that produces negative stock (it would corrupt ATP and low-stock alerts).
@@ -131,13 +133,14 @@ A single large file (Gen2, `firebase-functions/v2`). Key patterns:
 ### Cloud Functions
 - Shared recompute logic must stay **idempotent** — real-time triggers and scheduled sweeps call the same function (`recomputeCustomerCounters`), so it must be safe to run repeatedly on the same data.
 - Firestore-as-job-queue: to trigger server work, write a request doc; an `onDocumentCreated` trigger processes it and stamps `processed`/`status` back. Guard against reprocessing (`if (data.processed) return`).
-- `placeOrder` (onCall) is the correct path for portal order placement — it stamps `customer.lastOrderAt` and increments denormalized counters so health/counters stay current. Direct customer writes to `products`/`stockAdjustments` are a known security gap being closed via this function.
+- `placeOrder` (onCall) is the correct path for portal order placement — it stamps `customer.lastOrderAt` and increments denormalized counters so health/counters stay current. It runs as a server-side Firestore transaction (re-reads product prices/stock, re-checks for oversell, then writes order + stock + adjustments atomically) precisely so a customer's client never has to be trusted with those writes directly; `firestore.rules` backs this up by requiring staff or a non-null `linkedCustomerId` claim on `products`/`stockAdjustments` writes.
 - Region is `northamerica-northeast2` for triggers/callables; **Cloud Scheduler does not support northeast2** — scheduled functions run in `northamerica-northeast1`.
 
 ## Business Logic (frequently forgotten)
 
 - **Stock deduction timing**: stock is deducted in the portal at order confirmation, not at delivery. Cancellation/returns restore stock via `stockAdjustments`. Samples reduce stock ($0, `type: 'sample'`).
-- **Order editing** is allowed only while `confirmed` or `out_for_delivery`; locked at `delivered`/`cancelled`. Quantities may only be **reduced** (stock already committed); reducing returns the diff to stock. Editing recomputes subtotal/tax/total/balance and adjusts the customer's denormalized `totalOrderedCents`/`totalOwingCents` in the same batch.
+- **Order status** progresses `confirmed → preparing → out_for_delivery → delivered`, with `cancelled` reachable from any non-terminal state. `preparing` is admin-only vocabulary — the portal always masks it back to "Confirmed" for the customer (order list, order detail, dashboard); never surface the internal `preparing` label on a customer-facing screen.
+- **Order editing** is allowed while `confirmed`, `preparing`, or `out_for_delivery`; locked at `delivered`/`cancelled`. Quantities may only be **reduced** (stock already committed); reducing returns the diff to stock. Editing recomputes subtotal/tax/total/balance and adjusts the customer's denormalized `totalOrderedCents`/`totalOwingCents` in the same batch.
 - **Tax**: single 13% HST, added at checkout on the pre-discount-adjusted subtotal (`tax = (subtotal − discount) × rate`). Prices shown pre-tax; HST added at the total.
 - **Out-of-stock behavior** is global (`settings/ordering.outOfStockBehavior`: hide / show_disabled / allow_backorder) with a per-product `outOfStockBehaviorOverride` that wins. Resolve via a single `getEffectiveOutOfStockBehavior()` helper everywhere — never read the global directly in stock-display logic.
 - **Restock** from a visit only applies to shops that are customers (`linkedCustomerId` set) — it pre-fills the order form via the reorder-draft localStorage pattern and stamps `restockOrderId` back on the visit; visit and order stay otherwise independent (prefill only, not linked).
@@ -153,7 +156,7 @@ A single large file (Gen2, `firebase-functions/v2`). Key patterns:
 
 ## Testing
 - Money math (tax, discount, balance, reconciliation recompute) and the cents/display conversions are the highest-value units to test — assert exact integer cents.
-- Test stock invariants: clamp-at-zero while audit records the full amount; ATP = stock − committed; cancellation/return restoration.
+- Test stock invariants: clamp-at-zero while audit records the full amount; `stock` is already ATP (see Domain terminology); cancellation/return restoration.
 - Test the shop↔customer dual-side link (both directions) and that conversion preserves visit history.
 - Use the Firebase emulators (`auth:9099, firestore:8080, storage:9199`) for anything touching rules, triggers, or batch/transaction behavior; assert idempotency by running a reconcile sweep twice and expecting no change on the second pass.
 - Test rules with each role claim (`admin`/`manager`/`sales_rep`/`warehouse`/`customer`) and the unauthenticated public-create collections.

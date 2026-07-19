@@ -4,6 +4,12 @@ Custom B2B wholesale platform for **Tropx Enterprises Inc.** — a wholesale dis
 
 **Live:** https://tropxwholesale.ca
 
+## Documentation
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — internal engineering reference: invariants, data model, Cloud Functions, security rules, decision log. Start here to change the code safely.
+- [`docs/SOFTWARE_ARCHITECTURE_DOCUMENT.md`](docs/SOFTWARE_ARCHITECTURE_DOCUMENT.md) — external-facing Software Architecture Document (C4 views, ADRs, quality attributes) for due diligence, hiring review, or portfolio use.
+- `CLAUDE.md` — working context and conventions for AI-assisted development in this repo.
+
 ---
 
 ## Tech Stack
@@ -31,8 +37,8 @@ Custom B2B wholesale platform for **Tropx Enterprises Inc.** — a wholesale dis
 
 ### Regions
 
-* **Callable Cloud Functions:** `northamerica-northeast2`
-* **Cloud Scheduler:** `northamerica-northeast1`
+* **Firestore triggers & callable (`onCall`) functions:** `northamerica-northeast2`
+* **Scheduled (`onSchedule`) functions:** `northamerica-northeast1` — Cloud Scheduler does not support `northeast2`
 
 ---
 
@@ -88,7 +94,7 @@ firebase deploy --only firestore:indexes --project tropx-wholesale-prod
 * **Role-based access:** Firebase Authentication custom claims with granular permission mapping.
 * **Authentication:** `auth.getActionBy()` for audit records and `getIdToken(user, true)` after claim changes.
 * **Firestore access:** centralized through `FirestoreService`.
-* **Scalability:** indexed queries, pagination, denormalized fields, and boolean lookup flags. No client-side full collection filtering.
+* **Scalability:** indexed queries, pagination, denormalized fields, and boolean lookup flags are the target convention for browsable entity lists (proven today on `visits`); closing the gap on lists that still sort/filter client-side (e.g. customers, orders) is tracked, ongoing work.
 * **Security:** Firestore rules scoped by authenticated ownership where applicable.
 * **Storefront configuration:** managed through Firestore settings documents.
 * **Background automation:** Cloud Scheduler and Cloud Functions power reconciliation, operational maintenance, and scheduled workflows.
@@ -134,7 +140,7 @@ firebase deploy --only firestore:indexes --project tropx-wholesale-prod
 * **Prospect Pipeline** — Kanban pipeline, stage history, KPIs, next actions, and conversion workflow
 * **Route Planning** — optimized delivery and visit routes, interactive maps, nearby-shop intelligence, saved routes, and Google Maps navigation handoff
 * **Field Operations Dashboard** — unified operational dashboard combining Shop Health, Pipeline insights, and backorders
-* **Expenses & Bills** — operational expense tracking *(planned)*
+* **Expenses & Bills** — operational expense and supplier-bill tracking, tied to purchase orders; a money-out dashboard (fuel trend, upcoming bills, revenue concentration) sits alongside it. Operational tracking only — Zoho Books remains the accounting system of record.
 
 ---
 
@@ -163,9 +169,10 @@ firebase deploy --only firestore:indexes --project tropx-wholesale-prod
 
 ---
 
-## Planned Integrations
+## Roadmap
 
-* **Zoho Books** — tax invoicing, HST compliance, and accounting integration
+* **Official tax-invoice numbering + CRA HST-return generation** — the remaining bridge before the portal can fully replace Zoho Books, treated as a deliberate, separate future track rather than something to build incidentally. Zoho Books remains the official accounting ledger today; the portal owns operations (orders, payments, expenses, bills) and does not do double-entry accounting.
+* **Payment processor integration** — the data model (vendor-neutral fields on `Payment`/`Customer`) already anticipates this; wiring an actual processor is the remaining step.
 * Browser push notifications
 
 ---
@@ -176,9 +183,11 @@ firebase deploy --only firestore:indexes --project tropx-wholesale-prod
 /src                  Angular application
 /functions            Firebase Cloud Functions v2
 firestore.rules       Firestore security rules
+storage.rules         Cloud Storage security rules
 firestore.indexes.json Composite indexes
-firebase.json         Firebase configuration
-netlify.toml          Netlify configuration
+firebase.json         Firebase configuration (dev)
+firebase.prod.json    Firebase configuration (prod)
+src/_redirects        Netlify SPA routing (rewrites all paths to index.html)
 ```
 
 ---

@@ -227,6 +227,11 @@ $nav-bg-scrolled: rgba(10,45,74,0.98);
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+
+  &.has-logo {
+    background: transparent;
+    padding: 2px;
+  }
 }
 
 .account-name {
@@ -405,8 +410,8 @@ $nav-bg-scrolled: rgba(10,45,74,0.98);
 .avatar-logo-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 7px;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 /* Password reset modal */

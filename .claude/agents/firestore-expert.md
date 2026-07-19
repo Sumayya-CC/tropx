@@ -20,7 +20,7 @@ Recompute logic runs from both triggers and sweeps; it must be safe to run repea
 
 ## Scale
 
-- Browsable lists paginate with indexed server-side queries and a normalized `searchName` field — no client-side filtering of large collections. New browsable entities get `searchName` + pagination from day one.
+- Browsable lists paginate with indexed server-side queries and a normalized `searchName` field — the target convention, proven on `visits`. Some existing lists (customers, orders) still sort/filter client-side — tracked debt, not the pattern to extend. New browsable entities get `searchName` + pagination from day one.
 - Every query/write carries `tenantId`.
 
 ## Batches, invariants, links

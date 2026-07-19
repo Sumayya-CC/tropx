@@ -8,7 +8,7 @@ You write and review tests for multi-tenant, multi-warehouse infrastructure at 1
 ## Priorities (in order)
 
 1. **Money math** — tax `(subtotal − discount) × rate`, fixed and % discount, balance `total − amountPaid`, reconciliation recompute. Assert exact integer cents. Test cents↔dollars boundary conversions.
-2. **Stock invariants** — clamp at zero while the adjustment records the full amount; ATP = `stock − committed`; cancellation/return restoration; sample deduction; sample-exceeds-stock (records full, clamps, warns not blocks).
+2. **Stock invariants** — clamp at zero while the adjustment records the full amount; `product.stock` **is** ATP already (decremented at confirmation, not delivery — never subtract `committed` from it); cancellation/return restoration; sample deduction; sample-exceeds-stock (records full, clamps, warns not blocks).
 3. **Order editing** — reduce-only quantities, recompute, counter adjustment in the same batch, lock at delivered/cancelled.
 4. **Link integrity** — dual-side shop↔customer writes; conversion preserves visit history (shopId-keyed visits survive).
 5. **Idempotency** — run any sweep/reconcile twice; assert no change on the second pass.

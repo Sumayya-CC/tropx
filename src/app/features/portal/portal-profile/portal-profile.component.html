@@ -344,30 +344,30 @@
               }
             </div>
 
-            <!-- Always show upload controls
-                 (logo can be changed anytime) -->
-            <div class="logo-actions">
-              <label class="btn-upload-logo">
-                <input type="file"
-                  accept="image/*"
-                  class="file-input-hidden"
-                  (change)="onLogoSelected($event)">
+            @if (isEditMode()) {
+              <div class="logo-actions">
+                <label class="btn-upload-logo">
+                  <input type="file"
+                    accept="image/*"
+                    class="file-input-hidden"
+                    (change)="onLogoSelected($event)">
+                  @if (logoUrl()) {
+                    Change Logo
+                  } @else {
+                    Upload Logo
+                  }
+                </label>
                 @if (logoUrl()) {
-                  Change Logo
-                } @else {
-                  Upload Logo
+                  <button class="btn-remove-logo"
+                    (click)="removeLogo()">
+                    Remove
+                  </button>
                 }
-              </label>
-              @if (logoUrl()) {
-                <button class="btn-remove-logo"
-                  (click)="removeLogo()">
-                  Remove
-                </button>
-              }
-            </div>
-            <p class="logo-hint">
-              JPG, PNG or WebP. Max 2MB.
-            </p>
+              </div>
+              <p class="logo-hint">
+                JPG, PNG or WebP. Max 2MB.
+              </p>
+            }
           </div>
         </div>
 

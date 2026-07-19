@@ -50,6 +50,7 @@ export class PortalProfileComponent {
   province = signal('');
   postalCode = signal('');
   logoUrl = signal<string | null>(null);
+  pendingLogoFile = signal<File | null>(null);
 
   // Validation errors
   errors = signal<Record<string, string>>({});
@@ -115,6 +116,7 @@ export class PortalProfileComponent {
         this.province.set(doc.address?.province || '');
         this.postalCode.set(doc.address?.postalCode || '');
         this.logoUrl.set(doc.logoUrl || null);
+        this.pendingLogoFile.set(null);
         this.formLoaded.set(true);
         this.isLoading.set(false);
         this.isDirty.set(false);
@@ -179,6 +181,19 @@ export class PortalProfileComponent {
 
     this.isSaving.set(true);
     try {
+      let finalLogoUrl = this.logoUrl();
+      const fileToUpload = this.pendingLogoFile();
+
+      if (fileToUpload) {
+        this.isUploadingLogo.set(true);
+        const path = `customers/${customerId}/logo_${Date.now()}`;
+        const storageRef = ref(this.storage, path);
+        await uploadBytes(storageRef, fileToUpload);
+        finalLogoUrl = await getDownloadURL(storageRef);
+        this.logoUrl.set(finalLogoUrl);
+        this.pendingLogoFile.set(null);
+      }
+
       await this.firestoreService.updateDocument(
         `customers/${customerId}`,
         {
@@ -193,7 +208,7 @@ export class PortalProfileComponent {
             postalCode: this.formatPostalCode(this.postalCode()),
             country: 'Canada',
           },
-          logoUrl: this.logoUrl() || null,
+          logoUrl: finalLogoUrl || null,
         }
       );
       this.isDirty.set(false);
@@ -204,6 +219,7 @@ export class PortalProfileComponent {
       this.toast.error('Failed to save profile');
     } finally {
       this.isSaving.set(false);
+      this.isUploadingLogo.set(false);
     }
   }
 
@@ -220,6 +236,7 @@ export class PortalProfileComponent {
       this.province.set(doc.address?.province || '');
       this.postalCode.set(doc.address?.postalCode || '');
       this.logoUrl.set(doc.logoUrl || null);
+      this.pendingLogoFile.set(null);
       this.isDirty.set(false);
       this.errors.set({});
     }
@@ -242,30 +259,18 @@ export class PortalProfileComponent {
       return;
     }
 
-    const customerId = this.portal.linkedCustomerId();
-    if (!customerId) return;
-
-    this.isUploadingLogo.set(true);
-    try {
-      const path = `customers/${customerId}/logo_${Date.now()}`;
-      const storageRef = ref(this.storage, path);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      this.logoUrl.set(url);
-      this.isDirty.set(true);
-      this.toast.success('Logo uploaded');
-    } catch (err) {
-      console.error('Logo upload error:', err);
-      this.toast.error('Failed to upload logo');
-    } finally {
-      this.isUploadingLogo.set(false);
-      // Reset input
-      input.value = '';
-    }
+    this.pendingLogoFile.set(file);
+    const previewUrl = URL.createObjectURL(file);
+    this.logoUrl.set(previewUrl);
+    this.isDirty.set(true);
+    
+    // Reset input
+    input.value = '';
   }
 
   removeLogo() {
     this.logoUrl.set(null);
+    this.pendingLogoFile.set(null);
     this.isDirty.set(true);
   }
 

@@ -15,7 +15,7 @@ Audit the current change for security and data-integrity risk. Scope is Firestor
 
 ## Cloud Function auth
 
-- `placeOrder` (onCall) is the sanctioned path for portal order placement — it stamps `lastOrderAt` and increments counters server-side. Direct customer writes to `products`/`stockAdjustments` are a known gap; flag any new code that widens customer write access to inventory.
+- `placeOrder` (onCall) is the sanctioned path for portal order placement — it runs as a server-side transaction (re-reads price/stock, re-checks for oversell, then writes order+stock+adjustments atomically) and stamps `lastOrderAt`/counters. `firestore.rules` backs this up by requiring staff or a non-null `linkedCustomerId` claim on `products`/`stockAdjustments` writes — flag any new code that widens customer write access to inventory beyond that.
 - Firestore-as-queue request docs must guard against reprocessing (`if (data.processed) return`) and validate the caller.
 
 ## Data-integrity gates (security-adjacent)
