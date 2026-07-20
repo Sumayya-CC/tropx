@@ -6,7 +6,11 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadless",
+    "lint": "ng lint",
+    "lint:ci": "ng lint",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit"
   },
   "prettier": {
     "printWidth": 100,
@@ -41,6 +45,8 @@
     "@types/html2pdf.js": "^0.10.0",
     "@types/jasmine": "~5.1.0",
     "@types/leaflet": "^1.9.21",
+    "angular-eslint": "20.7.0",
+    "eslint": "^9.39.1",
     "firebase-admin": "^13.8.0",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
@@ -49,6 +55,7 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "typescript-eslint": "8.46.4"
   }
 }

@@ -1,0 +1,38 @@
+# Scaffold for future PR preview deploys — DISABLED by default.
+#
+# This project's current discipline is manual, explicit deploys:
+# dev is always deployed and verified before prod, and prod deploy is
+# single-line only (see README.md "Workflow" / "Production Deploy").
+# Auto-deploying previews from every PR is a deliberate future step, not
+# something to turn on silently alongside the CI pipeline in ci.yml.
+#
+# To enable later:
+#   1. Uncomment the `on:` trigger below.
+#   2. Add the required secrets (e.g. NETLIFY_AUTH_TOKEN / NETLIFY_SITE_ID,
+#      or FIREBASE_SERVICE_ACCOUNT_<PROJECT> for a Firebase Hosting preview
+#      channel) in the repo's GitHub Actions secrets.
+#   3. Fill in the deploy step for whichever target you pick — Netlify CLI
+#      deploy, or `firebase hosting:channel:deploy pr-<number>` equivalent
+#      only if Firebase Hosting is introduced; today the SPA is hosted on
+#      Netlify, not Firebase Hosting.
+#   4. Decide whether preview deploys target the dev Firebase project only
+#      (recommended) — never point a PR preview at tropx-wholesale-prod.
+
+name: Deploy Preview (disabled)
+
+on:
+  workflow_dispatch: {}
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+
+jobs:
+  preview:
+    name: Preview deploy (not yet implemented)
+    runs-on: ubuntu-latest
+    if: false # remove this line only once the steps below are filled in
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder
+        run: |
+          echo "Preview deploys are not enabled yet."
+          echo "See the comments at the top of this file to enable."

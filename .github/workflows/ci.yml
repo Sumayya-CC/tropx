@@ -1,0 +1,80 @@
+name: CI
+
+# Verification only — this pipeline does not deploy anything.
+# Deploys stay manual: dev is always deployed and verified before prod,
+# and prod deploy is single-line only (see README.md).
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches-ignore: [master]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (Angular)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        # Non-blocking for now: this repo had no lint tooling configured
+        # until Angular ESLint was added alongside this pipeline, so the
+        # existing codebase has a large pre-existing backlog of findings
+        # (mostly template a11y rules + `any` usage). The step still runs
+        # and reports on every PR; flip this to blocking once the backlog
+        # is triaged. See README.md "CI" section.
+        run: npm run lint:ci
+        continue-on-error: true
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build (production configuration)
+        run: npm run build -- --configuration production
+
+      - name: Test (headless)
+        run: npm run test:ci
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+
+  functions:
+    name: Cloud Functions
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test:ci

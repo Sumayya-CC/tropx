@@ -1,9 +1,13 @@
 {
   "name": "functions",
   "scripts": {
-    "lint": "eslint --ext .js,.ts .",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint --ext .js,.ts .",
+    "lint:ci": "npm run lint",
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"no functions tests yet\" && exit 0",
+    "test:ci": "npm test",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
