@@ -1,4 +1,9 @@
 import * as admin from "firebase-admin";
+// Modular import, used only in placeOrder (see the comment at that call
+// site). The other 22 admin.firestore.FieldValue/.Timestamp sites in this
+// file are intentionally left as-is — that cleanup belongs to the Phase 5
+// index.ts split, not scattered into this testing phase.
+import {FieldValue} from "firebase-admin/firestore";
 import {onDocumentCreated, onDocumentUpdated, onDocumentWritten} from "firebase-functions/v2/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
@@ -5525,7 +5530,14 @@ export const placeOrder = onCall(
       const hasBackorder = lineItems.some((li) => li.backorderedQty > 0);
       const totalBackorderedUnits = lineItems.reduce((s, li) => s + li.backorderedQty, 0);
 
-      const now = admin.firestore.FieldValue.serverTimestamp();
+      // Modular import (not admin.firestore.FieldValue) — the old
+      // namespace-style static access crashes inside the Functions
+      // Emulator when combined with this file's named-database
+      // db.settings() call; see the import comment at the top of this
+      // file and place-order.spec.ts for the full diagnosis. Production
+      // (real Cloud Functions runtime, not the local emulator) is
+      // unaffected either way — this only matters for local testing.
+      const now = FieldValue.serverTimestamp();
       const orderRef = db.collection("orders").doc();
 
       // Strip internal _newStock/_prevStock; backorderedQty stays on the stored line.

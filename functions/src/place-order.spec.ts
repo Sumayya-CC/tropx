@@ -112,35 +112,17 @@ afterAll(async () => {
   await deleteApp(clientApp);
 });
 
-// SKIPPED — known blocker, not a problem with this test or with placeOrder's
-// logic. Diagnosed and confirmed during Phase 3.3:
-//
-//   The Firebase Functions Emulator's runtime sandbox breaks
-//   `admin.firestore.FieldValue` (the old namespace-style static property
-//   access) specifically when the function also calls
-//   `db.settings({databaseId: <named>})` to target a non-default Firestore
-//   database — which every function in index.ts does, via the shared `db`
-//   at module scope. Calling placeOrder here throws
-//   "Cannot read properties of undefined (reading 'serverTimestamp')"
-//   inside the emulator, even though the exact same code (initializeApp,
-//   db.settings with the named database, a real transaction, then
-//   admin.firestore.FieldValue.serverTimestamp()) works perfectly when run
-//   as a plain Node script against the same Firestore/Auth emulators —
-//   proving this is specifically about the Functions Emulator's sandboxing,
-//   not the named-database pattern itself or anything else in this file.
-//
-//   Confirmed fix: replacing `admin.firestore.FieldValue` with the modular
-//   `import {FieldValue} from "firebase-admin/firestore";` resolves it —
-//   verified by applying it to this one call site, which made this exact
-//   test pass end-to-end (order, customer counters, stock, and
-//   stockAdjustments all correct). That fix was reverted pending a
-//   decision on scope: index.ts has 23 admin.firestore.FieldValue/.Timestamp
-//   call sites total, and changing all of them is a deliberate, scoped
-//   follow-up (same shape as the Phase 2 logger replacement) — not
-//   something to do inside a testing phase without sign-off.
-//
-// To re-enable: apply the modular-import fix (scope TBD), remove `.skip`.
-describe.skip("placeOrder", () => {
+// Previously blocked on a Functions Emulator bug: the old namespace-style
+// `admin.firestore.FieldValue` static access crashes inside the emulator
+// sandbox specifically when combined with this file's named-database
+// db.settings() call (confirmed via a plain-Node repro that the identical
+// code works fine outside the emulator — production, on the real Cloud
+// Functions runtime, was never affected). Fixed by switching placeOrder's
+// one usage to the modular `firebase-admin/firestore` import (see index.ts).
+// The other 22 admin.firestore.FieldValue/.Timestamp sites elsewhere in
+// index.ts are left as-is on purpose — that cleanup is scoped to the
+// Phase 5 index.ts split, not this testing phase.
+describe("placeOrder", () => {
   it("places an order end-to-end: order, counters, sequence, stock, " +
     "and stockAdjustments all commit together", async () => {
     const productId = await seedProduct({priceCents: 1500, costCents: 700, stock: 20});
