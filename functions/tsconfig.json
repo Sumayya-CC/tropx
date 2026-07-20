@@ -16,6 +16,12 @@
   "include": [
     "src"
   ],
+  // Keep this exclude: without it, `tsc` (the production build that
+  // `firebase deploy` ships) would silently compile *.spec.ts into lib/
+  // and deploy test code inside the production function bundle — no
+  // error, just a bloated artifact with test fixtures/emulator-connection
+  // logic sitting in prod. Test files are compiled separately by ts-jest
+  // via tsconfig.spec.json, which intentionally does NOT exclude them.
   "exclude": [
     "src/**/*.spec.ts"
   ]
