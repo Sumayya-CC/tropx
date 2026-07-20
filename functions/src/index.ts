@@ -976,8 +976,11 @@ async function reconcileOrphanShops(
 }
 
 // Core sweep. mode 'full' scans everything; 'incremental' only customers
-// whose doc changed since their last link-reconcile watermark.
-async function reconcileShopLinks(
+// whose doc changed since their last link-reconcile watermark. Exported
+// for the same reason recomputeCustomerCounters is: shared by the
+// nightly/weekly sweeps and the on-demand callable, so it needs to be
+// directly testable for idempotency.
+export async function reconcileShopLinks(
   mode: "full" | "incremental"
 ): Promise<LinkReconSummary> {
   const summary: LinkReconSummary = {scanned: 0, healed: 0, flagged: 0, backfilled: 0};
@@ -1076,7 +1079,9 @@ export const nightlyLinkReconcile = onSchedule(
   }
 );
 
-async function stampAllShopHealth(): Promise<{scanned: number; updated: number}> {
+// Exported for the same reason as reconcileShopLinks above — shared by
+// the nightly sweep and the on-demand callable, testable directly.
+export async function stampAllShopHealth(): Promise<{scanned: number; updated: number}> {
   const t = await getHealthThresholds();
   const stamp = admin.firestore.FieldValue.serverTimestamp();
   const pageSize = 500;
@@ -1178,7 +1183,10 @@ async function getPipelineConfig(): Promise<{enabled: boolean; thresholds: Stuck
   }
 }
 
-async function stampAllPipelineStuck(): Promise<{scanned: number; updated: number; backfilled: number}> {
+// Exported for the same reason as reconcileShopLinks/stampAllShopHealth
+// above — shared by the nightly sweep and the on-demand callable,
+// testable directly.
+export async function stampAllPipelineStuck(): Promise<{scanned: number; updated: number; backfilled: number}> {
   const {thresholds} = await getPipelineConfig();
   const stamp = admin.firestore.FieldValue.serverTimestamp();
   const pageSize = 500;
