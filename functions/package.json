@@ -6,8 +6,9 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no functions tests yet\" && exit 0",
-    "test:ci": "npm test",
+    "test": "jest",
+    "test:emulator": "firebase --config ../firebase.json --project tropx-wholesale-dev emulators:exec --only auth,firestore,storage \"npm test\"",
+    "test:ci": "npm run test:emulator",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
@@ -25,12 +26,18 @@
     "resend": "^6.12.3"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^5.12.0",
     "@typescript-eslint/parser": "^5.12.0",
     "eslint": "^8.9.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
+    "firebase": "^12.16.0",
     "firebase-functions-test": "^3.4.1",
+    "firebase-tools": "^14.27.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "typescript": "^6.0.0"
   },
   "private": true

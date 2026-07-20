@@ -64,6 +64,14 @@ jobs:
           cache: 'npm'
           cache-dependency-path: functions/package-lock.json
 
+      # The Firestore/Auth emulators (used by the Test step below) run on
+      # the JVM — not needed for lint/typecheck/build, only for the
+      # emulator-wrapped test run.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install dependencies
         run: npm ci
 
@@ -76,5 +84,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Test
+      - name: Test (against Firestore/Auth/Storage emulators)
+        # test:ci boots the emulators via `firebase emulators:exec`, runs
+        # jest, and tears them down — see functions/package.json.
         run: npm run test:ci

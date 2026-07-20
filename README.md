@@ -49,7 +49,24 @@ Custom B2B wholesale platform for **Tropx Enterprises Inc.** — a wholesale dis
 * **Verification only — this pipeline does not deploy anything.** Deploys remain manual, following the dev-before-prod / single-line-prod discipline above; nothing in CI changes that.
 * Frontend lint (`ng lint`, via Angular ESLint) is currently **non-blocking** — the repo had no lint tooling until it was added alongside this pipeline, so there's a pre-existing backlog of findings across the codebase. It runs and reports on every PR; it becomes a hard gate once that backlog is triaged.
 * Functions lint (existing ESLint setup, already used in the Firebase predeploy hook) is blocking, as are typecheck, build, and tests on both sides.
+* Functions tests run against real Firestore/Auth/Storage emulators, not mocks — `npm run test:ci` in `functions/` boots them (`firebase emulators:exec`), runs Jest, and tears them down automatically, win or fail. CI installs a JDK first (the emulators are JVM-based).
 * `.github/workflows/deploy-preview.yml` is a **disabled scaffold** for future PR preview deploys — see the comments at the top of that file for how to enable it later. It does not run today.
+
+**Running tests locally:**
+
+```bash
+# Frontend — headless, same as CI
+npm run test:ci
+
+# Cloud Functions — boots emulators, runs Jest, tears down automatically
+cd functions && npm run test:ci
+
+# Cloud Functions — if you already have `firebase emulators:start` running
+# separately (e.g. alongside manual testing), just run the bare suite:
+cd functions && npm test
+```
+
+As of this writing, test coverage is intentionally minimal — one pure-utility spec on the frontend (`currency.utils.spec.ts`) and one Firestore-emulator connectivity spec on the functions side (`emulator-harness.spec.ts`). Both exist to prove the respective test harnesses actually run headless/against-emulator, not to cover business invariants yet — that's the next phase (money math, stock/ATP, transactional integrity, idempotency, security rules).
 
 ---
 
