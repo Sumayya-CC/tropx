@@ -47,7 +47,7 @@ export class BillFormComponent {
   formBillDate = signal(todayInputValue());
   formDueDate = signal('');
   formNotes = signal('');
-  formTaxCents = signal(0); // dollars entered via input, stored as cents on save — see updateTax()
+  formTaxCents = signal(0); // dollar value shown/entered in the input; taxCents computed converts to real cents
   private taxManuallyEdited = signal(false);
 
   linkedPurchaseOrderId = signal<string | undefined>(undefined);
@@ -56,7 +56,10 @@ export class BillFormComponent {
   items = signal<BillLineItem[]>([]);
 
   subtotalCents = computed(() => this.items().reduce((sum, item) => sum + item.lineTotalCents, 0));
-  taxCents = computed(() => this.formTaxCents());
+  // formTaxCents holds a dollar value (see load/auto-tax below); convert to
+  // real cents here — this was previously missing, so a manually-entered
+  // tax amount (e.g. "13.00") was stored as 13 cents instead of 1300.
+  taxCents = computed(() => Math.round(this.formTaxCents() * 100));
   totalCents = computed(() => this.subtotalCents() + this.taxCents());
 
   constructor() {
@@ -162,7 +165,10 @@ export class BillFormComponent {
   private maybeAutoTax() {
     if (this.taxManuallyEdited()) return;
     const rate = this.orderingSettings().defaultTaxRatePercent || 0;
-    this.formTaxCents.set(Math.round(this.subtotalCents() * rate) / 100);
+    // Compute the correct tax in real cents first (matching po-form's
+    // pattern), then convert to the dollar value formTaxCents holds.
+    const taxCents = Math.round(this.subtotalCents() * rate / 100);
+    this.formTaxCents.set(taxCents / 100);
   }
 
   private computeStatus(totalCents: number, amountPaidCents: number): BillStatus {

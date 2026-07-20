@@ -272,13 +272,17 @@ export class OrderFormComponent {
     return this.items().reduce((sum, item) => sum + item.lineTotalCents, 0);
   });
 
+  // Floor at 0: a discount larger than the subtotal must not produce a
+  // negative taxable amount or total (matches order-detail's edit-mode
+  // editTotals computed, which already floors this).
+  private taxableCents = computed(() => Math.max(0, this.subtotalCents() - this.discountCents()));
+
   taxCents = computed(() => {
-    const taxable = this.subtotalCents() - this.discountCents();
-    return Math.round(taxable * (this.taxRatePercent() / 100));
+    return Math.round(this.taxableCents() * (this.taxRatePercent() / 100));
   });
 
   totalCents = computed(() => {
-    return this.subtotalCents() - this.discountCents() + this.taxCents();
+    return this.taxableCents() + this.taxCents();
   });
 
   // Handlers
@@ -579,7 +583,7 @@ export class OrderFormComponent {
           totalCents: total,
           totalCostCents,
           marginCents: total - totalCostCents,
-          balanceCents: total - (order.amountPaidCents || 0),
+          balanceCents: Math.max(0, total - (order.amountPaidCents || 0)),
           deliveryType: this.deliveryType(),
           customerNotes: this.customerNotes() || null,
           internalNotes: this.internalNotes() || null,
