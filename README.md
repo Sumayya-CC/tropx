@@ -53,6 +53,22 @@ Custom B2B wholesale platform for **Tropx Enterprises Inc.** — a wholesale dis
 
 ---
 
+## Observability
+
+Error tracking (Sentry) and structured logging are wired in but **off by default** — both the Angular app and Cloud Functions no-op until a Sentry DSN is configured, and nothing is hardcoded.
+
+* **Cloud Functions**: `functions/src/logger.ts` replaces ad-hoc `console.log`/`console.error` with structured logging (via `firebase-functions/logger`) plus optional Sentry reporting on `.error()`. Enable it by creating a `SENTRY_DSN` secret the same way `RESEND_API_KEY`/`FROM_EMAIL` already exist:
+  ```bash
+  firebase functions:secrets:set SENTRY_DSN --project tropx-wholesale-dev
+  firebase functions:secrets:set SENTRY_DSN --project tropx-wholesale-prod
+  ```
+  Every function already declares `secrets: [sentryDsn]` (or has it appended to its existing secrets array) — no per-function wiring needed once the secret exists. Leaving it unset keeps Sentry off; nothing else changes.
+* **Frontend**: `src/app/core/monitoring/sentry.ts` initializes `@sentry/angular` only when `environment.production` is true **and** `environment.sentryDsn` is non-empty. To enable: create a Sentry project (dashboard action, not something this repo can do for you), then set `sentryDsn` in `src/environments/environment.prod.ts` — a DSN is a public client identifier, safe to commit like the Firebase config already in that file.
+* Both sides scrub known-sensitive field names (`*Cents`, email, phone, address, business/owner/customer name) before anything reaches Sentry, and neither captures request/response bodies. See the comments in `logger.ts` and `sentry.ts` for the exact rules.
+* User context on the frontend is role + uid for staff, role-only (no id) for customers — never customer PII.
+
+---
+
 ## Getting Started
 
 ```bash

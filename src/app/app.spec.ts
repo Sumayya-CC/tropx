@@ -5,11 +5,14 @@ import { Firestore } from '@angular/fire/firestore';
 import { Storage } from '@angular/fire/storage';
 import { App } from './app';
 import { FirestoreService } from './core/services/firestore.service';
+import { AuthService } from './core/services/auth.service';
 
 // App -> SettingsService reads several settings/* docs on construction via
-// FirestoreService. Stub it (and the raw Firestore/Storage tokens it also
-// injects but doesn't call at construction time) so this stays a pure,
-// offline component test with no real Firebase project/emulator needed.
+// FirestoreService, and App -> MonitoringContextService reads AuthService's
+// signals. Stub both (and the raw Firestore/Storage tokens SettingsService
+// also injects but doesn't call at construction time) so this stays a
+// pure, offline component test with no real Firebase project/emulator
+// needed.
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -19,6 +22,7 @@ describe('App', () => {
         { provide: FirestoreService, useValue: { getDocument: () => of(null) } },
         { provide: Firestore, useValue: {} },
         { provide: Storage, useValue: {} },
+        { provide: AuthService, useValue: { currentProfile: () => null, isStaff: () => false } },
       ]
     }).compileComponents();
   });

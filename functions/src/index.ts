@@ -4,7 +4,12 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import {Resend} from "resend";
 import {onSchedule} from "firebase-functions/v2/scheduler";
+import * as logger from "./logger";
 
+// Structured logging + error reporting. See logger.ts: never pass PII or
+// *Cents amounts to logger.error/logger.info — a doc id or order/invoice
+// number is enough for traceability.
+const sentryDsn = defineSecret("SENTRY_DSN");
 
 admin.initializeApp();
 
@@ -20,7 +25,7 @@ const DATABASE_ID = PROJECT_ID === "tropx-wholesale-prod" ?
 const db = admin.firestore();
 db.settings({databaseId: DATABASE_ID});
 
-console.log(
+logger.info(
   "Cloud Functions initialized — project: " +
   `${PROJECT_ID}, database: ${DATABASE_ID}`
 );
@@ -359,7 +364,7 @@ async function markDirtyAndRecompute(customerId: string) {
     });
   } catch (err) {
     // Customer doc may not exist (deleted) — nothing to do.
-    console.log(
+    logger.info(
       `Could not stamp dirty for ${customerId}: ` +
       `${(err as Error).message}`
     );
@@ -369,18 +374,18 @@ async function markDirtyAndRecompute(customerId: string) {
   try {
     const result = await recomputeCustomerCounters(customerId);
     if (result.action === "frozen") {
-      console.log(
-        `Reconcile (trigger) FROZE ${result.businessName}: ` +
-        `max drift ${result.maxAbsDelta}¢ — needs review`
+      logger.info(
+        "Reconcile (trigger) FROZE customer counters — needs review",
+        {customerId}
       );
     } else if (result.action === "corrected") {
-      console.log(
-        `Reconcile (trigger) corrected ${result.businessName}: ` +
-        `max drift ${result.maxAbsDelta}¢`
+      logger.info(
+        "Reconcile (trigger) corrected customer counters",
+        {customerId}
       );
     }
   } catch (err) {
-    console.error(
+    logger.error(
       `Reconcile (trigger) failed for ${customerId}:`, err
     );
     // Left dirty on purpose — nightly sweep will retry.
@@ -392,7 +397,7 @@ export const onOrderWriteReconcile = onDocumentWritten(
     document: "orders/{orderId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async (event) => {
     const after = event.data?.after.data();
@@ -411,7 +416,7 @@ export const onPaymentWriteReconcile = onDocumentWritten(
     document: "payments/{paymentId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async (event) => {
     const after = event.data?.after.data();
@@ -569,13 +574,13 @@ async function runReconSweep(
       const r = await recomputeCustomerCounters(id, thresholds);
       results.push(r);
     } catch (err) {
-      console.error(`Sweep reconcile failed for ${id}:`, err);
+      logger.error(`Sweep reconcile failed for ${id}:`, err);
     }
   }
 
   const frozen = results.filter((r) => r.action === "frozen").length;
   const corrected = results.filter((r) => r.action === "corrected").length;
-  console.log(
+  logger.info(
     `${sweepLabel}: checked ${results.length}, ` +
     `corrected ${corrected}, frozen ${frozen}`
   );
@@ -595,9 +600,9 @@ async function runReconSweep(
       subject: email.subject,
       html: email.html,
     });
-    console.log(`${sweepLabel}: summary emailed to ${adminEmail}`);
+    logger.info(`${sweepLabel}: summary emailed to admin`);
   } catch (err) {
-    console.error(`${sweepLabel}: failed to email summary:`, err);
+    logger.error(`${sweepLabel}: failed to email summary:`, err);
   }
 }
 
@@ -615,7 +620,7 @@ export const nightlyReconcileSweep = onSchedule(
     timeZone: "America/Toronto",
     region: "northamerica-northeast1",
     timeoutSeconds: 540,
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async () => {
     // A customer is "dirty" if it was written since last reconcile.
@@ -642,7 +647,7 @@ export const nightlyReconcileSweep = onSchedule(
     }
 
     if (dirty.length === 0) {
-      console.log("Nightly reconcile: nothing dirty, skipping");
+      logger.info("Nightly reconcile: nothing dirty, skipping");
       return;
     }
 
@@ -664,7 +669,7 @@ export const weeklyReconcileSweep = onSchedule(
     timeZone: "America/Toronto",
     region: "northamerica-northeast1",
     timeoutSeconds: 540,
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async () => {
     // Full scan of all active customers. Paginated so it scales
@@ -701,7 +706,7 @@ export const weeklyReconcileSweep = onSchedule(
     }
 
     if (all.length === 0) {
-      console.log("Weekly reconcile: no customers, skipping");
+      logger.info("Weekly reconcile: no customers, skipping");
       return;
     }
 
@@ -1011,7 +1016,7 @@ async function reconcileShopLinks(
       if (r.flagged) summary.flagged++;
       if (r.backfilled) summary.backfilled++;
     } catch (err) {
-      console.error(`Link reconcile failed for customer ${id}:`, err);
+      logger.error(`Link reconcile failed for customer ${id}:`, err);
     }
   }
 
@@ -1039,7 +1044,7 @@ async function reconcileShopLinks(
     summary.scanned += shopIds.length;
   }
 
-  console.log(
+  logger.info(
     `Link reconcile (${mode}): scanned ${summary.scanned}, ` +
     `healed ${summary.healed}, flagged ${summary.flagged}, ` +
     `backfilled ${summary.backfilled}`
@@ -1054,12 +1059,12 @@ export const nightlyLinkReconcile = onSchedule(
     timeZone: "America/Toronto",
     region: "northamerica-northeast1",
     timeoutSeconds: 540,
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async () => {
     const cfg = await getLinkReconConfig();
     if (!cfg.enabled) {
-      console.log("Link reconcile disabled — skipping nightly");
+      logger.info("Link reconcile disabled — skipping nightly");
       return;
     }
     await reconcileShopLinks("incremental");
@@ -1108,7 +1113,7 @@ async function stampAllShopHealth(): Promise<{scanned: number; updated: number}>
     last = snap.docs[snap.docs.length - 1];
     if (snap.docs.length < pageSize) break;
   }
-  console.log(`Shop health stamp: scanned ${scanned}, updated ${updated}`);
+  logger.info(`Shop health stamp: scanned ${scanned}, updated ${updated}`);
   return {scanned, updated};
 }
 
@@ -1118,12 +1123,12 @@ export const nightlyShopHealthStamp = onSchedule(
     timeZone: "America/Toronto",
     region: "northamerica-northeast1",
     timeoutSeconds: 540,
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async () => {
     const enabled = await isShopHealthEnabled();
     if (!enabled) {
-      console.log("Shop health computation disabled — skipping nightly");
+      logger.info("Shop health computation disabled — skipping nightly");
       return;
     }
     await stampAllShopHealth();
@@ -1131,7 +1136,7 @@ export const nightlyShopHealthStamp = onSchedule(
 );
 
 export const refreshShopHealthNow = onCall(
-  {region: "northamerica-northeast2", cors: true},
+  {region: "northamerica-northeast2", cors: true, secrets: [sentryDsn]},
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be authenticated");
     if (request.auth.token["role"] !== "admin") throw new HttpsError("permission-denied", "Admin only");
@@ -1220,7 +1225,7 @@ async function stampAllPipelineStuck(): Promise<{scanned: number; updated: numbe
     last = snap.docs[snap.docs.length - 1];
     if (snap.docs.length < pageSize) break;
   }
-  console.log(`Pipeline stuck stamp: scanned ${scanned}, updated ${updated}, backfilled ${backfilled}`);
+  logger.info(`Pipeline stuck stamp: scanned ${scanned}, updated ${updated}, backfilled ${backfilled}`);
   return {scanned, updated, backfilled};
 }
 
@@ -1230,19 +1235,19 @@ export const nightlyPipelineStuckStamp = onSchedule(
     timeZone: "America/Toronto",
     region: "northamerica-northeast1",
     timeoutSeconds: 540,
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async () => {
     const {enabled} = await getPipelineConfig();
     if (!enabled) {
-      console.log("Pipeline stamping disabled — skipping"); return;
+      logger.info("Pipeline stamping disabled — skipping"); return;
     }
     await stampAllPipelineStuck();
   }
 );
 
 export const refreshPipelineStuckNow = onCall(
-  {region: "northamerica-northeast2", cors: true},
+  {region: "northamerica-northeast2", cors: true, secrets: [sentryDsn]},
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Must be authenticated");
     if (request.auth.token["role"] !== "admin") throw new HttpsError("permission-denied", "Admin only");
@@ -1257,12 +1262,12 @@ export const weeklyLinkReconcile = onSchedule(
     timeZone: "America/Toronto",
     region: "northamerica-northeast1",
     timeoutSeconds: 540,
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async () => {
     const cfg = await getLinkReconConfig();
     if (!cfg.enabled) {
-      console.log("Link reconcile disabled — skipping weekly");
+      logger.info("Link reconcile disabled — skipping weekly");
       return;
     }
     await reconcileShopLinks("full");
@@ -1274,7 +1279,7 @@ export const weeklyLinkReconcile = onSchedule(
 export const reconcileShopLinksNow = onCall(
   {
     region: "northamerica-northeast2",
-    secrets: [],
+    secrets: [sentryDsn],
     cors: true,
   },
   async (request) => {
@@ -1296,7 +1301,7 @@ export const onAccessRequestApproved = onDocumentCreated(
     document: "accessRequestApprovals/{approvalId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1305,7 +1310,7 @@ export const onAccessRequestApproved = onDocumentCreated(
     const {email, ownerFirstName, ownerLastName, businessName} = data;
 
     if (!email) {
-      console.error("No email found on approval");
+      logger.error("No email found on approval");
       return;
     }
 
@@ -1365,7 +1370,7 @@ export const onAccessRequestApproved = onDocumentCreated(
         processedAt: new Date(),
       });
     } catch (err) {
-      console.error("Error creating user or reset link:", err);
+      logger.error("Error creating user or reset link:", err);
       await event.data?.ref.update({error: true});
       return;
     }
@@ -1383,9 +1388,9 @@ export const onAccessRequestApproved = onDocumentCreated(
         subject: "Welcome to Tropx Wholesale — Set Up Your Account",
         html,
       });
-      console.log(`Welcome email sent to ${email}`);
+      logger.info("Welcome email sent");
     } catch (err) {
-      console.error("Error sending welcome email:", err);
+      logger.error("Error sending welcome email:", err);
     }
   }
 );
@@ -1395,7 +1400,7 @@ export const onCustomerDeleted = onDocumentUpdated(
     document: "customers/{customerId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async (event) => {
     const before = event.data?.before.data();
@@ -1413,7 +1418,7 @@ export const onCustomerDeleted = onDocumentUpdated(
     try {
       const userRecord = await admin.auth().getUserByEmail(email);
       await admin.auth().updateUser(userRecord.uid, {disabled: true});
-      console.log(`Disabled Auth user for deleted customer: ${email}`);
+      logger.info("Disabled Auth user for deleted customer", {uid: userRecord.uid});
 
       // Also mark user doc as deleted
       await db.collection("users").doc(userRecord.uid).update({
@@ -1421,7 +1426,7 @@ export const onCustomerDeleted = onDocumentUpdated(
         deletedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } catch (err) {
-      console.error("Error disabling auth user:", err);
+      logger.error("Error disabling auth user:", err);
     }
   }
 );
@@ -1432,7 +1437,7 @@ export const sendPasswordResetEmail = onDocumentCreated(
     document: "passwordResetRequests/{requestId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1451,7 +1456,7 @@ export const sendPasswordResetEmail = onDocumentCreated(
         {url: "https://tropxwholesale.ca/login"}
       );
     } catch (err) {
-      console.error("Error generating reset link:", err);
+      logger.error("Error generating reset link:", err);
       await event.data?.ref.update({processed: true, error: true});
       return;
     }
@@ -1469,9 +1474,9 @@ export const sendPasswordResetEmail = onDocumentCreated(
         processed: true,
         sentAt: new Date(),
       });
-      console.log(`Password reset email sent to ${email}`);
+      logger.info("Password reset email sent");
     } catch (err) {
-      console.error("Error sending password reset email:", err);
+      logger.error("Error sending password reset email:", err);
     }
   }
 );
@@ -1482,7 +1487,7 @@ export const onAdminPasswordReset = onDocumentCreated(
     document: "adminPasswordResets/{id}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1509,7 +1514,7 @@ export const onAdminPasswordReset = onDocumentCreated(
           email,
           emailVerified: false,
         });
-        console.log(`Created Auth user for ${email}`);
+        logger.info("Created Auth user", {uid: userRecord.uid});
       }
 
       // Ensure userProfiles doc exists
@@ -1538,7 +1543,7 @@ export const onAdminPasswordReset = onDocumentCreated(
               }
             }
           } catch (err) {
-            console.error("Could not fetch customer for profile:", err);
+            logger.error("Could not fetch customer for profile:", err);
           }
         }
 
@@ -1553,7 +1558,7 @@ export const onAdminPasswordReset = onDocumentCreated(
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           isDeleted: false,
         });
-        console.log(`Created userProfiles doc for ${email}`);
+        logger.info("Created userProfiles doc", {customerId});
       }
 
       // Stamp role claim — determines Firestore rule access.
@@ -1572,7 +1577,7 @@ export const onAdminPasswordReset = onDocumentCreated(
         {url: "https://tropxwholesale.ca/login"}
       );
     } catch (err: any) {
-      console.error("Error generating reset link:", err);
+      logger.error("Error generating reset link:", err);
       await event.data?.ref.update({
         processed: true,
         error: err.message || "Failed to generate link",
@@ -1593,9 +1598,9 @@ export const onAdminPasswordReset = onDocumentCreated(
         processed: true,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      console.log(`Admin-triggered password reset sent to ${email}`);
+      logger.info("Admin-triggered password reset sent");
     } catch (err: any) {
-      console.error("Error sending admin password reset:", err);
+      logger.error("Error sending admin password reset:", err);
       await event.data?.ref.update({
         processed: true,
         error: err.message || "Failed to send email",
@@ -1610,7 +1615,7 @@ export const onContactInquiry = onDocumentCreated(
     document: "contactInquiries/{inquiryId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1633,9 +1638,9 @@ export const onContactInquiry = onDocumentCreated(
         subject: `New Contact Inquiry from ${businessName ?? name}`,
         html,
       });
-      console.log("Contact inquiry notification sent");
+      logger.info("Contact inquiry notification sent");
     } catch (err) {
-      console.error("Error sending contact notification:", err);
+      logger.error("Error sending contact notification:", err);
     }
   }
 );
@@ -1647,7 +1652,7 @@ export const onEmployeeInvitation = onDocumentCreated(
     document: "employeeInvitations/{id}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1666,7 +1671,7 @@ export const onEmployeeInvitation = onDocumentCreated(
         emailVerified: false,
       });
     } catch (err: any) {
-      console.error("Error creating auth user:", err);
+      logger.error("Error creating auth user:", err);
       await event.data?.ref.update({
         status: "error",
         error: err.message,
@@ -1696,8 +1701,8 @@ export const onEmployeeInvitation = onDocumentCreated(
       userRecord.uid,
       {role: role, tenantId: tenantId ?? 1}
     );
-    console.log(
-      `Set custom claim role=${role} for ${email}`
+    logger.info(
+      `Set custom claim role=${role}`, {uid: userRecord.uid}
     );
 
     // Update invitation doc
@@ -1729,7 +1734,7 @@ export const onEmployeeInvitation = onDocumentCreated(
       ),
     });
 
-    console.log(`Employee invitation processed for ${email}`);
+    logger.info("Employee invitation processed");
   }
 );
 
@@ -1738,7 +1743,7 @@ export const onAuthAction = onDocumentCreated(
     document: "authActions/{id}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [],
+    secrets: [sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1758,7 +1763,7 @@ export const onAuthAction = onDocumentCreated(
         } catch {
           // No Auth account exists for this email — nothing to
           // disable. The customer status flip alone blocks them.
-          console.log(`No Auth user for ${email}, skipping`);
+          logger.info("No Auth user for this email, skipping");
           await event.data?.ref.update({
             processed: true,
             note: "no-auth-account",
@@ -1777,10 +1782,10 @@ export const onAuthAction = onDocumentCreated(
 
       if (action === "disable") {
         await admin.auth().updateUser(uid, {disabled: true});
-        console.log(`Disabled auth user: ${uid} (${email || ""})`);
+        logger.info("Disabled auth user", {uid});
       } else if (action === "enable") {
         await admin.auth().updateUser(uid, {disabled: false});
-        console.log(`Enabled auth user: ${uid} (${email || ""})`);
+        logger.info("Enabled auth user", {uid});
 
         // Re-stamp the claim on re-enable in case it was
         // cleared. Look up role from the users collection.
@@ -1799,19 +1804,19 @@ export const onAuthAction = onDocumentCreated(
             await admin.auth().setCustomUserClaims(
               uid, {role, tenantId, linkedCustomerId}
             );
-            console.log(
+            logger.info(
               `Restored claim role=${role} for ${uid}`
             );
           }
         } catch (claimErr) {
-          console.error(
+          logger.error(
             "Could not restore claim on enable:", claimErr
           );
         }
       }
       await event.data?.ref.update({processed: true, resolvedUid: uid});
     } catch (err: any) {
-      console.error("Error processing auth action:", err);
+      logger.error("Error processing auth action:", err);
       await event.data?.ref.update({
         processed: true,
         error: err.message || "Failed",
@@ -1827,7 +1832,7 @@ export const onInvoiceRequest = onDocumentCreated(
     document: "invoiceRequests/{id}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1863,11 +1868,11 @@ export const onInvoiceRequest = onDocumentCreated(
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(
+      logger.info(
         `Invoice ${orderNumber} sent to ${customerEmail}`
       );
     } catch (err: any) {
-      console.error("Error sending invoice email:", err);
+      logger.error("Error sending invoice email:", err);
       await event.data?.ref.update({
         status: "error",
         error: err.message,
@@ -1881,7 +1886,7 @@ export const onOrderNotification = onDocumentCreated(
     document: "orders/{orderId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -1953,11 +1958,11 @@ export const onOrderNotification = onDocumentCreated(
         subject: `🛒 New Order ${orderNumber} — ${customerName}`,
         html,
       });
-      console.log(
+      logger.info(
         `Order notification sent for ${orderNumber}`
       );
     } catch (err) {
-      console.error("Error sending order notification:", err);
+      logger.error("Error sending order notification:", err);
     }
   }
 );
@@ -1967,7 +1972,7 @@ export const onAccessRequestNotification = onDocumentCreated(
     document: "accessRequests/{requestId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -2013,11 +2018,9 @@ export const onAccessRequestNotification = onDocumentCreated(
         subject: `🏪 New Access Request — ${businessName}`,
         html,
       });
-      console.log(
-        `Access request notification sent for ${businessName}`
-      );
+      logger.info("Access request notification sent");
     } catch (err) {
-      console.error(
+      logger.error(
         "Error sending access request notification:", err
       );
     }
@@ -2029,7 +2032,7 @@ export const onReturnNotification = onDocumentCreated(
     document: "returns/{returnId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -2106,11 +2109,11 @@ export const onReturnNotification = onDocumentCreated(
         subject: `↩️ Return ${returnNumber} — ${customerName}`,
         html,
       });
-      console.log(
+      logger.info(
         `Return notification sent for ${returnNumber}`
       );
     } catch (err) {
-      console.error(
+      logger.error(
         "Error sending return notification:", err
       );
     }
@@ -2126,7 +2129,7 @@ export const onProductRestocked = onDocumentUpdated(
     document: "products/{productId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const before = event.data?.before.data();
@@ -2151,7 +2154,7 @@ export const onProductRestocked = onDocumentUpdated(
       .get();
 
     if (reqSnap.empty) {
-      console.log(`Restock: ${productName} back in stock, no pending requests`);
+      logger.info(`Restock: ${productName} back in stock, no pending requests`);
       return;
     }
 
@@ -2187,11 +2190,11 @@ export const onProductRestocked = onDocumentUpdated(
         });
         sent++;
       } catch (err) {
-        console.error(`Restock email failed for ${email}:`, err);
+        logger.error("Restock email failed", err);
         // Leave as pending so a future restock/backfill can retry.
       }
     }
-    console.log(`Restock: ${productName} — notified ${sent}/${reqSnap.size} customers`);
+    logger.info(`Restock: ${productName} — notified ${sent}/${reqSnap.size} customers`);
   }
 );
 
@@ -2200,7 +2203,7 @@ export const onLowStockAlert = onDocumentCreated(
     document: "stockAdjustments/{adjustmentId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -2248,13 +2251,13 @@ export const onLowStockAlert = onDocumentCreated(
         }
       }
     } catch (err) {
-      console.error("Error computing committed stock:", err);
+      logger.error("Error computing committed stock:", err);
       // Fall back to raw stock if query fails
     }
 
     const atp = Math.max(0, newStock - committedQty);
 
-    console.log(
+    logger.info(
       `Low stock check for ${productName}: ` +
       `stock=${newStock}, committed=${committedQty}, atp=${atp}, ` +
       `threshold=${threshold}`
@@ -2272,7 +2275,7 @@ export const onLowStockAlert = onDocumentCreated(
       const hoursSince = (Date.now() -
         lastAlertDate.getTime()) / (1000 * 60 * 60);
       if (hoursSince < 24) {
-        console.log(
+        logger.info(
           `Low stock alert for ${productName} 
            suppressed — sent ${hoursSince.toFixed(1)}h ago`
         );
@@ -2311,12 +2314,12 @@ export const onLowStockAlert = onDocumentCreated(
           `🟡 Low Stock: ${productName} (${atp} available)`,
         html,
       });
-      console.log(
+      logger.info(
         `Low stock alert sent for ${productName}: 
          ${newStock} remaining`
       );
     } catch (err) {
-      console.error(
+      logger.error(
         "Error sending low stock alert:", err
       );
     }
@@ -2328,7 +2331,7 @@ export const onOrderStatusChanged = onDocumentUpdated(
     document: "orders/{orderId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const before = event.data?.before.data();
@@ -2365,7 +2368,7 @@ export const onOrderStatusChanged = onDocumentUpdated(
     // Get customer email — from order doc directly
     const customerEmail = after.customerEmail;
     if (!customerEmail) {
-      console.log(
+      logger.info(
         `No customer email on order ${after.orderNumber}, ` +
         "skipping notification"
       );
@@ -2467,12 +2470,11 @@ export const onOrderStatusChanged = onDocumentUpdated(
         subject: subjectMap[newStatus],
         html,
       });
-      console.log(
-        `Order status email sent: ${orderNumber} ` +
-        `→ ${newStatus} → ${customerEmail}`
+      logger.info(
+        `Order status email sent: ${orderNumber} → ${newStatus}`
       );
     } catch (err) {
-      console.error(
+      logger.error(
         "Error sending order status email:", err
       );
     }
@@ -2484,7 +2486,7 @@ export const onReturnStatusChanged = onDocumentUpdated(
     document: "returns/{returnId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const before = event.data?.before.data();
@@ -2509,7 +2511,7 @@ export const onReturnStatusChanged = onDocumentUpdated(
     // Get customer email from linked order
     const customerEmail = after.customerEmail;
     if (!customerEmail) {
-      console.log(
+      logger.info(
         "No customer email on return " +
         `${after.returnNumber}, skipping`
       );
@@ -2581,12 +2583,11 @@ export const onReturnStatusChanged = onDocumentUpdated(
         subject,
         html,
       });
-      console.log(
-        `Return status email sent: ${returnNumber} ` +
-        `→ ${newStatus} → ${customerEmail}`
+      logger.info(
+        `Return status email sent: ${returnNumber} → ${newStatus}`
       );
     } catch (err) {
-      console.error(
+      logger.error(
         "Error sending return status email:", err
       );
     }
@@ -2598,7 +2599,7 @@ export const onPaymentReceipt = onDocumentCreated(
     document: "payments/{paymentId}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -2611,7 +2612,7 @@ export const onPaymentReceipt = onDocumentCreated(
 
     const customerEmail = data.customerEmail;
     if (!customerEmail) {
-      console.log(
+      logger.info(
         "No customer email on payment " +
         `${data.paymentNumber}, skipping`
       );
@@ -2647,7 +2648,7 @@ export const onPaymentReceipt = onDocumentCreated(
           orderDoc.data()?.totalCents || 0;
       }
     } catch {
-      console.log("Could not fetch order for receipt");
+      logger.info("Could not fetch order for receipt");
     }
 
     const methodLabels: Record<string, string> = {
@@ -2687,12 +2688,12 @@ export const onPaymentReceipt = onDocumentCreated(
           `💳 Payment Received — ${orderNumber}`,
         html,
       });
-      console.log(
+      logger.info(
         `Payment receipt sent: ${paymentNumber} ` +
         `→ ${customerEmail}`
       );
     } catch (err) {
-      console.error(
+      logger.error(
         "Error sending payment receipt:", err
       );
     }
@@ -4312,7 +4313,7 @@ export const checkAbandonedCarts =
     schedule: "every 60 minutes",
     region: "northamerica-northeast1",
     timeoutSeconds: 300,
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   }, async () => {
     const now = admin.firestore.Timestamp.now();
     const nowMs = now.toMillis();
@@ -4612,9 +4613,8 @@ export const checkAbandonedCarts =
               .serverTimestamp(),
           });
 
-        console.log(
-          "Abandoned cart email sent: " +
-        `${threshold.key} → ${email}`
+        logger.info(
+          `Abandoned cart email sent: ${threshold.key}`, {customerId}
         );
 
         // Only send one threshold per run
@@ -4630,7 +4630,7 @@ export const onPortalOrderConfirmation =
       document: "orders/{orderId}",
       database: DATABASE_ID,
       region: "northamerica-northeast2",
-      secrets: [resendApiKey, fromEmail],
+      secrets: [resendApiKey, fromEmail, sentryDsn],
     },
     async (event) => {
       const order = event.data?.data();
@@ -5090,7 +5090,7 @@ export const onPortalOrderConfirmation =
         html: emailHtml,
       });
 
-      console.log(
+      logger.info(
         "Portal order confirmation sent: " +
         `${order.orderNumber} → ${customerEmail}`
       );
@@ -5104,7 +5104,7 @@ export const onPoRequest = onDocumentCreated(
     document: "poRequests/{id}",
     database: DATABASE_ID,
     region: "northamerica-northeast2",
-    secrets: [resendApiKey, fromEmail],
+    secrets: [resendApiKey, fromEmail, sentryDsn],
   },
   async (event) => {
     const data = event.data?.data();
@@ -5136,9 +5136,9 @@ export const onPoRequest = onDocumentCreated(
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`PO ${poNumber} sent to ${supplierEmail}`);
+      logger.info(`PO ${poNumber} sent to supplier`);
     } catch (err: any) {
-      console.error("Error sending PO email:", err);
+      logger.error("Error sending PO email:", err);
       await event.data?.ref.update({
         status: "error",
         error: err.message,
@@ -5217,7 +5217,7 @@ async function computePopularProducts(): Promise<void> {
       popularProductsTotalCustomers: 0,
       popularProductsWindowDays: windowDays,
     });
-    console.log(
+    logger.info(
       "computePopularProducts: no delivered " +
       `orders in last ${windowDays} days`
     );
@@ -5259,7 +5259,7 @@ async function computePopularProducts(): Promise<void> {
     popularProductsWindowDays: windowDays,
   });
 
-  console.log(
+  logger.info(
     "computePopularProducts: " +
     `${top.length} products ranked, ` +
     `${totalCustomers} active customers, ` +
@@ -5275,7 +5275,7 @@ export const computePopularProductsScheduled =
       timeZone: "America/Toronto",
       region: "northamerica-northeast1",
       timeoutSeconds: 120,
-      secrets: [],
+      secrets: [sentryDsn],
     },
     async () => {
       await computePopularProducts();
@@ -5287,7 +5287,7 @@ export const computePopularProductsScheduled =
 export const computePopularProductsNow = onCall(
   {
     region: "northamerica-northeast1",
-    secrets: [],
+    secrets: [sentryDsn],
     cors: true,
   },
   async (request) => {
@@ -5314,7 +5314,7 @@ export const backfillLinkedCustomerIdClaims =
   onCall(
     {
       region: "northamerica-northeast2",
-      secrets: [],
+      secrets: [sentryDsn],
       cors: true,
     },
     async (request) => {
@@ -5373,15 +5373,14 @@ export const backfillLinkedCustomerIdClaims =
           );
           updated++;
         } catch (err: any) {
-          console.log(
-            `No Auth user for ${email}: ` +
-            err.message
+          logger.info(
+            `No Auth user for this email: ${err.message}`
           );
           failed++;
         }
       }
 
-      console.log(
+      logger.info(
         "backfillLinkedCustomerIdClaims: " +
         `updated=${updated}, ` +
         `skipped=${skipped}, ` +
@@ -5403,6 +5402,7 @@ export const placeOrder = onCall(
   {
     region: "northamerica-northeast2",
     cors: true,
+    secrets: [sentryDsn],
   },
   async (request) => {
     const auth = request.auth;
