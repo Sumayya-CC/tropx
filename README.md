@@ -66,7 +66,7 @@ cd functions && npm run test:ci
 cd functions && npm test
 ```
 
-As of this writing, test coverage is intentionally minimal — one pure-utility spec on the frontend (`currency.utils.spec.ts`) and one Firestore-emulator connectivity spec on the functions side (`emulator-harness.spec.ts`). Both exist to prove the respective test harnesses actually run headless/against-emulator, not to cover business invariants yet — that's the next phase (money math, stock/ATP, transactional integrity, idempotency, security rules).
+Coverage so far: money math (tax/discount/total/balance chains, `currency.utils` float-drift cases), stock/ATP invariants (`StockAvailabilityService`, the one hard-blocking stock-adjustment modal), `placeOrder` transactional integrity (server-authoritative pricing, oversell/backorder, authorization, atomicity — tested as a real callable through the Functions emulator, not mocked), and idempotency (`recomputeCustomerCounters`, shop health/pipeline-stuck stamps, shop↔customer link reconcile, and a queue-consumer `processed` guard — each run twice and asserted to change nothing on the second pass). Not yet covered: order-edit invariants (client-side, needs a separate Angular+Firestore-emulator harness) and Firestore/Storage rules-per-role testing — both deferred to a later pass.
 
 ---
 
@@ -83,6 +83,23 @@ Error tracking (Sentry) and structured logging are wired in but **off by default
 * **Frontend**: `src/app/core/monitoring/sentry.ts` initializes `@sentry/angular` only when `environment.production` is true **and** `environment.sentryDsn` is non-empty. To enable: create a Sentry project (dashboard action, not something this repo can do for you), then set `sentryDsn` in `src/environments/environment.prod.ts` — a DSN is a public client identifier, safe to commit like the Firebase config already in that file.
 * Both sides scrub known-sensitive field names (`*Cents`, email, phone, address, business/owner/customer name) before anything reaches Sentry, and neither captures request/response bodies. See the comments in `logger.ts` and `sentry.ts` for the exact rules.
 * User context on the frontend is role + uid for staff, role-only (no id) for customers — never customer PII.
+
+---
+
+## App Check
+
+Firebase App Check (reCAPTCHA v3) is wired into the client but **off by default** — the provider is only registered when `environment.appCheckSiteKey` is non-empty, same unconfigured-is-safe pattern as Sentry above. `core/security/app-check.ts` has the full reasoning inline; summary here.
+
+**Steps to do in the Firebase console (this repo can't do these for you):**
+
+1. Firebase console → **App Check** → register this app → choose **reCAPTCHA v3** as the provider. This auto-provisions a site key tied to the project and registered domain(s).
+2. Set the site key in `src/environments/environment.prod.ts` (`appCheckSiteKey`) — it's a public client identifier, safe to commit, same trust level as the Firebase config already in that file. Deploy.
+3. **Confirm it's working** (check the App Check console page for a token request) before doing step 4 — this is the sequencing that matters.
+4. Only then, per service (Firestore, Storage, each Cloud Function) → toggle **Enforce**. Enforcing before step 3 is confirmed means every request without a valid token — including this app's own production traffic if the site key is missing or wrong — starts failing.
+
+**Local dev / emulators**: `initAppCheck()` sets `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` automatically outside production, which prints a debug token to the browser console on first load. Register that token in Firebase console → App Check → the debug token allowlist so local testing against the real (non-emulator) dev project isn't blocked once enforcement is on. The Local Emulator Suite itself does not enforce App Check by default, so this mainly matters when running against the real dev Firebase project, not `firebase emulators:start`.
+
+**Not done in this pass**: rate limiting on public-create collections (`accessRequests`, `contactInquiries`, `passwordResetRequests`, `bannerClicks`), an idempotency-guard audit across all queue-consumer triggers, a rules-vs-documented-model audit, and confirming no client path still writes to `products`/`stockAdjustments` outside `placeOrder` — the rest of the security hardening pass, tracked separately.
 
 ---
 
