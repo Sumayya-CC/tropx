@@ -398,6 +398,52 @@ export class PortalService {
     }
   }
 
+  // ── ORDER CANCELLATION / RETURNS ──────────────────────
+  // Both run server-side (Admin SDK) rather than as a direct client
+  // batch write: cancellation touches orders/customers/products/
+  // stockAdjustments and returns touches the shared returnSequence
+  // counter, all staff-only or narrowly-scoped under firestore.rules.
+  // Same reasoning as placeOrder above.
+
+  async cancelOrder(orderId: string, reason: string): Promise<void> {
+    const callable = httpsCallable<
+      { orderId: string; reason: string },
+      { orderNumber: string }
+    >(this.functions, 'cancelOrder');
+
+    try {
+      await callable({ orderId, reason });
+    } catch (err: any) {
+      throw new Error(err?.message || 'Could not cancel order. Please try again.');
+    }
+  }
+
+  async submitReturn(
+    orderId: string,
+    items: { productId: string; quantity: number }[],
+    returnType: 'credit_note' | 'refund',
+    reasonCode: string,
+    notes: string
+  ): Promise<{ returnId: string; returnNumber: string }> {
+    const callable = httpsCallable<
+      {
+        orderId: string;
+        items: { productId: string; quantity: number }[];
+        returnType: string;
+        reasonCode: string;
+        notes: string;
+      },
+      { returnId: string; returnNumber: string }
+    >(this.functions, 'submitReturn');
+
+    try {
+      const res = await callable({ orderId, items, returnType, reasonCode, notes });
+      return res.data;
+    } catch (err: any) {
+      throw new Error(err?.message || 'Could not submit return. Please try again.');
+    }
+  }
+
   // ── UTILS ─────────────────────────────────────────────
 
   private toDate(ts: any): Date {

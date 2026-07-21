@@ -5623,3 +5623,325 @@ export const placeOrder = onCall(
     return result;
   }
 );
+
+// ── cancelOrder / submitReturn ──────────────────────────────────────────
+// Portal self-service cancellation and returns used to write directly from
+// the client via a Firestore batch touching orders/customers/settings/
+// products/stockAdjustments — all staff-only or narrowly-scoped collections
+// under firestore.rules. That batch was permission-denied for every real
+// customer (Firestore batches are all-or-nothing across every write), so
+// these two features never actually worked end to end. Moved server-side,
+// same reasoning as placeOrder: re-validate ownership/state against the
+// stored order rather than trusting the client, and use the Admin SDK for
+// the writes rules correctly keep staff-only.
+
+export const cancelOrder = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const linkedCustomerId = auth.token["linkedCustomerId"] as string | undefined;
+    const role = (auth.token["role"] as string) || "none";
+    if (role !== "customer" || !linkedCustomerId) {
+      throw new HttpsError("permission-denied", "Only customers can cancel their own orders");
+    }
+
+    const data = request.data || {};
+    const orderId = (data.orderId || "").toString();
+    const reason = (data.reason || "").toString().trim().slice(0, 2000);
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
+    if (!reason) throw new HttpsError("invalid-argument", "A cancellation reason is required");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await tx.get(orderRef);
+      if (!orderSnap.exists) throw new HttpsError("not-found", "Order not found");
+      const order = orderSnap.data()!;
+
+      if (order["isDeleted"]) throw new HttpsError("not-found", "Order not found");
+      if (order["customerId"] !== linkedCustomerId) {
+        throw new HttpsError("permission-denied", "This order does not belong to you");
+      }
+      // Portal can only cancel while still confirmed — matches the
+      // client-side canCancel gate, re-checked here server-side rather
+      // than trusted from the client.
+      if (order["status"] !== "confirmed") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Only orders that haven't shipped yet can be cancelled"
+        );
+      }
+
+      const custRef = db.collection("customers").doc(linkedCustomerId);
+      const custSnap = await tx.get(custRef);
+      const cust = custSnap.exists ? custSnap.data()! : {};
+
+      const items: any[] = order["items"] || [];
+      const productRefs = items.map((it) => db.collection("products").doc(it.productId));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      const amountPaid = order["amountPaidCents"] || 0;
+
+      // A credit/refund audit record is only needed when money already
+      // changed hands — reserve a return number for it now (read before
+      // write) so the whole thing stays one atomic transaction.
+      let returnNumber = "";
+      let nextRetSeq = 0;
+      const retSeqRef = db.collection("settings").doc("returnSequence");
+      if (amountPaid > 0) {
+        const [retSeqSnap, orderingSnap] = await Promise.all([
+          tx.get(retSeqRef),
+          tx.get(db.collection("settings").doc("ordering")),
+        ]);
+        const currentSeq = retSeqSnap.exists ? (retSeqSnap.data()?.["sequence"] || 0) : 0;
+        nextRetSeq = currentSeq + 1;
+        const retPrefix = orderingSnap.data()?.["returnPrefix"] || "RET";
+        const year = new Date().getFullYear();
+        returnNumber = `${retPrefix}-${year}-${String(nextRetSeq).padStart(4, "0")}`;
+      }
+
+      const now = FieldValue.serverTimestamp();
+      const actionBy = {
+        uid: auth.uid,
+        firstName: cust["ownerFirstName"] || cust["businessName"] || "Portal customer",
+        lastName: cust["ownerLastName"] || "",
+      };
+
+      // ── writes ──
+      tx.update(orderRef, {
+        status: "cancelled",
+        cancelledAt: now,
+        cancelledBy: actionBy,
+        cancellationReason: reason,
+        cancelledByPortal: true,
+        balanceCents: 0,
+        paymentStatus: "unpaid",
+      });
+
+      const totalOrdered = (cust["totalOrderedCents"] || 0) - (order["totalCents"] || 0);
+      const totalOwing = (cust["totalOwingCents"] || 0) - (order["balanceCents"] || 0);
+      const custUpdates: Record<string, unknown> = {
+        totalOrderedCents: Math.max(0, totalOrdered),
+        totalOwingCents: Math.max(0, totalOwing),
+      };
+      if (amountPaid > 0) {
+        custUpdates["totalPaidCents"] =
+          Math.max(0, (cust["totalPaidCents"] || 0) - amountPaid);
+        custUpdates["creditBalanceCents"] =
+          (cust["creditBalanceCents"] || 0) + amountPaid;
+      }
+      tx.update(custRef, custUpdates);
+
+      if (amountPaid > 0) {
+        tx.set(retSeqRef, {sequence: nextRetSeq}, {merge: true});
+        const creditRef = db.collection("returns").doc();
+        tx.set(creditRef, {
+          returnNumber,
+          orderId,
+          orderNumber: order["orderNumber"],
+          customerId: linkedCustomerId,
+          customerName: order["customerName"],
+          customerEmail: order["customerEmail"] || "",
+          customerPhone: order["customerPhone"] || "",
+          type: "refund",
+          status: "approved",
+          source: "cancellation",
+          reasonCode: "order_cancelled",
+          reason: `Order cancelled by customer. Reason: ${reason}`,
+          items: items.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            productSku: item.productSku,
+            quantity: item.quantity,
+            unitPriceCents: item.unitPriceCents,
+            lineTotalCents: item.lineTotalCents,
+          })),
+          amountCents: amountPaid,
+          stockRestored: true,
+          stockAdjustmentIds: [],
+          refundMethod: "store_credit",
+          tenantId: 1,
+          isDeleted: false,
+          createdAt: now,
+          createdBy: actionBy,
+          processedAt: now,
+          processedBy: actionBy,
+        });
+      }
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const snap = productSnaps[i];
+        if (!snap.exists) continue;
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        const newStock = currentStock + item.quantity;
+
+        tx.update(productRefs[i], {stock: newStock});
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          type: "returned",
+          quantity: item.quantity,
+          previousStock: currentStock,
+          newStock,
+          reason: `Order ${order["orderNumber"]} cancelled by customer`,
+          notes: `Reason: ${reason}`,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+          linkedOrderId: orderRef.id,
+          linkedOrderNumber: order["orderNumber"],
+        });
+      }
+
+      return {orderNumber: order["orderNumber"]};
+    });
+
+    return result;
+  }
+);
+
+interface SubmitReturnItem {
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+}
+
+export const submitReturn = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const linkedCustomerId = auth.token["linkedCustomerId"] as string | undefined;
+    const role = (auth.token["role"] as string) || "none";
+    if (role !== "customer" || !linkedCustomerId) {
+      throw new HttpsError("permission-denied", "Only customers can submit returns");
+    }
+
+    const data = request.data || {};
+    const orderId = (data.orderId || "").toString();
+    const returnType = data.returnType === "refund" ? "refund" : "credit_note";
+    const reasonCode = (data.reasonCode || "other").toString();
+    const notes = (data.notes || "").toString().slice(0, 2000);
+    const rawItems: SubmitReturnItem[] = Array.isArray(data.items) ? data.items : [];
+
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
+    if (rawItems.length === 0) throw new HttpsError("invalid-argument", "Select at least one item to return");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await tx.get(orderRef);
+      if (!orderSnap.exists) throw new HttpsError("not-found", "Order not found");
+      const order = orderSnap.data()!;
+
+      if (order["isDeleted"]) throw new HttpsError("not-found", "Order not found");
+      if (order["customerId"] !== linkedCustomerId) {
+        throw new HttpsError("permission-denied", "This order does not belong to you");
+      }
+      // Matches the client-side canSubmitReturn gate — a return can only
+      // be requested once the order has actually been delivered.
+      if (order["status"] !== "delivered") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Returns can only be submitted for delivered orders"
+        );
+      }
+
+      const orderItems: any[] = order["items"] || [];
+      const orderItemsByProduct = new Map(orderItems.map((it) => [it.productId, it]));
+
+      // Server-authoritative: quantity and price come from the stored
+      // order line, never from the client — a return can't be padded
+      // past what was actually ordered or priced differently.
+      const returnItems: any[] = [];
+      let amountCents = 0;
+      for (const raw of rawItems) {
+        const pid = (raw.productId || "").toString();
+        const orderLine = orderItemsByProduct.get(pid);
+        if (!orderLine) {
+          throw new HttpsError("invalid-argument", "One of the return items wasn't part of this order");
+        }
+        const qty = Math.floor(Number(raw.quantity) || 0);
+        if (qty <= 0 || qty > orderLine.quantity) {
+          throw new HttpsError(
+            "invalid-argument",
+            `Return quantity for ${orderLine.productName} must be between 1 and ${orderLine.quantity}`
+          );
+        }
+        const lineTotalCents = orderLine.unitPriceCents * qty;
+        amountCents += lineTotalCents;
+        returnItems.push({
+          productId: pid,
+          productName: orderLine.productName,
+          productSku: orderLine.productSku,
+          quantity: qty,
+          unitPriceCents: orderLine.unitPriceCents,
+          lineTotalCents,
+        });
+      }
+
+      const [seqSnap, orderingSnap, custSnap] = await Promise.all([
+        tx.get(db.collection("settings").doc("returnSequence")),
+        tx.get(db.collection("settings").doc("ordering")),
+        tx.get(db.collection("customers").doc(linkedCustomerId)),
+      ]);
+      const currentSeq = seqSnap.exists ? (seqSnap.data()?.["sequence"] || 0) : 0;
+      const nextSeq = currentSeq + 1;
+      const prefix = orderingSnap.data()?.["returnPrefix"] || "RET";
+      const year = new Date().getFullYear();
+      const returnNumber = `${prefix}-${year}-${String(nextSeq).padStart(4, "0")}`;
+      const cust = custSnap.exists ? custSnap.data()! : {};
+
+      const now = FieldValue.serverTimestamp();
+      const returnRef = db.collection("returns").doc();
+
+      // ── writes ──
+      tx.set(returnRef, {
+        returnNumber,
+        orderId,
+        orderNumber: order["orderNumber"],
+        customerId: linkedCustomerId,
+        customerName: order["customerName"],
+        customerEmail: order["customerEmail"] || "",
+        type: returnType,
+        status: "pending",
+        source: "customer_portal",
+        reasonCode,
+        reason: notes || reasonCode,
+        items: returnItems,
+        amountCents,
+        stockRestored: false,
+        tenantId: 1,
+        isDeleted: false,
+        createdAt: now,
+        createdBy: {
+          uid: auth.uid,
+          firstName: cust["ownerFirstName"] || cust["businessName"] || "Portal customer",
+          lastName: cust["ownerLastName"] || "",
+        },
+      });
+      tx.set(db.collection("settings").doc("returnSequence"), {sequence: nextSeq}, {merge: true});
+
+      return {returnId: returnRef.id, returnNumber};
+    });
+
+    return result;
+  }
+);

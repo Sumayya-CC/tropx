@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { where, doc, getDoc, serverTimestamp, Firestore } from '@angular/fire/firestore';
+import { where } from '@angular/fire/firestore';
 
 import { PortalService } from '../../../core/services/portal.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -26,7 +26,6 @@ export class PortalOrderDetailComponent {
   protected readonly settingsService = inject(SettingsService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly firestore = inject(Firestore);
 
   private orderId = this.route.snapshot.paramMap.get('id') || '';
 
@@ -210,69 +209,23 @@ export class PortalOrderDetailComponent {
     this.isSubmittingReturn.set(true);
 
     try {
-      // Get next return number
-      const seqRef = doc(this.firestore, 'settings/returnSequence');
-      const seqSnap = await getDoc(seqRef);
-      const currentSeq = seqSnap.data()?.['sequence'] || 0;
-      const nextSeq = currentSeq + 1;
-      const ordering = this.settingsService.ordering();
-      const prefix = ordering.returnPrefix || 'RET';
-      const year = new Date().getFullYear();
-      const returnNumber =
-        `${prefix}-${year}-` +
-        `${String(nextSeq).padStart(4, '0')}`;
-
-      const returnItems = selected.map(i => ({
-        productId: i.productId,
-        productName: i.productName,
-        productSku: i.productSku,
-        quantity: i.selectedQty,
-        unitPriceCents: i.unitPriceCents,
-        lineTotalCents: i.unitPriceCents * i.selectedQty,
-      }));
-
-      const returnData = {
-        returnNumber,
-        orderId: this.orderId,
-        orderNumber: o.orderNumber,
-        customerId: o.customerId,
-        customerName: o.customerName,
-        customerEmail: o.customerEmail || '',
-        type: this.returnType(),
-        status: 'pending',
-        source: 'customer_portal',
-        reasonCode: this.returnReasonCode(),
-        reason: this.returnNotes() || this.returnReasonCode(),
-        items: returnItems,
-        amountCents: this.returnTotal(),
-        stockRestored: false,
-        tenantId: 1,
-        isDeleted: false,
-        createdAt: serverTimestamp(),
-        createdBy: {
-          uid: profile.uid,
-          firstName: profile.firstName,
-          lastName: profile.lastName || '',
-        },
-      };
-
-      // Save return + update sequence
-      const { collection: col, doc: docFn } = await import('@angular/fire/firestore');
-      const db = this.firestore;
-
-      await this.firestoreService.runBatch(
-        async (batch: any, batchDb: any) => {
-          const returnRef = docFn(col(batchDb, 'returns'));
-          batch.set(returnRef, returnData);
-          batch.update(seqRef, { sequence: nextSeq });
-        }
+      // Runs server-side (Cloud Function) — re-validates ownership, order
+      // status, and quantities/prices against the stored order rather
+      // than trusting this form, and assigns the return number
+      // transactionally. See core/security note in PortalService.
+      const { returnNumber } = await this.portal.submitReturn(
+        this.orderId,
+        selected.map(i => ({ productId: i.productId, quantity: i.selectedQty })),
+        this.returnType(),
+        this.returnReasonCode(),
+        this.returnNotes()
       );
 
       this.toast.success(`Return ${returnNumber} submitted`);
       this.showReturnModal.set(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting return:', err);
-      this.toast.error('Failed to submit return');
+      this.toast.error(err?.message || 'Failed to submit return');
     } finally {
       this.isSubmittingReturn.set(false);
     }
@@ -293,186 +246,20 @@ export class PortalOrderDetailComponent {
 
     this.isCancelling.set(true);
     try {
-      await this.firestoreService.runBatch(
-        async (batch: any, db: any) => {
-          const { doc: docFn, getDoc, collection } =
-            await import('@angular/fire/firestore');
-
-          // 1. Update order status
-          const orderRef = docFn(
-            db, `orders/${o.id}`
-          );
-          batch.update(orderRef, {
-            status: 'cancelled',
-            cancelledAt: serverTimestamp(),
-            cancelledBy: {
-              uid: profile.uid,
-              firstName: profile.firstName,
-              lastName: profile.lastName || '',
-            },
-            cancellationReason: reason,
-            cancelledByPortal: true,
-            balanceCents: 0,
-            paymentStatus: 'unpaid',
-          });
-
-          // 2. Reverse customer totals
-          const customerRef = docFn(
-            db, `customers/${o.customerId}`
-          );
-          const customerSnap = await getDoc(customerRef);
-          if (customerSnap.exists()) {
-            const cd = customerSnap.data();
-            const amountPaid = o.amountPaidCents || 0;
-
-            const customerUpdates: any = {
-              totalOrderedCents: Math.max(
-                0,
-                (cd['totalOrderedCents'] || 0) - o.totalCents
-              ),
-              totalOwingCents: Math.max(
-                0,
-                (cd['totalOwingCents'] || 0) -
-                (o.balanceCents || 0)
-              ),
-            };
-
-            // If customer had paid something, reduce
-            // totalPaidCents and add to creditBalanceCents
-            if (amountPaid > 0) {
-              customerUpdates.totalPaidCents = Math.max(
-                0,
-                (cd['totalPaidCents'] || 0) - amountPaid
-              );
-              customerUpdates.creditBalanceCents =
-                (cd['creditBalanceCents'] || 0) + amountPaid;
-            }
-
-            batch.update(customerRef, customerUpdates);
-          }
-
-          // 3b. Create credit record if paid amount > 0
-          const amountPaid = o.amountPaidCents || 0;
-          if (amountPaid > 0) {
-            const { collection: col } =
-              await import('@angular/fire/firestore');
-
-            // Get return sequence
-            const retSeqRef = docFn(
-              db, 'settings/returnSequence'
-            );
-            const retSeqSnap = await getDoc(retSeqRef);
-            const currentSeq =
-              retSeqSnap.data()?.['sequence'] || 0;
-            const nextRetSeq = currentSeq + 1;
-            const retPrefix =
-              this.settingsService.ordering().returnPrefix || 'RET';
-            const year = new Date().getFullYear();
-            const returnNumber = `${retPrefix}-${year}-` +
-              `${String(nextRetSeq).padStart(4, '0')}`;
-
-            const creditRef = docFn(col(db, 'returns'));
-            batch.set(creditRef, {
-              returnNumber,
-              orderId: o.id,
-              orderNumber: o.orderNumber,
-              customerId: o.customerId,
-              customerName: o.customerName,
-              customerEmail: o.customerEmail || '',
-              customerPhone: o.customerPhone || '',
-              type: 'refund',
-              status: 'approved',
-              source: 'cancellation',
-              reasonCode: 'order_cancelled',
-              reason: `Order cancelled by customer. ` +
-                `Reason: ${reason}`,
-              items: o.items.map((item: any) => ({
-                productId: item.productId,
-                productName: item.productName,
-                productSku: item.productSku,
-                quantity: item.quantity,
-                unitPriceCents: item.unitPriceCents,
-                lineTotalCents: item.lineTotalCents,
-              })),
-              amountCents: amountPaid,
-              stockRestored: true,
-              stockAdjustmentIds: [],
-              refundMethod: 'store_credit',
-              tenantId: 1,
-              isDeleted: false,
-              createdAt: serverTimestamp(),
-              createdBy: {
-                uid: profile.uid,
-                firstName: profile.firstName,
-                lastName: profile.lastName || '',
-              },
-              processedAt: serverTimestamp(),
-              processedBy: {
-                uid: profile.uid,
-                firstName: profile.firstName,
-                lastName: profile.lastName || '',
-              },
-            });
-
-            batch.update(retSeqRef, { sequence: nextRetSeq });
-          }
-
-          // 3. Restore stock per item
-          for (const item of o.items) {
-            const productRef = docFn(
-              db, `products/${item.productId}`
-            );
-            const productSnap =
-              await getDoc(productRef);
-            if (productSnap.exists()) {
-              const pd = productSnap.data();
-              const currentStock = pd['stock'] || 0;
-              const newStock =
-                currentStock + item.quantity;
-              batch.update(productRef, {
-                stock: newStock
-              });
-
-              // Stock adjustment record
-              const adjRef = docFn(
-                collection(db, 'stockAdjustments')
-              );
-              batch.set(adjRef, {
-                productId: item.productId,
-                productName: item.productName,
-                productSku: item.productSku,
-                type: 'returned',
-                quantity: item.quantity,
-                previousStock: currentStock,
-                newStock,
-                reason:
-                  `Order ${o.orderNumber} cancelled ` +
-                  `by customer`,
-                notes: `Reason: ${reason}`,
-                adjustedBy: {
-                  uid: profile.uid,
-                  firstName: profile.firstName,
-                  lastName: profile.lastName || '',
-                },
-                createdAt: serverTimestamp(),
-                tenantId: 1,
-                isDeleted: false,
-                linkedOrderId: o.id,
-                linkedOrderNumber: o.orderNumber,
-              });
-            }
-          }
-        }
-      );
+      // Runs server-side (Cloud Function) — re-validates ownership and
+      // order status, then performs the order/customer/stock/return
+      // writes with the Admin SDK. See core/security note in
+      // PortalService.
+      await this.portal.cancelOrder(o.id, reason);
 
       this.toast.success(
         `Order ${o.orderNumber} cancelled`
       );
       this.showCancelConfirm.set(false);
       this.cancelReason.set('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error cancelling order:', err);
-      this.toast.error('Failed to cancel order');
+      this.toast.error(err?.message || 'Failed to cancel order');
     } finally {
       this.isCancelling.set(false);
     }
