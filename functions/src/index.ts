@@ -1318,7 +1318,11 @@ export const onAccessRequestApproved = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data) return;
+    // Matches the guard on sendPasswordResetEmail/onAdminPasswordReset —
+    // this doc is a job-queue request, and a redelivered trigger event
+    // would otherwise create a duplicate Auth user attempt and re-send
+    // the welcome email.
+    if (!data || data.processed) return;
 
     const {email, ownerFirstName, ownerLastName, businessName} = data;
 
@@ -1384,7 +1388,7 @@ export const onAccessRequestApproved = onDocumentCreated(
       });
     } catch (err) {
       logger.error("Error creating user or reset link:", err);
-      await event.data?.ref.update({error: true});
+      await event.data?.ref.update({processed: true, error: true});
       return;
     }
 
@@ -1632,7 +1636,11 @@ export const onContactInquiry = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data) return;
+    // Guards against a redelivered trigger event re-sending the admin
+    // notification — see the "idempotency" comment block above
+    // onOrderNotification for the shared reasoning across these
+    // business-doc-triggered notification functions.
+    if (!data || data.notificationSentAt) return;
 
     const resend = new Resend(resendApiKey.value());
     const from = fromEmail.value();
@@ -1650,6 +1658,9 @@ export const onContactInquiry = onDocumentCreated(
         replyTo: email,
         subject: `New Contact Inquiry from ${businessName ?? name}`,
         html,
+      });
+      await event.data?.ref.update({
+        notificationSentAt: FieldValue.serverTimestamp(),
       });
       logger.info("Contact inquiry notification sent");
     } catch (err) {
@@ -1894,6 +1905,17 @@ export const onInvoiceRequest = onDocumentCreated(
   }
 );
 
+// The next several triggers fire a customer- or admin-facing email off a
+// primary business document (orders/returns/payments), not a job-queue
+// request doc — so there's no natural "processed" field to check. Each
+// stamps its own narrow *SentAt marker on the same doc and checks it
+// before sending, guarding specifically against Cloud Functions'
+// at-least-once redelivery re-sending the same email. The marker write
+// happens only after a successful send, so a genuinely failed send is
+// still eligible to be retried (mirrors onProductRestocked's per-
+// recipient "notified" pattern above). Writing back to the same doc can
+// re-trigger sibling *WriteReconcile functions on that collection — safe,
+// since those are already idempotent by design (see recomputeCustomerCounters).
 export const onOrderNotification = onDocumentCreated(
   {
     document: "orders/{orderId}",
@@ -1903,7 +1925,7 @@ export const onOrderNotification = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data) return;
+    if (!data || data.adminNotifiedAt) return;
 
     // Check toggle
     const enabled = await isNotificationEnabled(
@@ -1971,6 +1993,7 @@ export const onOrderNotification = onDocumentCreated(
         subject: `🛒 New Order ${orderNumber} — ${customerName}`,
         html,
       });
+      await event.data?.ref.update({adminNotifiedAt: FieldValue.serverTimestamp()});
       logger.info(
         `Order notification sent for ${orderNumber}`
       );
@@ -1989,7 +2012,7 @@ export const onAccessRequestNotification = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data) return;
+    if (!data || data.notificationSentAt) return;
 
     const enabled = await isNotificationEnabled(
       "accessRequestAlert"
@@ -2031,6 +2054,9 @@ export const onAccessRequestNotification = onDocumentCreated(
         subject: `🏪 New Access Request — ${businessName}`,
         html,
       });
+      await event.data?.ref.update({
+        notificationSentAt: FieldValue.serverTimestamp(),
+      });
       logger.info("Access request notification sent");
     } catch (err) {
       logger.error(
@@ -2049,7 +2075,7 @@ export const onReturnNotification = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data) return;
+    if (!data || data.notificationSentAt) return;
 
     const enabled = await isNotificationEnabled(
       "returnSubmittedAlert"
@@ -2121,6 +2147,9 @@ export const onReturnNotification = onDocumentCreated(
         to: adminEmail,
         subject: `↩️ Return ${returnNumber} — ${customerName}`,
         html,
+      });
+      await event.data?.ref.update({
+        notificationSentAt: FieldValue.serverTimestamp(),
       });
       logger.info(
         `Return notification sent for ${returnNumber}`
@@ -2366,6 +2395,13 @@ export const onOrderStatusChanged = onDocumentUpdated(
     ];
     if (!handledStatuses.includes(newStatus)) return;
 
+    // A redelivered trigger event replays the identical before/after
+    // pair, so prevStatus !== newStatus alone doesn't protect against a
+    // duplicate send — each of these statuses is only reached once per
+    // order in practice, so comparing against the last status this
+    // function actually emailed for is enough.
+    if (after.lastStatusNotificationSentFor === newStatus) return;
+
     // Map status to notification key
     const notifKeyMap: Record<string, string> = {
       confirmed: "customerOrderConfirmed",
@@ -2483,6 +2519,9 @@ export const onOrderStatusChanged = onDocumentUpdated(
         subject: subjectMap[newStatus],
         html,
       });
+      await event.data?.after.ref.update({
+        lastStatusNotificationSentFor: newStatus,
+      });
       logger.info(
         `Order status email sent: ${orderNumber} → ${newStatus}`
       );
@@ -2513,6 +2552,11 @@ export const onReturnStatusChanged = onDocumentUpdated(
 
     if (newStatus !== "approved" &&
         newStatus !== "rejected") return;
+
+    // Same reasoning as onOrderStatusChanged above — guards a redelivered
+    // trigger event from re-sending, since each of these statuses is only
+    // reached once per return in practice.
+    if (after.lastStatusNotificationSentFor === newStatus) return;
 
     const notifKey = newStatus === "approved" ?
       "customerReturnApproved" :
@@ -2596,6 +2640,9 @@ export const onReturnStatusChanged = onDocumentUpdated(
         subject,
         html,
       });
+      await event.data?.after.ref.update({
+        lastStatusNotificationSentFor: newStatus,
+      });
       logger.info(
         `Return status email sent: ${returnNumber} → ${newStatus}`
       );
@@ -2616,7 +2663,7 @@ export const onPaymentReceipt = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data) return;
+    if (!data || data.receiptSentAt) return;
 
     const enabled = await isNotificationEnabled(
       "customerPaymentReceipt"
@@ -2700,6 +2747,9 @@ export const onPaymentReceipt = onDocumentCreated(
         subject:
           `💳 Payment Received — ${orderNumber}`,
         html,
+      });
+      await event.data?.ref.update({
+        receiptSentAt: FieldValue.serverTimestamp(),
       });
       logger.info(
         `Payment receipt sent: ${paymentNumber} ` +
@@ -4647,7 +4697,7 @@ export const onPortalOrderConfirmation =
     },
     async (event) => {
       const order = event.data?.data();
-      if (!order) return;
+      if (!order || order.portalConfirmationSentAt) return;
 
       // Only fire for portal orders
       if (order.source !== "customer_portal") {
@@ -5101,6 +5151,10 @@ export const onPortalOrderConfirmation =
         subject:
           `Order Confirmed — ${order.orderNumber}`,
         html: emailHtml,
+      });
+
+      await event.data?.ref.update({
+        portalConfirmationSentAt: FieldValue.serverTimestamp(),
       });
 
       logger.info(
