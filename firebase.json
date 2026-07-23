@@ -1,4 +1,18 @@
 {
+  "hosting": {
+    "public": "dist/tropx/browser",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
   "firestore": {
     "database": "tropx-dev",
     "rules": "firestore.rules",

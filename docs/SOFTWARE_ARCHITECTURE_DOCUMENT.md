@@ -91,7 +91,7 @@ a narrow set of server-side transactional entry points, not in client code.
 | Multi-warehouse-ready without being multi-warehouse today | `warehouseId` on stock-related documents; single "Main Warehouse" seeded — see §14 |
 | Money correctness at scale | Integer-cent fields everywhere, source-of-truth vs cache distinction enforced by a shared, idempotent recompute function (§7, §9) |
 | Operational resilience under partial failure | `runBatch`/Firestore transactions for every multi-document invariant; real-time reconciliation triggers **and** nightly/weekly sweeps as a safety net |
-| Low infrastructure cost at current scale | Client-side route optimization (not a paid API), Leaflet/OpenStreetMap (not Google Maps) for map display, Netlify static hosting |
+| No provisioned backend capacity — cost tracks usage, not store count | Client-side route optimization (not a paid API), Leaflet/OpenStreetMap (not Google Maps) for map display, Netlify static hosting |
 | Keep Zoho Books as the accounting system of record | The portal is explicitly scoped to operations, not double-entry accounting (§14) |
 
 **Constraints** (imposed by the platform choices themselves, not
@@ -978,8 +978,12 @@ default). Netlify's CDN provides static-asset availability independent of
 Firebase's health. **Single points of failure:** the single Cloud Functions
 codebase/deployment unit (a bad deploy affects every function
 simultaneously) and the single Firestore database per environment (no
-sharding). At current single-tenant scale this is an acceptable trade-off,
-not an oversight — see §11.
+sharding). This is an acceptable trade-off, not an oversight: Firestore's
+per-project database already provides Google-managed horizontal scaling —
+logical multi-tenancy via `tenantId` doesn't require a physically sharded
+database — and the single Cloud Functions deployment unit's real cost is
+deploy blast radius and long-term maintainability (tracked in §14), not
+throughput. See §11.
 
 ### 10.2 Reliability
 
@@ -1071,7 +1075,7 @@ reconciliation-log/email summaries were found in the codebase.
 | Portal writes funneled through `placeOrder` vs. direct client writes | Server-side transaction, oversell re-check, atomic stock+counters | Slightly more latency and an extra network hop per checkout, in exchange for closing a real trust gap (client-authored orders bypassing stock/price checks) |
 | Firestore rules/claims as the only authorization layer vs. a dedicated API gateway | No separate backend service | Every access-control change is a rules-file edit with global blast radius (see §9.2) rather than isolated to one service's code |
 | Zoho Books as ledger vs. building accounting in-portal | Portal owns operations only | Slower path to full self-sufficiency, but avoids building tax-invoice numbering and HST-return generation prematurely — explicitly deferred, not abandoned |
-| Bounded `pipelineHistory[]` array vs. a subcollection | Embedded array on the shop doc | A theoretical (currently irrelevant) document-size ceiling, in exchange for one-read access to the full stage timeline for the UI and the avg-convert KPI |
+| `pipelineHistory[]` as an append-only array vs. a subcollection | Embedded array on the shop doc | A real document-size ceiling, not a theoretical one — the array logs every stage transition (not deduped per stage), so a shop that bounces between stages repeatedly keeps growing it. Distant in the common case (a prospect passes through a handful of transitions), but unbounded in principle; a cap or archive-on-overflow is the mitigation if a shop's history ever approaches the limit. In exchange: one-read access to the full stage timeline for the UI and the avg-convert KPI |
 
 ---
 
@@ -1129,8 +1133,11 @@ foundational — do not add a `customerId` to `Visit`.
 **Decision:** Store history as an array on the `Shop` document.
 **Consequences:** One document read powers both the stage timeline and the
 avg-days-to-convert KPI. **Rejected alternative:** A `pipelineHistory`
-subcollection — rejected as unnecessary cross-loads for no benefit at this
-volume.
+subcollection — rejected as unnecessary cross-loads for no benefit in the
+common case. The array is append-only (every stage transition logs an
+entry, not deduped per stage), so the document-size ceiling this trades
+against is real, if distant in practice; see §11 for the mitigation if a
+shop's history ever approaches it.
 
 #### ADR-004: Stamp shop health and pipeline-stuck status nightly, server-side
 **Context:** Computing "days since last order/visit" per row does not
