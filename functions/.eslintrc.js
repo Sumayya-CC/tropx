@@ -1,3 +1,8 @@
+// functions/ intentionally stays on legacy ESLint config (this file) while the
+// repo root uses flat config (eslint.config.js). The `lint` script in
+// package.json pins ESLINT_USE_FLAT_CONFIG=false so this .eslintrc.js isn't
+// pulled into the root's flat-config mode, which doesn't understand the
+// `--ext` flag firebase.json's predeploy hook relies on.
 module.exports = {
   root: true,
   env: {
