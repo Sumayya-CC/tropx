@@ -4,6 +4,7 @@ import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
+import { catchError, of } from 'rxjs';
 
 import { PortalService } from '../../../core/services/portal.service';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -79,7 +80,13 @@ export class PortalOrderDetailComponent {
   private orderPayments$ = this.firestoreService.getCollection<any>(
     'payments',
     where('orderId', '==', this.orderId),
-    where('tenantId', '==', 1)
+    where('tenantId', '==', 1),
+    where('customerId', '==', this.portal.linkedCustomerId())
+  ).pipe(
+    catchError(err => {
+      console.warn('Order payments read error:', err);
+      return of([] as any[]);
+    })
   );
   orderPayments = toSignal(this.orderPayments$, { initialValue: [] as any[] });
 
@@ -94,7 +101,13 @@ export class PortalOrderDetailComponent {
   private orderReturns$ = this.firestoreService.getCollection<any>(
     'returns',
     where('orderId', '==', this.orderId),
-    where('tenantId', '==', 1)
+    where('tenantId', '==', 1),
+    where('customerId', '==', this.portal.linkedCustomerId())
+  ).pipe(
+    catchError(err => {
+      console.warn('Order returns read error:', err);
+      return of([] as any[]);
+    })
   );
   orderReturns = toSignal(this.orderReturns$, { initialValue: [] as any[] });
 
