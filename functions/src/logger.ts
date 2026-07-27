@@ -37,6 +37,10 @@ function ensureSentryInit(): void {
   if (sentryInitAttempted) return;
   sentryInitAttempted = true;
   const dsn = process.env.SENTRY_DSN;
+  fnLogger.info(
+    `[SENTRY-DEBUG] ensureSentryInit: dsn present=${!!dsn}, ` +
+    `length=${dsn?.length ?? 0}, envLabel=${resolveEnvLabel()}`
+  );
   if (!dsn) return;
   Sentry.init({
     dsn,
@@ -44,6 +48,7 @@ function ensureSentryInit(): void {
     tracesSampleRate: 0,
   });
   sentryReady = true;
+  fnLogger.info("[SENTRY-DEBUG] Sentry.init completed, sentryReady=true");
 }
 
 function firstError(args: unknown[]): Error | undefined {
@@ -66,15 +71,19 @@ export const warn = (...args: unknown[]): void => {
 export async function error(...args: unknown[]): Promise<void> {
   fnLogger.error(...(args as [unknown, ...unknown[]]));
   ensureSentryInit();
+  fnLogger.info(`[SENTRY-DEBUG] error(): sentryReady=${sentryReady}`);
   if (!sentryReady) return;
   const err = firstError(args);
   if (err) {
-    Sentry.captureException(err);
+    const eventId = Sentry.captureException(err);
+    fnLogger.info(`[SENTRY-DEBUG] captureException eventId=${eventId}`);
   } else {
-    Sentry.captureMessage(
+    const eventId = Sentry.captureMessage(
       args.map((a) => (typeof a === "string" ? a : String(a))).join(" "),
       "error"
     );
+    fnLogger.info(`[SENTRY-DEBUG] captureMessage eventId=${eventId}`);
   }
-  await Sentry.flush(2000);
+  const flushed = await Sentry.flush(2000);
+  fnLogger.info(`[SENTRY-DEBUG] flush completed, success=${flushed}`);
 }
