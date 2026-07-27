@@ -25,9 +25,13 @@ Review the current change (staged diff, or the files named by the user) as a sen
 
 If the change introduces a behavior that contradicts how the rest of the app works (e.g. one path writing negative stock while every other clamps, or a new settings card sharing an `editing` signal), **flag it and propose reconciliation** rather than approving the local version.
 
+## Doc-drift check (every review)
+
+Check the diff's touched files against `.claude/DOC-MAP.md`. For every matching row, confirm the doc(s) it names were updated in the same diff. If a mapped doc wasn't touched, that's a **finding** — file it as `docs`/`risk`, not a nit, worded as "docs not updated for touched area X" naming the exact DOC-MAP.md row and the doc/section it points to. It only drops out if the change genuinely falls under DOC-MAP.md's "Not in scope" carve-out (pure refactor, no behavior/schema/invariant change) — state that explicitly rather than silently skipping the check.
+
 ## Output
 
 - Lead with a one-line verdict: approve / approve-with-nits / needs-changes.
-- Group findings by severity (defect / risk / nit).
+- Group findings by severity (defect / risk / docs / nit).
 - For each defect, name the exact file and line and the invariant it breaks.
 - Keep nits short. Don't pad with generic praise.

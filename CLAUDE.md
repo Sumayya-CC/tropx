@@ -43,6 +43,15 @@ This is multi-tenant, multi-warehouse infrastructure for a 1000+ store wholesale
 - New model/settings fields are optional with `??` fallbacks so pre-existing documents keep working — backward compatibility is not negotiable at this scale.
 - When a request would create a cross-cutting inconsistency (e.g. one code path writing negative stock while every other clamps), flag it and reconcile rather than implementing it locally.
 
+## Definition of Done
+
+A change is not complete until the docs it's mapped to in `.claude/DOC-MAP.md` are updated **in the same commit** — not a follow-up, not a "will document later." Docs have gone stale from exactly that deferral before. Concretely:
+
+- Before calling a change finished, check `.claude/DOC-MAP.md` for every area you touched and update the doc cells it lists (CLAUDE.md, README.md, `docs/ARCHITECTURE.md`, `docs/SOFTWARE_ARCHITECTURE_DOCUMENT.md`, `.claude/agents/*`, `.claude/commands/*` — whichever the row names).
+- If a row genuinely doesn't apply (pure refactor, no behavior/schema/invariant change), that's a valid outcome — but it's a judgment you made against the table, not an omission.
+- Run `/docs` before treating a change as done when it touches anything in DOC-MAP.md — it checks doc coverage for you and flags contradictions it finds between docs.
+- `/review` treats "docs not updated for a touched area" as a finding, not a nit.
+
 ## Testing Philosophy
 
 - Money math and cents↔display conversions are the highest-value tests — assert exact integer cents, never approximate.

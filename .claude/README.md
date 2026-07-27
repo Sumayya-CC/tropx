@@ -16,6 +16,7 @@ Invoke with `/name`.
 | `/firestore` | Review or design data access — stamping, denormalization, batches, scale. |
 | `/release` | Run or review a release against the dev-before-prod / fileReplacements / IAM checklist. |
 | `/audit` | Sweep the repo (or a module) for drift from the durable invariants. |
+| `/docs` | Check a diff's doc coverage against `.claude/DOC-MAP.md` and flag contradictions between docs. |
 
 ## Subagents (`agents/`)
 
@@ -27,6 +28,7 @@ Delegate deeper work to a specialist that carries the relevant conventions.
 | `test-engineer` | Invariant-driven tests, emulator/auth/rule testing, regression discipline. |
 | `firestore-expert` | Data model, denormalization, stamping sweeps, batches, scale/consistency diagnosis. |
 | `angular-expert` | Angular 20 conventions, browser-guarding, the recurring frontend pitfalls, UI language. |
+| `doc-maintainer` | Cross-document consistency — same facts across CLAUDE.md/README.md/ARCHITECTURE.md/SAD, no invented facts, no rot-prone specifics. |
 
 ## The invariants these enforce (quick reference)
 

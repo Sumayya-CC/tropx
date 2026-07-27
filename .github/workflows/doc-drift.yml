@@ -1,0 +1,41 @@
+name: Doc Drift Check
+
+# Weak signal only: warns (never fails) when a PR touches code areas that
+# usually need a doc update per .claude/DOC-MAP.md, without touching
+# docs/ or CLAUDE.md. Some changes legitimately need no doc edit — this
+# only catches total neglect. See CLAUDE.md "Definition of Done".
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  doc-drift:
+    name: Doc drift (warn-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check touched areas against doc coverage
+        run: |
+          CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")
+
+          # Areas mapped in .claude/DOC-MAP.md to a required doc update.
+          if echo "$CHANGED" | grep -qE '^(functions/src/|src/app/core/models/|firestore\.rules$|storage\.rules$|angular\.json$|firebase\.json$|firebase\.prod\.json$|\.firebaserc$|src/environments/)'; then
+            CODE_TOUCHED=1
+          else
+            CODE_TOUCHED=0
+          fi
+
+          if echo "$CHANGED" | grep -qE '^(docs/|CLAUDE\.md$)'; then
+            DOCS_TOUCHED=1
+          else
+            DOCS_TOUCHED=0
+          fi
+
+          if [ "$CODE_TOUCHED" = "1" ] && [ "$DOCS_TOUCHED" = "0" ]; then
+            echo "::warning::This PR touches functions/src, core/models, firestore.rules, storage.rules, or environment/build config, but no file under docs/ or CLAUDE.md changed. Check .claude/DOC-MAP.md — this may be expected if nothing documented actually changed."
+          fi
+
+          exit 0
