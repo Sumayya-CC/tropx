@@ -5489,7 +5489,6 @@ export const backfillOpeningStockLedger =
   onCall(
     {
       region: "northamerica-northeast2",
-      secrets: [sentryDsn],
       cors: true,
     },
     async (request) => {
