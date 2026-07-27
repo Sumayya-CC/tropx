@@ -25,6 +25,14 @@ import * as Sentry from "@sentry/node";
 let sentryInitAttempted = false;
 let sentryReady = false;
 
+// Same 'production'/'development' values as the frontend's
+// environment.envLabel (not the raw GCLOUD_PROJECT id), so events from
+// both sides filter together in Sentry under one environment value.
+function resolveEnvLabel(): "production" | "development" {
+  return process.env.GCLOUD_PROJECT === "tropx-wholesale-prod" ?
+    "production" : "development";
+}
+
 function ensureSentryInit(): void {
   if (sentryInitAttempted) return;
   sentryInitAttempted = true;
@@ -32,7 +40,7 @@ function ensureSentryInit(): void {
   if (!dsn) return;
   Sentry.init({
     dsn,
-    environment: process.env.GCLOUD_PROJECT || "unknown",
+    environment: resolveEnvLabel(),
     tracesSampleRate: 0,
   });
   sentryReady = true;
@@ -50,7 +58,12 @@ export const warn = (...args: unknown[]): void => {
   fnLogger.warn(...(args as [unknown, ...unknown[]]));
 };
 
-export function error(...args: unknown[]): void {
+// Async and always awaited by callers (see call sites): Cloud Functions
+// can freeze the container the instant the handler returns, killing any
+// in-flight request — Sentry.captureException only queues the event, so
+// without an awaited flush() here the event can silently never leave the
+// process. 2s matches Sentry's own recommended serverless flush timeout.
+export async function error(...args: unknown[]): Promise<void> {
   fnLogger.error(...(args as [unknown, ...unknown[]]));
   ensureSentryInit();
   if (!sentryReady) return;
@@ -63,4 +76,5 @@ export function error(...args: unknown[]): void {
       "error"
     );
   }
+  await Sentry.flush(2000);
 }
