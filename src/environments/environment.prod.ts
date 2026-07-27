@@ -4,11 +4,10 @@ export const environment = {
   // is the one place `envLabel` should read 'production'.
   envLabel: 'production' as 'development' | 'production',
   useEmulator: false,
-  // Set the real Sentry DSN here once a Sentry project exists for this
-  // app — see core/monitoring/sentry.ts for what it enables. Empty
-  // string keeps error tracking off (a no-op), so this is safe to leave
-  // blank until that project is created.
-  sentryDsn: '',
+  // See core/monitoring/sentry.ts for what this enables. A DSN is a
+  // public client identifier, safe to commit like the Firebase config
+  // below.
+  sentryDsn: 'https://ae4b450be86aa09d5d50708da6b0bdf2@o4511809476034560.ingest.us.sentry.io/4511809488420864',
   // Set the real reCAPTCHA v3 site key here once App Check is set up in
   // the Firebase console for the prod project — see
   // core/security/app-check.ts. Empty keeps it off (a no-op). Do not

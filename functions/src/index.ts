@@ -5639,6 +5639,45 @@ export const backfillOpeningStockLedger =
     }
   );
 
+// ── TEMPORARY — Sentry backend verification ─────
+// One-time check that a real prod SENTRY_DSN secret
+// actually delivers events, tagged correctly, before
+// trusting it ahead of the Phase 5 function split.
+// Logs a controlled, clearly-labeled test error via
+// the shared logger (same path every real error goes
+// through) and returns success either way — the point
+// is to inspect the Sentry dashboard afterward, not
+// the callable's return value. Delete this function
+// once verified.
+export const testSentryReporting =
+  onCall(
+    {
+      region: "northamerica-northeast2",
+      secrets: [sentryDsn],
+      cors: true,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Must be authenticated"
+        );
+      }
+      if (request.auth.token["role"] !== "admin") {
+        throw new HttpsError(
+          "permission-denied",
+          "Admin only"
+        );
+      }
+      logger.error(
+        "testSentryReporting: deliberate test error — " +
+        "safe to ignore, confirms Sentry backend wiring",
+        new Error("Sentry backend verification test")
+      );
+      return {sent: true};
+    }
+  );
+
 // ═══ Order Placement (transactional) ═════════════════════════════════════
 // Replaces client-side placeOrder. A Firestore transaction re-reads stock and
 // the order sequence at commit time, so concurrent orders cannot oversell or
