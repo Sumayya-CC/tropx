@@ -390,7 +390,7 @@ async function markDirtyAndRecompute(customerId: string) {
       );
     }
   } catch (err) {
-    logger.error(
+    await logger.error(
       `Reconcile (trigger) failed for ${customerId}:`, err
     );
     // Left dirty on purpose — nightly sweep will retry.
@@ -579,7 +579,7 @@ async function runReconSweep(
       const r = await recomputeCustomerCounters(id, thresholds);
       results.push(r);
     } catch (err) {
-      logger.error(`Sweep reconcile failed for ${id}:`, err);
+      await logger.error(`Sweep reconcile failed for ${id}:`, err);
     }
   }
 
@@ -607,7 +607,7 @@ async function runReconSweep(
     });
     logger.info(`${sweepLabel}: summary emailed to admin`);
   } catch (err) {
-    logger.error(`${sweepLabel}: failed to email summary:`, err);
+    await logger.error(`${sweepLabel}: failed to email summary:`, err);
   }
 }
 
@@ -1024,7 +1024,7 @@ export async function reconcileShopLinks(
       if (r.flagged) summary.flagged++;
       if (r.backfilled) summary.backfilled++;
     } catch (err) {
-      logger.error(`Link reconcile failed for customer ${id}:`, err);
+      await logger.error(`Link reconcile failed for customer ${id}:`, err);
     }
   }
 
@@ -1327,7 +1327,7 @@ export const onAccessRequestApproved = onDocumentCreated(
     const {email, ownerFirstName, ownerLastName, businessName} = data;
 
     if (!email) {
-      logger.error("No email found on approval");
+      await logger.error("No email found on approval");
       return;
     }
 
@@ -1387,7 +1387,7 @@ export const onAccessRequestApproved = onDocumentCreated(
         processedAt: new Date(),
       });
     } catch (err) {
-      logger.error("Error creating user or reset link:", err);
+      await logger.error("Error creating user or reset link:", err);
       await event.data?.ref.update({processed: true, error: true});
       return;
     }
@@ -1407,7 +1407,7 @@ export const onAccessRequestApproved = onDocumentCreated(
       });
       logger.info("Welcome email sent");
     } catch (err) {
-      logger.error("Error sending welcome email:", err);
+      await logger.error("Error sending welcome email:", err);
     }
   }
 );
@@ -1443,7 +1443,7 @@ export const onCustomerDeleted = onDocumentUpdated(
         deletedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } catch (err) {
-      logger.error("Error disabling auth user:", err);
+      await logger.error("Error disabling auth user:", err);
     }
   }
 );
@@ -1473,7 +1473,7 @@ export const sendPasswordResetEmail = onDocumentCreated(
         {url: "https://tropxwholesale.ca/login"}
       );
     } catch (err) {
-      logger.error("Error generating reset link:", err);
+      await logger.error("Error generating reset link:", err);
       await event.data?.ref.update({processed: true, error: true});
       return;
     }
@@ -1493,7 +1493,7 @@ export const sendPasswordResetEmail = onDocumentCreated(
       });
       logger.info("Password reset email sent");
     } catch (err) {
-      logger.error("Error sending password reset email:", err);
+      await logger.error("Error sending password reset email:", err);
     }
   }
 );
@@ -1560,7 +1560,7 @@ export const onAdminPasswordReset = onDocumentCreated(
               }
             }
           } catch (err) {
-            logger.error("Could not fetch customer for profile:", err);
+            await logger.error("Could not fetch customer for profile:", err);
           }
         }
 
@@ -1594,7 +1594,7 @@ export const onAdminPasswordReset = onDocumentCreated(
         {url: "https://tropxwholesale.ca/login"}
       );
     } catch (err: any) {
-      logger.error("Error generating reset link:", err);
+      await logger.error("Error generating reset link:", err);
       await event.data?.ref.update({
         processed: true,
         error: err.message || "Failed to generate link",
@@ -1617,7 +1617,7 @@ export const onAdminPasswordReset = onDocumentCreated(
       });
       logger.info("Admin-triggered password reset sent");
     } catch (err: any) {
-      logger.error("Error sending admin password reset:", err);
+      await logger.error("Error sending admin password reset:", err);
       await event.data?.ref.update({
         processed: true,
         error: err.message || "Failed to send email",
@@ -1664,7 +1664,7 @@ export const onContactInquiry = onDocumentCreated(
       });
       logger.info("Contact inquiry notification sent");
     } catch (err) {
-      logger.error("Error sending contact notification:", err);
+      await logger.error("Error sending contact notification:", err);
     }
   }
 );
@@ -1695,7 +1695,7 @@ export const onEmployeeInvitation = onDocumentCreated(
         emailVerified: false,
       });
     } catch (err: any) {
-      logger.error("Error creating auth user:", err);
+      await logger.error("Error creating auth user:", err);
       await event.data?.ref.update({
         status: "error",
         error: err.message,
@@ -1833,14 +1833,14 @@ export const onAuthAction = onDocumentCreated(
             );
           }
         } catch (claimErr) {
-          logger.error(
+          await logger.error(
             "Could not restore claim on enable:", claimErr
           );
         }
       }
       await event.data?.ref.update({processed: true, resolvedUid: uid});
     } catch (err: any) {
-      logger.error("Error processing auth action:", err);
+      await logger.error("Error processing auth action:", err);
       await event.data?.ref.update({
         processed: true,
         error: err.message || "Failed",
@@ -1896,7 +1896,7 @@ export const onInvoiceRequest = onDocumentCreated(
         `Invoice ${orderNumber} sent to ${customerEmail}`
       );
     } catch (err: any) {
-      logger.error("Error sending invoice email:", err);
+      await logger.error("Error sending invoice email:", err);
       await event.data?.ref.update({
         status: "error",
         error: err.message,
@@ -1998,7 +1998,7 @@ export const onOrderNotification = onDocumentCreated(
         `Order notification sent for ${orderNumber}`
       );
     } catch (err) {
-      logger.error("Error sending order notification:", err);
+      await logger.error("Error sending order notification:", err);
     }
   }
 );
@@ -2059,7 +2059,7 @@ export const onAccessRequestNotification = onDocumentCreated(
       });
       logger.info("Access request notification sent");
     } catch (err) {
-      logger.error(
+      await logger.error(
         "Error sending access request notification:", err
       );
     }
@@ -2155,7 +2155,7 @@ export const onReturnNotification = onDocumentCreated(
         `Return notification sent for ${returnNumber}`
       );
     } catch (err) {
-      logger.error(
+      await logger.error(
         "Error sending return notification:", err
       );
     }
@@ -2232,7 +2232,7 @@ export const onProductRestocked = onDocumentUpdated(
         });
         sent++;
       } catch (err) {
-        logger.error("Restock email failed", err);
+        await logger.error("Restock email failed", err);
         // Leave as pending so a future restock/backfill can retry.
       }
     }
@@ -2293,7 +2293,7 @@ export const onLowStockAlert = onDocumentCreated(
         }
       }
     } catch (err) {
-      logger.error("Error computing committed stock:", err);
+      await logger.error("Error computing committed stock:", err);
       // Fall back to raw stock if query fails
     }
 
@@ -2361,7 +2361,7 @@ export const onLowStockAlert = onDocumentCreated(
          ${newStock} remaining`
       );
     } catch (err) {
-      logger.error(
+      await logger.error(
         "Error sending low stock alert:", err
       );
     }
@@ -2526,7 +2526,7 @@ export const onOrderStatusChanged = onDocumentUpdated(
         `Order status email sent: ${orderNumber} → ${newStatus}`
       );
     } catch (err) {
-      logger.error(
+      await logger.error(
         "Error sending order status email:", err
       );
     }
@@ -2647,7 +2647,7 @@ export const onReturnStatusChanged = onDocumentUpdated(
         `Return status email sent: ${returnNumber} → ${newStatus}`
       );
     } catch (err) {
-      logger.error(
+      await logger.error(
         "Error sending return status email:", err
       );
     }
@@ -2756,7 +2756,7 @@ export const onPaymentReceipt = onDocumentCreated(
         `→ ${customerEmail}`
       );
     } catch (err) {
-      logger.error(
+      await logger.error(
         "Error sending payment receipt:", err
       );
     }
@@ -5205,7 +5205,7 @@ export const onPoRequest = onDocumentCreated(
 
       logger.info(`PO ${poNumber} sent to supplier`);
     } catch (err: any) {
-      logger.error("Error sending PO email:", err);
+      await logger.error("Error sending PO email:", err);
       await event.data?.ref.update({
         status: "error",
         error: err.message,
@@ -5669,7 +5669,7 @@ export const testSentryReporting =
           "Admin only"
         );
       }
-      logger.error(
+      await logger.error(
         "testSentryReporting: deliberate test error — " +
         "safe to ignore, confirms Sentry backend wiring",
         new Error("Sentry backend verification test")
