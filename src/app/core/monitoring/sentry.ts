@@ -4,9 +4,11 @@ import { environment } from '../../../environments/environment';
 let sentryActive = false;
 
 /**
- * Initializes browser error tracking. A pure no-op outside production or
- * when no DSN is configured (environment.ts/environment.prod.ts) — dev
- * builds never talk to Sentry, and there is nothing to disable manually.
+ * Initializes browser error tracking. A pure no-op when no DSN is
+ * configured (environment.ts/environment.prod.ts) — gated on the DSN
+ * alone, not environment identity, so dev and prod both report once a
+ * DSN is set for each; `environment: environment.envLabel` on the init
+ * call is what separates them in Sentry, not whether this runs at all.
  *
  * Deliberately conservative: no performance tracing (tracesSampleRate: 0),
  * no `httpClientIntegration` (that's what would capture request/response
@@ -15,10 +17,10 @@ let sentryActive = false;
  * auto-attaches IP address or cookies.
  */
 export function initSentry(): void {
-  if (!environment.production || !environment.sentryDsn) return;
+  if (!environment.sentryDsn) return;
   Sentry.init({
     dsn: environment.sentryDsn,
-    environment: environment.firebase.projectId,
+    environment: environment.envLabel,
     tracesSampleRate: 0,
     sendDefaultPii: false,
     beforeSend: scrubEvent,

@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "tropx-wholesale-dev",
     "public": "dist/tropx/browser",
     "ignore": [
       "firebase.json",
@@ -10,6 +11,32 @@
       {
         "source": "**",
         "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/ngsw.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/ngsw-worker.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Robots-Tag", "value": "noindex" }
+        ]
       }
     ]
   },

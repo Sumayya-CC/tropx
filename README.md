@@ -28,12 +28,20 @@ Custom B2B wholesale platform for **Tropx Enterprises Inc.** — a wholesale dis
 
 ## Environments
 
-|      | Project                | Firestore DB |
-| ---- | ---------------------- | ------------ |
-| Dev  | `tropx-wholesale-dev`  | `tropx-dev`  |
-| Prod | `tropx-wholesale-prod` | `tropx-prod` |
+|      | Project                | Firestore DB | Served from |
+| ---- | ----------------------- | ------------ | ----------- |
+| Dev  | `tropx-wholesale-dev`  | `tropx-dev`  | Firebase Hosting — `tropx-wholesale-dev.web.app` |
+| Prod | `tropx-wholesale-prod` | `tropx-prod` | Netlify — `tropxwholesale.ca` |
 
 **All features are validated in the development environment before production deployment.**
+
+Dev is built with `npm run build:dev-deploy` (the `dev-deploy` Angular configuration — production-grade optimizations, but no `fileReplacements`, so `environment.ts` ships instead of `environment.prod.ts`) and deployed with `firebase deploy --only hosting --project tropx-wholesale-dev`. Prod's frontend is Netlify's job, not Firebase Hosting's — **prod's Firebase Hosting site is disabled**: `firebase hosting:sites:list --project tropx-wholesale-prod` shows the site exists, but nothing has ever been released to it (its URL returns Firebase's own "Site Not Found" page). Do not `firebase deploy --only hosting` against the prod project expecting it to reach production traffic.
+
+This split is intentional, not accidental, and it has one real consequence: **hosting-layer behavior (headers, redirects, CDN caching) is not validated by dev testing**, because dev runs on Firebase Hosting and prod runs on Netlify — two different edges. Everything upstream of that (app code, Firebase project, database) *is* validated by dev testing, which is the point.
+
+No service worker is registered anywhere in this app today — there's a PWA manifest and icon set (`public/manifest.webmanifest`, favicons) making the app installable, but no offline support or asset-caching layer. The `Cache-Control: no-cache` headers on dev's `index.html`/`ngsw.json`/`ngsw-worker.js` (see `firebase.json`) are forward-compatible scaffolding for if/when a service worker is added later — they are not currently doing anything, since there's nothing at those `ngsw*` paths to cache. Dev also sends `X-Robots-Tag: noindex` on every path so it doesn't compete with `tropxwholesale.ca` in search results.
+
+Sentry (see Observability below) reports from both environments once each has a DSN configured, separated by the `environment` tag (`development` / `production`, from `environment.envLabel`) rather than by project ID.
 
 ### Regions
 
@@ -51,6 +59,7 @@ Custom B2B wholesale platform for **Tropx Enterprises Inc.** — a wholesale dis
 * Functions lint (existing ESLint setup, already used in the Firebase predeploy hook) is blocking, as are typecheck, build, and tests on both sides.
 * Functions tests run against real Firestore/Auth/Storage emulators, not mocks — `npm run test:ci` in `functions/` boots them (`firebase emulators:exec`), runs Jest, and tears them down automatically, win or fail. CI installs a JDK first (the emulators are JVM-based).
 * `.github/workflows/deploy-preview.yml` is a **disabled scaffold** for future PR preview deploys — see the comments at the top of that file for how to enable it later. It does not run today.
+* `.github/workflows/doc-drift.yml` is a **warn-only** check: if a PR touches `functions/src/**`, `core/models/**`, `firestore.rules`, `storage.rules`, or environment/build config without touching `docs/` or `CLAUDE.md`, it posts a workflow warning (never fails the build) pointing at `.claude/DOC-MAP.md`. See CLAUDE.md "Definition of Done."
 
 **Running tests locally:**
 
@@ -80,7 +89,7 @@ Error tracking (Sentry) and structured logging are wired in but **off by default
   firebase functions:secrets:set SENTRY_DSN --project tropx-wholesale-prod
   ```
   Every function already declares `secrets: [sentryDsn]` (or has it appended to its existing secrets array) — no per-function wiring needed once the secret exists. Leaving it unset keeps Sentry off; nothing else changes.
-* **Frontend**: `src/app/core/monitoring/sentry.ts` initializes `@sentry/angular` only when `environment.production` is true **and** `environment.sentryDsn` is non-empty. To enable: create a Sentry project (dashboard action, not something this repo can do for you), then set `sentryDsn` in `src/environments/environment.prod.ts` — a DSN is a public client identifier, safe to commit like the Firebase config already in that file.
+* **Frontend**: `src/app/core/monitoring/sentry.ts` initializes `@sentry/angular` when `environment.sentryDsn` is non-empty — gated on the DSN alone, not environment identity, so dev and prod each report independently once each has its own DSN set. Events are tagged with `environment: environment.envLabel` (`development`/`production`) so they're separable in Sentry. To enable: create a Sentry project (dashboard action, not something this repo can do for you), then set `sentryDsn` in `src/environments/environment.prod.ts` (and/or `environment.ts` for dev) — a DSN is a public client identifier, safe to commit like the Firebase config already in that file.
 * Both sides scrub known-sensitive field names (`*Cents`, email, phone, address, business/owner/customer name) before anything reaches Sentry, and neither captures request/response bodies. See the comments in `logger.ts` and `sentry.ts` for the exact rules.
 * User context on the frontend is role + uid for staff, role-only (no id) for customers — never customer PII.
 

@@ -330,7 +330,9 @@ flowchart TB
 | Firebase project | (default alias) | `tropx-wholesale-prod` |
 | Firestore database ID | `tropx-dev` | `tropx-prod` |
 | Config file | `firebase.json` | `firebase.prod.json` (via `--config` flag) |
-| Angular environment | `environment.ts` | `environment.prod.ts` (via `angular.json` `fileReplacements`) |
+| Angular environment | `environment.ts` (`envLabel: 'development'`) | `environment.prod.ts` (`envLabel: 'production'`, via `angular.json` `fileReplacements`) |
+| Angular build config | `dev-deploy` (via `npm run build:dev-deploy`) — production optimizations, no `fileReplacements` | `production` (default `ng build`) |
+| Frontend hosting | Firebase Hosting, `hosting.site: tropx-wholesale-dev` in `firebase.json` | Netlify (`tropxwholesale.ca`) — prod's Firebase Hosting site exists but has nothing deployed to it |
 | Secrets | Separate `RESEND_API_KEY` | Separate `RESEND_API_KEY` |
 
 `DATABASE_ID` in `functions/src/index.ts` resolves at runtime from

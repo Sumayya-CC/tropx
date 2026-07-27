@@ -1,5 +1,8 @@
 export const environment = {
   production: true,
+  // See environment.ts for why this is separate from `production` — this
+  // is the one place `envLabel` should read 'production'.
+  envLabel: 'production' as 'development' | 'production',
   useEmulator: false,
   // Set the real Sentry DSN here once a Sentry project exists for this
   // app — see core/monitoring/sentry.ts for what it enables. Empty

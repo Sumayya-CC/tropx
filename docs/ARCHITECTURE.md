@@ -556,6 +556,15 @@ which would erase the staff/customer boundary for every path at once.
   `firebase.json` (dev, database `tropx-dev`) vs `firebase.prod.json` (prod,
   database `tropx-prod`, invoked via `--config firebase.prod.json --project
   tropx-wholesale-prod`).
+- **`angular.json`'s `defaultConfiguration` is `production`, not
+  `dev-deploy`.** A bare `ng build` before a dev-hosting deploy silently
+  produces a prod-pointed bundle (prod Firebase project, prod database) —
+  this actually happened once. Always build dev's frontend with `npm run
+  build:dev-deploy` (the `dev-deploy` Angular configuration: production
+  optimizations, no `fileReplacements`), never a bare `ng build`.
+  `firebase.json`'s `hosting.site` is pinned to `tropx-wholesale-dev` so a
+  prod-targeted hosting deploy fails loudly instead of silently landing on
+  prod's (disabled) default site.
 - Secrets (`RESEND_API_KEY`, `FROM_EMAIL`) are per-project via Cloud Secret
   Manager — dev and prod have separate keys, not a shared one.
 

@@ -30,7 +30,7 @@ import { environment } from '../../../environments/environment';
 export function initAppCheck(app: FirebaseApp): AppCheck | null {
   if (!environment.appCheckSiteKey) return null;
 
-  if (!environment.production) {
+  if (environment.envLabel !== 'production') {
     (self as unknown as Record<string, unknown>)['FIREBASE_APPCHECK_DEBUG_TOKEN'] = true;
   }
 
