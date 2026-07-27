@@ -9,8 +9,10 @@ import { Storage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { centsToDisplay, displayToCents } from '../../../../shared/utils/currency.utils';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { serverTimestamp, where } from '@angular/fire/firestore';
+import { serverTimestamp, where, doc, collection } from '@angular/fire/firestore';
 import { Product, ProductUnit } from '../../../../core/models/product.model';
+import { StockAdjustment } from '../../../../core/models/stock-adjustment.model';
+import { TENANT_ID } from '../../../../core/config/tenant.config';
 
 interface Category {
   id: string;
@@ -595,11 +597,37 @@ export class ProductFormComponent implements OnDestroy {
         finalDocId = this.productId();
         this.toast.success('Product updated successfully');
       } else {
-        productData.stock = this.stock();
+        const openingStock = this.stock();
+        productData.stock = openingStock;
         productData.createdAt = serverTimestamp() as any;
         productData.createdBy = this.auth.getActionBy() as any;
-        const tempRef = await this.firestore.addDocument('products', productData);
-        finalDocId = tempRef.id;
+        const actionBy = this.auth.getActionBy();
+
+        await this.firestore.runBatch(async (batch, db) => {
+          const productRef = doc(collection(db, 'products'));
+          const adjustmentRef = doc(collection(db, 'stockAdjustments'));
+
+          batch.set(productRef, productData);
+
+          const adjustment: Omit<StockAdjustment, 'id'> = {
+            productId: productRef.id,
+            productName: productData.name!,
+            productSku: productData.sku!,
+            type: 'opening_balance',
+            quantity: openingStock,
+            previousStock: 0,
+            newStock: openingStock,
+            reason: 'Opening stock at product creation',
+            notes: '',
+            adjustedBy: actionBy as any,
+            createdAt: serverTimestamp(),
+            tenantId: TENANT_ID,
+            isDeleted: false
+          };
+          batch.set(adjustmentRef, adjustment);
+
+          finalDocId = productRef.id;
+        });
         this.toast.success('Product added successfully');
       }
 

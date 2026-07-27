@@ -8,7 +8,8 @@ export type AdjustmentType =
   | 'correction'    // Manual count correction
   | 'transfer'      // Transferred to another location
   | 'sample'
-  | 'sample_reversal';
+  | 'sample_reversal'
+  | 'opening_balance'; // Stamped once at product creation (or backfilled) — the ledger's starting point
 
 export interface StockAdjustment {
   id: string;
@@ -39,7 +40,8 @@ export const ADJUSTMENT_TYPE_LABELS: Record<AdjustmentType, string> = {
   correction: 'Correction',
   transfer: 'Transfer',
   sample: 'Sample',
-  sample_reversal: 'Sample Reversal'
+  sample_reversal: 'Sample Reversal',
+  opening_balance: 'Opening Balance'
 };
 
 // Indicates direction for UI (whether this type adds or removes stock)
@@ -51,5 +53,6 @@ export const ADJUSTMENT_TYPE_DIRECTION: Record<AdjustmentType, 'in' | 'out' | 'e
   correction: 'either',
   transfer: 'out',
   sample: 'out',
-  sample_reversal: 'in'
+  sample_reversal: 'in',
+  opening_balance: 'in'
 };

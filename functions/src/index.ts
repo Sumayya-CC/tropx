@@ -5457,6 +5457,189 @@ export const backfillLinkedCustomerIdClaims =
     }
   );
 
+// ── Backfill opening-balance stock ledger ───────
+// Product creation now stamps a `stockAdjustments`
+// record (type: "opening_balance") in the same
+// batch — see product-form.component.ts. Existing
+// products predate that fix and have no ledger
+// entry for their starting stock. This one-time
+// callable backfills one per product that lacks it.
+//
+// Reconstruction rule (NOT a naive currentStock -
+// sum(quantity) — that breaks on sample records,
+// which log the unclamped intended quantity while
+// stock itself is clamped at zero, see
+// visit.service.ts):
+//   - If the product has prior stockAdjustments,
+//     use the EARLIEST one's `previousStock` field
+//     as the true opening balance — that field was
+//     always computed from the actual stock value
+//     at the time, never from a delta sum, so it is
+//     exact even across clamped records.
+//   - If the product has no prior stockAdjustments
+//     at all, its stock has never moved since
+//     creation, so current `stock` IS the opening
+//     balance.
+//
+// Safe to run multiple times — skips any product
+// that already has an opening_balance record.
+// Defaults to dryRun so results can be reviewed
+// before writing; pass {dryRun: false} to commit.
+export const backfillOpeningStockLedger =
+  onCall(
+    {
+      region: "northamerica-northeast2",
+      secrets: [sentryDsn],
+      cors: true,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Must be authenticated"
+        );
+      }
+      if (request.auth.token["role"] !== "admin") {
+        throw new HttpsError(
+          "permission-denied",
+          "Admin only"
+        );
+      }
+
+      const dryRun = request.data?.dryRun !== false;
+
+      const [productsSnap, adjustmentsSnap] =
+        await Promise.all([
+          db.collection("products")
+            .where("tenantId", "==", 1)
+            .get(),
+          db.collection("stockAdjustments")
+            .where("tenantId", "==", 1)
+            .get(),
+        ]);
+
+      // Group existing adjustments by productId,
+      // sorted oldest-first, so both the idempotency
+      // check and the earliest-record lookup are a
+      // single in-memory pass — no per-product
+      // queries, no new composite index needed.
+      const byProduct = new Map<string, any[]>();
+      for (const adjDoc of adjustmentsSnap.docs) {
+        const adj = adjDoc.data();
+        if (adj["isDeleted"] === true) continue;
+        const list = byProduct.get(adj["productId"]) || [];
+        list.push(adj);
+        byProduct.set(adj["productId"], list);
+      }
+      for (const list of byProduct.values()) {
+        list.sort((a, b) => {
+          const at = a.createdAt?.toMillis?.() ?? 0;
+          const bt = b.createdAt?.toMillis?.() ?? 0;
+          return at - bt;
+        });
+      }
+
+      let alreadyHad = 0;
+      let backfilled = 0;
+      let missingCreatedAt = 0;
+      const details: Array<Record<string, unknown>> = [];
+
+      let batch = db.batch();
+      let opsInBatch = 0;
+      const commitBatch = async () => {
+        if (opsInBatch > 0) {
+          await batch.commit();
+          batch = db.batch();
+          opsInBatch = 0;
+        }
+      };
+
+      for (const productDoc of productsSnap.docs) {
+        const product = productDoc.data();
+        const productId = productDoc.id;
+        const existing = byProduct.get(productId) || [];
+
+        if (existing.some((a) => a.type === "opening_balance")) {
+          alreadyHad++;
+          continue;
+        }
+
+        let openingBalance: number;
+        let source: string;
+        let stampAt = product["createdAt"];
+        if (!stampAt) {
+          missingCreatedAt++;
+          stampAt = existing.length > 0 ?
+            existing[0].createdAt :
+            admin.firestore.Timestamp.now();
+        }
+
+        if (existing.length > 0) {
+          openingBalance = existing[0]["previousStock"] ?? 0;
+          source = "earliest-adjustment.previousStock";
+        } else {
+          openingBalance = product["stock"] ?? 0;
+          source = "current-stock-no-prior-adjustments";
+        }
+
+        details.push({
+          productId,
+          productName: product["name"],
+          productSku: product["sku"],
+          openingBalance,
+          source,
+        });
+
+        if (!dryRun) {
+          const adjustmentRef =
+            db.collection("stockAdjustments").doc();
+          batch.set(adjustmentRef, {
+            productId,
+            productName: product["name"] ?? "",
+            productSku: product["sku"] ?? "",
+            type: "opening_balance",
+            quantity: openingBalance,
+            previousStock: 0,
+            newStock: openingBalance,
+            reason: "Opening stock at product creation (backfilled)",
+            notes: "",
+            adjustedBy: {
+              uid: "system_backfill",
+              firstName: "System",
+              lastName: "Backfill",
+            },
+            createdAt: stampAt,
+            tenantId: 1,
+            isDeleted: false,
+          });
+          opsInBatch++;
+          if (opsInBatch >= 400) await commitBatch();
+        }
+        backfilled++;
+      }
+
+      if (!dryRun) await commitBatch();
+
+      logger.info(
+        "backfillOpeningStockLedger: " +
+        `dryRun=${dryRun}, ` +
+        `totalProducts=${productsSnap.size}, ` +
+        `alreadyHad=${alreadyHad}, ` +
+        `backfilled=${backfilled}, ` +
+        `missingCreatedAt=${missingCreatedAt}`
+      );
+
+      return {
+        dryRun,
+        totalProducts: productsSnap.size,
+        alreadyHad,
+        backfilled,
+        missingCreatedAt,
+        details: details.slice(0, 200),
+      };
+    }
+  );
+
 // ═══ Order Placement (transactional) ═════════════════════════════════════
 // Replaces client-side placeOrder. A Firestore transaction re-reads stock and
 // the order sequence at commit time, so concurrent orders cannot oversell or
