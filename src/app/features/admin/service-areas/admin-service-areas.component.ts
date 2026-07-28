@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, effect, HostListener } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -64,7 +65,7 @@ export class AdminServiceAreasComponent {
       where('tenantId', '==', 1),
       where('isDeleted', '==', false),
       orderBy('name', 'asc')
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: (data) => {
         this.serviceAreas.set(data);
         this.isLoading.set(false);
@@ -80,7 +81,7 @@ export class AdminServiceAreasComponent {
       'customers',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: (data) => this.customers.set(data),
       error: (err) => console.error('Error loading customers:', err)
     });
