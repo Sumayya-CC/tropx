@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { where, orderBy, limit } from '@angular/fire/firestore';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -33,7 +34,7 @@ export class BannerClicksComponent {
       where('tenantId', '==', 1),
       orderBy('clickedAt', 'desc'),
       limit(500),
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: d => { this.clicks.set(d); this.isLoading.set(false); },
       error: e => { console.error(e); this.isLoading.set(false); },
     });

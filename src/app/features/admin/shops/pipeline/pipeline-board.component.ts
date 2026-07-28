@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { where } from '@angular/fire/firestore';
@@ -51,7 +52,7 @@ export class PipelineBoardComponent {
       where('tenantId', '==', 1),
       where('isDeleted', '==', false),
       where('status', '==', 'prospect'),
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: d => { this.prospects.set(d); this.isLoading.set(false); },
       error: e => { console.error(e); this.isLoading.set(false); },
     });
@@ -59,7 +60,7 @@ export class PipelineBoardComponent {
     this.firestore.getCollection<Shop>('shops',
       where('tenantId','==',1), where('isDeleted','==',false),
       where('status','==','customer'),
-    ).subscribe({ next: d => this.convertedShops.set(d.filter(s => (s.pipelineHistory?.length || 0) > 0)), error: () => {} });
+    ).pipe(takeUntilDestroyed()).subscribe({ next: d => this.convertedShops.set(d.filter(s => (s.pipelineHistory?.length || 0) > 0)), error: () => {} });
   }
 
   private thresholds(): StuckThresholds {

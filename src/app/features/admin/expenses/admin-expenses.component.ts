@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -26,6 +27,7 @@ export class AdminExpensesComponent {
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   protected readonly settings = inject(SettingsService);
+  private readonly destroyRef = inject(DestroyRef);
 
   centsToDisplay = centsToDisplay;
 
@@ -87,7 +89,7 @@ export class AdminExpensesComponent {
 
   loadExpenses() {
     this.isLoading.set(true);
-    this.firestore.getCollection<Expense>('expenses', where('tenantId', '==', TENANT_ID)).subscribe({
+    this.firestore.getCollection<Expense>('expenses', where('tenantId', '==', TENANT_ID)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         this.expenses.set(data);
         this.isLoading.set(false);

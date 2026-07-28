@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -29,6 +30,7 @@ import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
 })
 export class AdminStockAdjustmentsComponent {
   private readonly firestore = inject(FirestoreService);
+  private readonly destroyRef = inject(DestroyRef);
 
   // State
   adjustments = signal<StockAdjustment[]>([]);
@@ -116,7 +118,7 @@ export class AdminStockAdjustmentsComponent {
     this.isLoading.set(true);
     this.firestore.getCollection<StockAdjustment>('stockAdjustments', 
       where('tenantId', '==', TENANT_ID)
-    ).subscribe({
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data: StockAdjustment[]) => {
         const active = data.filter(a => a.isDeleted !== true);
         const sorted = active.sort((a, b) => {

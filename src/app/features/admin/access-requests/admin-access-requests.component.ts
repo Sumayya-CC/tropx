@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -18,6 +19,7 @@ import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
 })
 export class AdminAccessRequestsComponent implements OnInit {
   private readonly _firestore = inject(FirestoreService);
+  private readonly destroyRef = inject(DestroyRef);
 
   requests = signal<AccessRequest[]>([]);
   isLoading = signal<boolean>(true);
@@ -39,7 +41,7 @@ export class AdminAccessRequestsComponent implements OnInit {
       'customers',
       where('tenantId', '==', 1),
       where('isDeleted', '==', true)
-    ).subscribe(deleted => {
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(deleted => {
       const map = new Map<string, any>();
       deleted.forEach(c => map.set(c.id, c));
       this.deletedCustomers.set(map);
@@ -51,7 +53,7 @@ export class AdminAccessRequestsComponent implements OnInit {
     this._firestore.getCollection<AccessRequest>(
       'accessRequests',
       where('tenantId', '==', 1)
-    ).subscribe(data => {
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       // Filter out deleted in memory and sort by submittedAt
       const valid = data.filter(r => !r.isDeleted)
         .sort((a, b) => {

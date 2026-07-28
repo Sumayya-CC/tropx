@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, afterNextRender, ElementRef, viewChild, OnDestroy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { where } from '@angular/fire/firestore';
@@ -49,7 +50,7 @@ export class FieldMapComponent implements OnDestroy {
     // Load shops (stream).
     this.firestore.getCollection<Shop>(
       'shops', where('tenantId', '==', 1), where('isDeleted', '==', false),
-    ).subscribe(d => { this.shops.set(d); this.renderPins(); });
+    ).pipe(takeUntilDestroyed()).subscribe(d => { this.shops.set(d); this.renderPins(); });
 
     // Browser-only Leaflet init — afterNextRender never runs during SSR/prerender.
     afterNextRender(async () => {

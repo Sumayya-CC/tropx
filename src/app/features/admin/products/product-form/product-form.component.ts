@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, effect, ViewChild, ElementRef, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, effect, ViewChild, ElementRef, OnDestroy, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -296,6 +297,7 @@ export class ProductFormComponent implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly storage = inject(Storage);
+  private readonly destroyRef = inject(DestroyRef);
 
   isEditMode = signal(false);
   productId = signal<string | null>(null);
@@ -383,14 +385,16 @@ export class ProductFormComponent implements OnDestroy {
 
   private async loadDropdowns() {
     this.firestore.getCollection<Category>('categories', where('tenantId', '==', 1), where('isDeleted', '==', false))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(data => this.categories.set(data));
-      
+
     this.firestore.getCollection<Brand>('brands', where('tenantId', '==', 1), where('isDeleted', '==', false))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(data => this.brands.set(data));
   }
 
   private async loadProduct(id: string) {
-    this.firestore.getDocument<Product>(`products/${id}`).subscribe(product => {
+    this.firestore.getDocument<Product>(`products/${id}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(product => {
       if (!product || product.isDeleted) {
         this.toast.error('Product not found');
         this.router.navigate(['/admin/products']);
@@ -446,7 +450,7 @@ export class ProductFormComponent implements OnDestroy {
       return;
     }
 
-    this.firestore.getCollection<Product>('products', where('sku', '==', currentSku), where('tenantId', '==', 1)).subscribe(data => {
+    this.firestore.getCollection<Product>('products', where('sku', '==', currentSku), where('tenantId', '==', 1)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       const exists = data.some(p => p.id !== this.productId());
       this.skuError.set(exists);
       this.skuValid.set(!exists);

@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, afterNextRender, ElementRef, viewChild, OnDestroy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { where } from '@angular/fire/firestore';
@@ -97,7 +98,7 @@ export class RoutePlannerComponent implements OnDestroy {
     // service areas
     this.firestore.getCollection<any>('serviceAreas',
       where('tenantId','==',1), where('isDeleted','==',false),
-    ).subscribe(d => this.serviceAreas.set(d.map((a:any)=>({id:a.id,name:a.name}))));
+    ).pipe(takeUntilDestroyed()).subscribe(d => this.serviceAreas.set(d.map((a:any)=>({id:a.id,name:a.name}))));
 
     // saved starts from settings
     const starts = ((this.settings.routing?.() as any)?.startLocations) || [];
@@ -119,6 +120,7 @@ export class RoutePlannerComponent implements OnDestroy {
     });
 
     this.firestore.getCollection<any>('routeTemplates', where('tenantId','==',1), where('isDeleted','==',false))
+      .pipe(takeUntilDestroyed())
       .subscribe(d => this.templates.set(d));
 
     afterNextRender(async () => {

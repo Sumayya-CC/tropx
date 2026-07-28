@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -382,7 +383,7 @@ export class AdminProductsComponent {
       'products',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: (data) => {
         this.products.set(data);
         this.isLoading.set(false);
@@ -398,14 +399,14 @@ export class AdminProductsComponent {
       'categories',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
-    ).subscribe(data => this.categories.set(data));
+    ).pipe(takeUntilDestroyed()).subscribe(data => this.categories.set(data));
 
     // Brands
     this.firestore.getCollection<Brand>(
       'brands',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
-    ).subscribe(data => this.brands.set(data));
+    ).pipe(takeUntilDestroyed()).subscribe(data => this.brands.set(data));
   }
 
   setViewMode(mode: 'grid' | 'table') {

@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe, NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FirestoreService } from '../../../../core/services/firestore.service';
@@ -30,6 +31,7 @@ export class ProductDetailComponent implements OnInit {
   private firestore = inject(FirestoreService);
   private toast = inject(ToastService);
   public stockService = inject(StockAvailabilityService);
+  private readonly destroyRef = inject(DestroyRef);
 
   productId = signal<string>('');
   product = signal<Product | null>(null);
@@ -50,7 +52,7 @@ export class ProductDetailComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const id = params.get('id');
       if (id) {
         this.productId.set(id);
@@ -65,7 +67,7 @@ export class ProductDetailComponent implements OnInit {
     this.loading.set(true);
     
     // Load Product
-    this.firestore.getDocument<Product>(`products/${id}`).subscribe((p: Product | null) => {
+    this.firestore.getDocument<Product>(`products/${id}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p: Product | null) => {
       this.product.set(p);
       if (p) {
         this.loadCategoryAndBrand(p.categoryId, p.brandId);
@@ -78,12 +80,12 @@ export class ProductDetailComponent implements OnInit {
 
   loadCategoryAndBrand(categoryId: string, brandId: string) {
     if (categoryId) {
-      this.firestore.getDocument<Category>(`categories/${categoryId}`).subscribe((cat: Category | null) => {
+      this.firestore.getDocument<Category>(`categories/${categoryId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((cat: Category | null) => {
         if (cat) this.categoryName.set(cat.name);
       });
     }
     if (brandId) {
-      this.firestore.getDocument<Brand>(`brands/${brandId}`).subscribe((brand: Brand | null) => {
+      this.firestore.getDocument<Brand>(`brands/${brandId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((brand: Brand | null) => {
         if (brand) this.brandName.set(brand.name);
       });
     }
@@ -94,7 +96,7 @@ export class ProductDetailComponent implements OnInit {
       'stockAdjustments',
       where('productId', '==', productId),
       where('isDeleted', '==', false)
-    ).subscribe((data: StockAdjustment[]) => {
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: StockAdjustment[]) => {
       // Sort and take 5 in memory per rules
       const sorted = [...data].sort((a, b) => this.toDate(b.createdAt).getTime() - this.toDate(a.createdAt).getTime());
       this.stockAdjustments.set(sorted.slice(0, 5));

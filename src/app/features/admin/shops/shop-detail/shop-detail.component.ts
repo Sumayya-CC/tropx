@@ -1,4 +1,5 @@
-import { Component, inject, signal, effect, computed } from '@angular/core';
+import { Component, inject, signal, effect, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../../../core/services/firestore.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
@@ -42,6 +43,7 @@ export class ShopDetailComponent {
   private readonly visits = inject(VisitService);
   private readonly pipeline = inject(PipelineService);
   protected readonly settings = inject(SettingsService);
+  private readonly destroyRef = inject(DestroyRef);
 
   shop = signal<Shop | null>(null);
   linkedCustomer = signal<Customer | null>(null);
@@ -153,6 +155,7 @@ export class ShopDetailComponent {
 
   constructor() {
     this.firestore.getCollection<Product>('products', where('active', '==', true))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(p => this.products.set(p));
       
     effect(() => {
@@ -162,7 +165,7 @@ export class ShopDetailComponent {
   }
 
   private loadShop(id: string) {
-    this.firestore.getDocument<Shop>(`shops/${id}`).subscribe({
+    this.firestore.getDocument<Shop>(`shops/${id}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         if (!data || data.isDeleted) {
           this.toast.error('Shop not found'); this.router.navigate(['/admin/shops']); return;
@@ -180,7 +183,7 @@ export class ShopDetailComponent {
   }
 
   private loadLinkedCustomer(customerId: string) {
-    this.firestore.getDocument<Customer>(`customers/${customerId}`).subscribe({
+    this.firestore.getDocument<Customer>(`customers/${customerId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (c) => this.linkedCustomer.set(c && !c.isDeleted ? c : null),
       error: () => this.linkedCustomer.set(null)
     });

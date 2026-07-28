@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -156,7 +157,7 @@ export class AdminCustomersComponent {
       where('tenantId', '==', 1),
       where('isDeleted', '==', false),
       orderBy('businessName')
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: (data) => {
         this.customers.set(data);
         this.isLoading.set(false);
@@ -171,7 +172,7 @@ export class AdminCustomersComponent {
       'serviceAreas',
       where('tenantId', '==', 1),
       where('isDeleted', '==', false)
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: (data) => this.serviceAreas.set(data),
       error: (err) => console.error('Error loading service areas:', err)
     });

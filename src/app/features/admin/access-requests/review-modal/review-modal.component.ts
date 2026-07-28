@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, Output, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
@@ -46,6 +47,7 @@ export class ReviewModalComponent implements OnInit {
   private readonly _toast = inject(ToastService);
   private readonly _router = inject(Router);
   private readonly shopLink = inject(ShopLinkService);
+  private readonly destroyRef = inject(DestroyRef);
 
   isSaving = signal(false);
   
@@ -81,6 +83,7 @@ export class ReviewModalComponent implements OnInit {
     if (this.request.status === 'approved' && this.request.linkedCustomerId) {
       this._firestore
          .getDocument<any>(`customers/${this.request.linkedCustomerId}`)
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(customer => {
           this.linkedCustomer.set(customer);
           this.isLinkedCustomerDeleted.set(customer?.isDeleted === true);

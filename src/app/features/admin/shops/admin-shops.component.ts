@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
@@ -69,7 +70,7 @@ export class AdminShopsComponent {
       where('tenantId', '==', 1),
       where('isDeleted', '==', false),
       orderBy('name')
-    ).subscribe({
+    ).pipe(takeUntilDestroyed()).subscribe({
       next: (data) => { this.shops.set(data); this.isLoading.set(false); },
       error: (err) => { console.error('Error loading shops:', err); this.isLoading.set(false); }
     });

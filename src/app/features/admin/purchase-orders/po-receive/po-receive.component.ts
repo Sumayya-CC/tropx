@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -242,6 +243,7 @@ export class PoReceiveComponent {
   private readonly auth = inject(AuthService);
   private readonly settings = inject(SettingsService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   poId = this.route.snapshot.paramMap.get('id') || '';
   po = signal<PurchaseOrder | null>(null);
@@ -263,7 +265,7 @@ export class PoReceiveComponent {
 
   async loadData() {
     try {
-      this.firestore.getDocument<PurchaseOrder>(`purchaseOrders/${this.poId}`).subscribe(po => {
+      this.firestore.getDocument<PurchaseOrder>(`purchaseOrders/${this.poId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(po => {
         if (!po || (po.status !== 'sent' && po.status !== 'partially_received')) {
           this.po.set(null);
           this.isLoading.set(false);
@@ -290,6 +292,7 @@ export class PoReceiveComponent {
 
         if (this.inventorySettings().multiWarehouseEnabled) {
           this.firestore.getCollection<any>('warehouses', where('tenantId', '==', 1))
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(ws => this.warehouses.set(ws.filter(w => !w.isDeleted && w.active)));
         }
 

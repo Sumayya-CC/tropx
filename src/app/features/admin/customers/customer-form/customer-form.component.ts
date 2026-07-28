@@ -1,4 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../../core/services/firestore.service';
@@ -36,6 +37,7 @@ export class CustomerFormComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly storage = inject(Storage);
   private readonly shopLink = inject(ShopLinkService);
+  private readonly destroyRef = inject(DestroyRef);
 
   isEditMode = signal(false);
   isLoading = signal(false);
@@ -109,7 +111,7 @@ export class CustomerFormComponent implements OnInit {
   }
 
   private prefillFromShop(shopId: string) {
-    this.firestore.getDocument<Shop>(`shops/${shopId}`).subscribe({
+    this.firestore.getDocument<Shop>(`shops/${shopId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (s) => {
         if (!s || s.isDeleted) return;
         this.form.patchValue({
@@ -134,7 +136,7 @@ export class CustomerFormComponent implements OnInit {
 
   private loadCustomer(id: string) {
     this.isLoading.set(true);
-    this.firestore.getDocument<Customer>(`customers/${id}`).subscribe({
+    this.firestore.getDocument<Customer>(`customers/${id}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         if (!data || data.isDeleted) {
           this.toast.error('Customer not found');

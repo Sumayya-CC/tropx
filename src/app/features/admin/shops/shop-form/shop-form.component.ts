@@ -1,4 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../../core/services/firestore.service';
@@ -27,6 +28,7 @@ export class ShopFormComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly shopLink = inject(ShopLinkService);
+  private readonly destroyRef = inject(DestroyRef);
 
   isEditMode = signal(false);
   isLoading = signal(false);
@@ -83,6 +85,7 @@ export class ShopFormComponent implements OnInit {
 
   ngOnInit() {
     this.firestore.getCollection<any>('serviceAreas', where('tenantId','==',1), where('isDeleted','==',false))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(d => this.serviceAreas.set(d.map((a:any)=>({id:a.id,name:a.name}))));
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -94,7 +97,7 @@ export class ShopFormComponent implements OnInit {
   }
 
   private prefillFromCustomer(customerId: string) {
-    this.firestore.getDocument<Customer>(`customers/${customerId}`).subscribe({
+    this.firestore.getDocument<Customer>(`customers/${customerId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (c) => {
         if (!c || c.isDeleted) return;
         this.form.patchValue({
@@ -116,7 +119,7 @@ export class ShopFormComponent implements OnInit {
 
   private loadShop(id: string) {
     this.isLoading.set(true);
-    this.firestore.getDocument<Shop>(`shops/${id}`).subscribe({
+    this.firestore.getDocument<Shop>(`shops/${id}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         if (!data || data.isDeleted) {
           this.toast.error('Shop not found'); this.router.navigate(['/admin/shops']); return;

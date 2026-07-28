@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, output, input, effect, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, output, input, effect, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../../core/services/firestore.service';
@@ -22,6 +23,7 @@ export class StockAdjustmentModalComponent implements OnInit {
   private readonly firestore = inject(FirestoreService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   // Inputs
   productId = input<string | undefined>();
@@ -207,7 +209,7 @@ export class StockAdjustmentModalComponent implements OnInit {
     this.firestore.getCollection<Product>('products', 
       where('tenantId', '==', TENANT_ID),
       where('isDeleted', '==', false)
-    ).subscribe((products: Product[]) => {
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((products: Product[]) => {
       const sorted = [...products].sort((a, b) => a.name.localeCompare(b.name));
       this.allProducts.set(sorted);
     });
@@ -215,7 +217,7 @@ export class StockAdjustmentModalComponent implements OnInit {
 
   async loadProduct(id: string) {
     this.isLoadingProduct.set(true);
-    this.firestore.getDocument<Product>(`products/${id}`).subscribe((p: Product | null) => {
+    this.firestore.getDocument<Product>(`products/${id}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p: Product | null) => {
       this.product.set(p);
       this.isLoadingProduct.set(false);
     });
