@@ -22,7 +22,10 @@ describe('App', () => {
         { provide: FirestoreService, useValue: { getDocument: () => of(null) } },
         { provide: Firestore, useValue: {} },
         { provide: Storage, useValue: {} },
-        { provide: AuthService, useValue: { currentProfile: () => null, isStaff: () => false } },
+        {
+          provide: AuthService,
+          useValue: { currentProfile: () => null, isStaff: () => false, user$: of(null) },
+        },
       ]
     }).compileComponents();
   });
