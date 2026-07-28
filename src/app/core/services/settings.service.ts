@@ -1,6 +1,7 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
 import { FirestoreService } from './firestore.service';
-import { map } from 'rxjs';
+import { AuthService } from './auth.service';
+import { map, of, switchMap } from 'rxjs';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { Firestore, doc } from '@angular/fire/firestore';
 import { StorefrontSettings, DEFAULT_STOREFRONT_SETTINGS } from '../models/storefront-settings.model';
@@ -294,6 +295,7 @@ export class SettingsService {
   private readonly firestore = inject(FirestoreService);
   private readonly firestoreDb = inject(Firestore);
   private readonly storage = inject(Storage);
+  private readonly authService = inject(AuthService);
 
   private _business = signal<BusinessSettings | null>(null);
   private _invoice = signal<InvoiceSettings | null>(null);
@@ -306,24 +308,64 @@ export class SettingsService {
   private _expenses = signal<ExpensesSettings | null>(null);
 
   constructor() {
+    // Public settings docs (firestore.rules: storefront/ordering/business
+    // allow read: if true) — safe to subscribe unconditionally, including
+    // on public/unauthenticated pages.
     this.firestore.getDocument<BusinessSettings>('settings/business')
       .subscribe(v => this._business.set(v));
-    this.firestore.getDocument<InvoiceSettings>('settings/invoice')
-      .subscribe(v => this._invoice.set(v));
     this.firestore.getDocument<OrderingSettings>('settings/ordering')
       .subscribe(v => this._ordering.set(v));
     this.firestore.getDocument<StorefrontSettings>('settings/storefront')
       .subscribe(v => this._storefront.set(v));
-    this.firestore.getDocument<NotificationSettings>('settings/notifications')
-      .subscribe(v => this._notificationsData.set(v));
-    this.firestore.getDocument<InventorySettings>('settings/inventory')
-      .subscribe(v => this._inventory.set(v));
-    this.firestore.getDocument<ReconciliationSettings>('settings/reconciliation')
-      .subscribe(v => this._reconciliation.set(v));
-    this.firestore.getDocument<RoutingSettings>('settings/routing')
-      .subscribe(v => this._routing.set(v));
-    this.firestore.getDocument<ExpensesSettings>('settings/expenses')
-      .subscribe(v => this._expenses.set(v));
+
+    // Auth-gated settings docs (firestore.rules: isCustomer() ||
+    // isStaff()). This service is a root singleton injected eagerly by
+    // the root App component, so it lives for the whole tab session
+    // regardless of route/auth state — a plain unconditional subscribe
+    // here throws permission-denied on every unauthenticated page load
+    // (e.g. /login) and again on every logout while still connected.
+    // switchMap ties each listener's lifetime to auth presence: it
+    // resubscribes when a user signs in and — critically — cancels the
+    // previous inner subscription (unsubscribing the Firestore listener)
+    // the instant auth clears or changes, before rules ever get evaluated
+    // against the invalid/absent token.
+    const authed$ = this.authService.user$.pipe(map(u => !!u));
+
+    authed$.pipe(
+      switchMap(isAuthed => isAuthed
+        ? this.firestore.getDocument<InvoiceSettings>('settings/invoice')
+        : of(null))
+    ).subscribe(v => this._invoice.set(v));
+
+    authed$.pipe(
+      switchMap(isAuthed => isAuthed
+        ? this.firestore.getDocument<NotificationSettings>('settings/notifications')
+        : of(null))
+    ).subscribe(v => this._notificationsData.set(v));
+
+    authed$.pipe(
+      switchMap(isAuthed => isAuthed
+        ? this.firestore.getDocument<InventorySettings>('settings/inventory')
+        : of(null))
+    ).subscribe(v => this._inventory.set(v));
+
+    authed$.pipe(
+      switchMap(isAuthed => isAuthed
+        ? this.firestore.getDocument<ReconciliationSettings>('settings/reconciliation')
+        : of(null))
+    ).subscribe(v => this._reconciliation.set(v));
+
+    authed$.pipe(
+      switchMap(isAuthed => isAuthed
+        ? this.firestore.getDocument<RoutingSettings>('settings/routing')
+        : of(null))
+    ).subscribe(v => this._routing.set(v));
+
+    authed$.pipe(
+      switchMap(isAuthed => isAuthed
+        ? this.firestore.getDocument<ExpensesSettings>('settings/expenses')
+        : of(null))
+    ).subscribe(v => this._expenses.set(v));
   }
 
   business = computed(() => ({
