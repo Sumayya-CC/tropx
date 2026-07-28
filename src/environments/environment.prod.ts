@@ -7,7 +7,7 @@ export const environment = {
   // See core/monitoring/sentry.ts for what this enables. A DSN is a
   // public client identifier, safe to commit like the Firebase config
   // below.
-  sentryDsn: 'https://ae4b450be86aa09d5d50708da6b0bdf2@o4511809476034560.ingest.us.sentry.io/4511809488420864',
+  sentryDsn: 'https://14f3de173144a5b40cb268dfec52043a@o4511809476034560.ingest.us.sentry.io/4511809535213568',
   // Set the real reCAPTCHA v3 site key here once App Check is set up in
   // the Firebase console for the prod project — see
   // core/security/app-check.ts. Empty keeps it off (a no-op). Do not
