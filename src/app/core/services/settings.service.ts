@@ -1,7 +1,7 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
 import { FirestoreService } from './firestore.service';
 import { AuthService } from './auth.service';
-import { map, of, switchMap } from 'rxjs';
+import { map, of, switchMap, catchError } from 'rxjs';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 import { Firestore, doc } from '@angular/fire/firestore';
 import { StorefrontSettings, DEFAULT_STOREFRONT_SETTINGS } from '../models/storefront-settings.model';
@@ -325,45 +325,57 @@ export class SettingsService {
     // here throws permission-denied on every unauthenticated page load
     // (e.g. /login) and again on every logout while still connected.
     // switchMap ties each listener's lifetime to auth presence: it
-    // resubscribes when a user signs in and — critically — cancels the
-    // previous inner subscription (unsubscribing the Firestore listener)
-    // the instant auth clears or changes, before rules ever get evaluated
-    // against the invalid/absent token.
+    // resubscribes when a user signs in and cancels the previous inner
+    // subscription when auth clears or changes.
+    //
+    // catchError on each INNER stream is not just noise-reduction: without
+    // it, an inner listener error (e.g. the logout-transition race below)
+    // propagates through switchMap and terminates the OUTER subscription
+    // permanently — this service would never read that doc again for the
+    // rest of the tab's life, even after a later login. catchError keeps
+    // the outer subscription alive so it can react to the next auth change.
+    //
+    // A brief permission-denied on logout can still happen despite the
+    // ordering here: Firestore's SDK has its own internal listener on the
+    // same auth-state-change event that proactively reconnects live
+    // listeners the instant credentials clear, registered long before this
+    // subscriber — app-level code can't reliably win that race. catchError
+    // absorbs it instead of fighting it.
     const authed$ = this.authService.user$.pipe(map(u => !!u));
 
     authed$.pipe(
       switchMap(isAuthed => isAuthed
-        ? this.firestore.getDocument<InvoiceSettings>('settings/invoice')
+        ? this.firestore.getDocument<InvoiceSettings>('settings/invoice').pipe(catchError(() => of(null)))
         : of(null))
     ).subscribe(v => this._invoice.set(v));
 
     authed$.pipe(
       switchMap(isAuthed => isAuthed
-        ? this.firestore.getDocument<NotificationSettings>('settings/notifications')
+        ? this.firestore.getDocument<NotificationSettings>('settings/notifications').pipe(catchError(() => of(null)))
         : of(null))
     ).subscribe(v => this._notificationsData.set(v));
 
     authed$.pipe(
       switchMap(isAuthed => isAuthed
-        ? this.firestore.getDocument<InventorySettings>('settings/inventory')
+        ? this.firestore.getDocument<InventorySettings>('settings/inventory').pipe(catchError(() => of(null)))
         : of(null))
     ).subscribe(v => this._inventory.set(v));
 
     authed$.pipe(
       switchMap(isAuthed => isAuthed
-        ? this.firestore.getDocument<ReconciliationSettings>('settings/reconciliation')
+        ? this.firestore.getDocument<ReconciliationSettings>('settings/reconciliation').pipe(catchError(() => of(null)))
         : of(null))
     ).subscribe(v => this._reconciliation.set(v));
 
     authed$.pipe(
       switchMap(isAuthed => isAuthed
-        ? this.firestore.getDocument<RoutingSettings>('settings/routing')
+        ? this.firestore.getDocument<RoutingSettings>('settings/routing').pipe(catchError(() => of(null)))
         : of(null))
     ).subscribe(v => this._routing.set(v));
 
     authed$.pipe(
       switchMap(isAuthed => isAuthed
-        ? this.firestore.getDocument<ExpensesSettings>('settings/expenses')
+        ? this.firestore.getDocument<ExpensesSettings>('settings/expenses').pipe(catchError(() => of(null)))
         : of(null))
     ).subscribe(v => this._expenses.set(v));
   }
