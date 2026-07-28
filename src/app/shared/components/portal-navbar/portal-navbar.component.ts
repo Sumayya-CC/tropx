@@ -71,8 +71,12 @@ export class PortalNavbarComponent {
   }
 
   async signOut() {
+    // Navigate away FIRST so this route tree (and any live Firestore
+    // listeners on it) is torn down before signOut() invalidates the
+    // auth token — otherwise still-mounted listeners see auth go null
+    // mid-flight and throw a permission-denied that's harmless but noisy.
+    await this.router.navigate(['/login']);
     await this.auth.logout();
-    this.router.navigate(['/login']);
   }
 
   closeMobileMenu() {

@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal, HostListener, effect, computed } fro
 import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AuthService } from '../../../core/services/auth.service';
-import { filter } from 'rxjs/operators';
+import { filter, take } from 'rxjs/operators';
 import { SettingsService } from '../../../core/services/settings.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -806,7 +806,17 @@ export class AdminShellComponent implements OnInit {
   ngOnInit() {
     this.currentRoute.set(this.router.url.split('?')[0]);
     this.updatePageTitle();
-    this.inventoryBootstrap.bootstrap();
+
+    // authGuard (this route's own guard) only waits for Firebase Auth
+    // session restoration, not the Firestore profile/role — roleGuard
+    // does that, but only for child routes. Bootstrap reads a staff-only
+    // collection, so wait for the profile (and its role claim) to be
+    // confirmed here too, or it can hit a permission-denied on a fresh
+    // login before the token's role claim is attached.
+    this.authService.userProfile$.pipe(
+      filter(profile => !!profile),
+      take(1)
+    ).subscribe(() => this.inventoryBootstrap.bootstrap());
 
     this.notificationService.registerNewOrderHandler(
       (order) => {
@@ -874,7 +884,11 @@ export class AdminShellComponent implements OnInit {
   }
 
   async logout() {
+    // Navigate away FIRST so this route tree (and any live Firestore
+    // listeners on it) is torn down before signOut() invalidates the
+    // auth token — otherwise still-mounted listeners see auth go null
+    // mid-flight and throw a permission-denied that's harmless but noisy.
+    await this.router.navigate(['/login']);
     await this.authService.logout();
-    this.router.navigate(['/login']);
   }
 }
