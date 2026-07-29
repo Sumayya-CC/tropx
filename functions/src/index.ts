@@ -7118,3 +7118,174 @@ export const cancelAdminOrder = onCall(
     return result;
   }
 );
+
+// ── saveOrderQuantityEdits ───────────────────────────────────────────────
+// Staff-only admin action (order-detail.component.ts saveOrderEdits()) —
+// the inline quick-edit on the order detail page, distinct from
+// updateAdminOrder (order-form's full edit form). This flow only ever
+// REDUCES quantities on the order's existing lines (stock is already
+// committed; a reduction returns the diff — see CLAUDE.md "Order
+// editing"), never adds/removes lines or raises a quantity above what
+// was ordered. It also has its own, broader status gate than
+// updateAdminOrder (confirmed/preparing/out_for_delivery via
+// canEditOrder(), not confirmed-only) — preserved as-is, not unified.
+// Used to be a client writeBatch keyed off the order()/customer live-
+// listener snapshots plus a getDoc-then-batch race on every touched
+// product. Moved to a runTransaction re-reading everything fresh.
+interface OrderQuantityEditInput {
+  productId: string;
+  quantity: number;
+  unitPriceCents: number;
+}
+
+export const saveOrderQuantityEdits = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const orderId = (data.orderId || "").toString();
+    const rawItems: OrderQuantityEditInput[] = Array.isArray(data.items) ? data.items : [];
+    const discountCents = Math.floor(Number(data.discountCents) || 0);
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await tx.get(orderRef);
+      if (!orderSnap.exists) throw new HttpsError("not-found", "Order not found");
+      const order = orderSnap.data()!;
+      if (order["isDeleted"]) throw new HttpsError("not-found", "Order not found");
+      if (!["confirmed", "preparing", "out_for_delivery"].includes(order["status"])) {
+        throw new HttpsError("failed-precondition", "This order can no longer be edited");
+      }
+
+      const originalItems: Array<Record<string, any>> = order["items"] || [];
+      const originalByPid = new Map(originalItems.map((it) => [it["productId"], it]));
+
+      // This flow can only adjust existing lines — no adding/removing —
+      // so the incoming set of productIds must exactly match the order's.
+      const incomingPids = new Set(rawItems.map((it) => it.productId));
+      const originalPids = new Set(originalByPid.keys());
+      const setsMatch = incomingPids.size === originalPids.size &&
+        [...incomingPids].every((pid) => originalPids.has(pid));
+      if (rawItems.length === 0 || !setsMatch) {
+        throw new HttpsError("invalid-argument", "Items must match the order's existing lines");
+      }
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      const customerRef = db.collection("customers").doc(order["customerId"]);
+      const customerSnap = await tx.get(customerRef);
+
+      const productRefs = [...originalPids].map((pid) => db.collection("products").doc(pid));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+      const productSnapByPid = new Map([...originalPids].map((pid, i) => [pid, productSnaps[i]]));
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+
+      // Reduce-only clamp, re-derived server-side rather than trusted from
+      // the client — mirrors updateItemQuantity's client clamp exactly.
+      const editedItems = rawItems.map((it) => {
+        const original = originalByPid.get(it.productId)!;
+        const originalQty = original["quantity"] || 0;
+        const quantity = Math.max(1, Math.min(Math.floor(Number(it.quantity) || 0), originalQty));
+        const unitPriceCents = Math.floor(Number(it.unitPriceCents) || 0);
+        const unitCostCents = original["unitCostCents"] || 0;
+        return {
+          productId: it.productId,
+          productName: original["productName"],
+          productSku: original["productSku"],
+          quantity,
+          unitPriceCents,
+          lineTotalCents: quantity * unitPriceCents,
+          unitCostCents,
+          lineCostCents: quantity * unitCostCents,
+          currencyCode: "CAD",
+        };
+      });
+
+      const subtotalCents = editedItems.reduce((sum, i) => sum + i.lineTotalCents, 0);
+      const taxRatePercent = order["taxRatePercent"] || 0;
+      const taxableCents = Math.max(0, subtotalCents - discountCents);
+      const taxCents = Math.round(taxableCents * (taxRatePercent / 100));
+      const totalCents = taxableCents + taxCents;
+      const totalCostCents = editedItems.reduce((sum, i) => sum + i.lineCostCents, 0);
+      const balanceCents = Math.max(0, totalCents - (order["amountPaidCents"] || 0));
+      const totalDiff = totalCents - (order["totalCents"] || 0);
+
+      tx.update(orderRef, {
+        items: editedItems,
+        subtotalCents,
+        discountCents,
+        taxCents,
+        totalCents,
+        balanceCents,
+        totalCostCents,
+        lastEditedAt: now,
+        lastEditedBy: actionBy,
+      });
+
+      if (totalDiff !== 0 && customerSnap.exists) {
+        const cd = customerSnap.data()!;
+        tx.update(customerRef, {
+          totalOrderedCents: Math.max(0, (cd["totalOrderedCents"] || 0) + totalDiff),
+          totalOwingCents: Math.max(0, (cd["totalOwingCents"] || 0) + totalDiff),
+        });
+      }
+
+      for (const editItem of editedItems) {
+        const original = originalByPid.get(editItem.productId)!;
+        const qtyDiff = (original["quantity"] || 0) - editItem.quantity;
+        if (qtyDiff <= 0) continue; // only reductions restore stock
+
+        const snap = productSnapByPid.get(editItem.productId)!;
+        if (!snap.exists) continue;
+
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        const newStock = currentStock + qtyDiff;
+        tx.update(db.collection("products").doc(editItem.productId), {stock: newStock});
+
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: editItem.productId,
+          productName: editItem.productName,
+          productSku: editItem.productSku,
+          type: "adjustment",
+          quantity: qtyDiff,
+          previousStock: currentStock,
+          newStock,
+          reason: `Order ${order["orderNumber"]} quantity reduced by ${qtyDiff}`,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+          linkedOrderId: orderId,
+          linkedOrderNumber: order["orderNumber"],
+        });
+      }
+
+      return {orderId, orderNumber: order["orderNumber"]};
+    });
+
+    return result;
+  }
+);

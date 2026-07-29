@@ -9,7 +9,7 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import { StatusBadgeComponent } from '../../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { serverTimestamp, doc, getDoc, where } from '@angular/fire/firestore';
+import { serverTimestamp, where } from '@angular/fire/firestore';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { take } from 'rxjs/operators';
@@ -869,105 +869,40 @@ export class OrderDetailComponent {
     this.editDiscountPercent.set(0);
   }
   
+  // Runs server-side (Admin SDK, runTransaction) rather than a client
+  // writeBatch keyed off live-listener snapshots. See
+  // saveOrderQuantityEdits in functions/src/index.ts.
   async saveOrderEdits() {
     const order = this.order();
     const totals = this.editTotals();
-    const actionBy = this.auth.getActionBy();
-    if (!order || !totals || !actionBy) return;
-  
+    if (!order || !totals) return;
+
     this.isUpdating.set(true);
     try {
-      const editedItems = this.editItems();
-      const originalTotal = order.totalCents;
-      const newTotal = totals.totalCents;
-      const totalDiff = newTotal - originalTotal;
-  
-      await this.firestore.runBatch(async (batch, db) => {
-        const { collection } = await import('@angular/fire/firestore');
-  
-        // 1. Update order document
-        const orderRef = doc(db, `orders/${order.id}`);
-        batch.update(orderRef, {
-          items: editedItems.map(i => ({
-            productId: i.productId,
-            productName: i.productName,
-            productSku: i.productSku,
-            quantity: i.quantity,
-            unitPriceCents: i.unitPriceCents,
-            lineTotalCents: i.lineTotalCents,
-            unitCostCents: order.items.find(oi => oi.productId === i.productId)?.unitCostCents || 0,
-            lineCostCents: i.quantity * (order.items.find(oi => oi.productId === i.productId)?.unitCostCents || 0),
-            currencyCode: 'CAD',
-          })),
-          subtotalCents: totals.subtotalCents,
-          discountCents: totals.discountCents,
-          taxCents: totals.taxCents,
-          totalCents: totals.totalCents,
-          balanceCents: totals.balanceCents,
-          totalCostCents: editedItems.reduce(
-            (sum, i) => sum + i.quantity * (order.items.find(oi => oi.productId === i.productId)?.unitCostCents || 0), 0
-          ),
-          lastEditedAt: serverTimestamp(),
-          lastEditedBy: actionBy,
-        });
-  
-        // 2. Update customer totals if total changed
-        if (totalDiff !== 0) {
-          const customerRef = doc(db, `customers/${order.customerId}`);
-          const customerSnap = await getDoc(customerRef);
-          if (customerSnap.exists()) {
-            const cd = customerSnap.data();
-            batch.update(customerRef, {
-              totalOrderedCents: Math.max(0, (cd['totalOrderedCents'] || 0) + totalDiff),
-              totalOwingCents: Math.max(0, (cd['totalOwingCents'] || 0) + totalDiff),
-            });
-          }
-        }
-  
-        // 3. Restore stock for any reduced quantities
-        for (const editItem of editedItems) {
-          const original = order.items.find(i => i.productId === editItem.productId);
-          if (!original) continue;
-  
-          const qtyDiff = original.quantity - editItem.quantity;
-          if (qtyDiff <= 0) continue;
-  
-          // Quantity was reduced — restore diff to stock
-          const productRef = doc(db, `products/${editItem.productId}`);
-          const productSnap = await getDoc(productRef);
-          if (!productSnap.exists()) continue;
-  
-          const pd = productSnap.data();
-          const currentStock = pd['stock'] || 0;
-          const newStock = currentStock + qtyDiff;
-  
-          batch.update(productRef, { stock: newStock });
-  
-          const adjustRef = doc(collection(db, 'stockAdjustments'));
-          batch.set(adjustRef, {
-            productId: editItem.productId,
-            productName: editItem.productName,
-            productSku: editItem.productSku,
-            type: 'adjustment',
-            quantity: qtyDiff,
-            previousStock: currentStock,
-            newStock,
-            reason: `Order ${order.orderNumber} quantity reduced by ${qtyDiff}`,
-            adjustedBy: actionBy,
-            createdAt: serverTimestamp(),
-            tenantId: 1,
-            isDeleted: false,
-            linkedOrderId: order.id,
-            linkedOrderNumber: order.orderNumber,
-          });
-        }
+      const callable = httpsCallable<
+        {
+          orderId: string;
+          items: { productId: string; quantity: number; unitPriceCents: number }[];
+          discountCents: number;
+        },
+        { orderId: string; orderNumber: string }
+      >(this.functions, 'saveOrderQuantityEdits');
+
+      await callable({
+        orderId: order.id,
+        items: this.editItems().map(i => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitPriceCents: i.unitPriceCents,
+        })),
+        discountCents: totals.discountCents,
       });
-  
+
       this.toast.success('Order updated successfully');
       this.isEditingOrder.set(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving order edits:', err);
-      this.toast.error('Failed to save changes');
+      this.toast.error(err?.message || 'Failed to save changes');
     } finally {
       this.isUpdating.set(false);
     }
