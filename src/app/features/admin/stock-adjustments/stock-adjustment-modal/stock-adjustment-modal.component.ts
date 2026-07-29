@@ -3,12 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../../core/services/firestore.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { Product } from '../../../../core/models/product.model';
 import { AdjustmentType, ADJUSTMENT_TYPE_LABELS, ADJUSTMENT_TYPE_DIRECTION } from '../../../../core/models/stock-adjustment.model';
-import { where, serverTimestamp, doc, collection } from '@angular/fire/firestore';
+import { where } from '@angular/fire/firestore';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { TENANT_ID } from '../../../../core/config/tenant.config';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../../../shared/components/searchable-select/searchable-select.component';
@@ -23,7 +22,6 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../../../s
 export class StockAdjustmentModalComponent implements OnInit {
   private readonly firestore = inject(FirestoreService);
   private readonly functions = inject(Functions);
-  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -303,6 +301,11 @@ export class StockAdjustmentModalComponent implements OnInit {
     }
   }
 
+  // Runs server-side (Admin SDK, runTransaction) rather than a client
+  // writeBatch: same reasoning as saveSingle — this site never read the
+  // product fresh either, using each item's captured allProducts()
+  // snapshot from add-time. See saveStockAdjustments in
+  // functions/src/index.ts.
   private async saveMulti() {
     if (!this.multiIsValid()) {
       if (this.multiItems().length === 0) {
@@ -315,62 +318,38 @@ export class StockAdjustmentModalComponent implements OnInit {
       return;
     }
 
-    const actionBy = this.auth.getActionBy();
-    if (!actionBy) {
-      this.toast.error('User session not found');
-      return;
-    }
-
     this.isSaving.set(true);
 
     try {
-      await this.firestore.runBatch(
-        async (batch, db) => {
-          for (const item of this.multiItems()) {
-            const p = item.product;
-            const dir = item.direction;
-            const qty = item.quantity;
-            const newStock = dir === 'in'
-              ? p.stock + qty
-              : p.stock - qty;
+      const callable = httpsCallable<
+        {
+          items: { productId: string; quantity: number; direction: 'in' | 'out' }[];
+          type: AdjustmentType;
+          reason: string;
+          notes: string;
+        },
+        { count: number }
+      >(this.functions, 'saveStockAdjustments');
 
-            const adjustmentRef =
-              doc(collection(db, 'stockAdjustments'));
-            const productRef =
-              doc(db, `products/${p.id}`);
+      const res = await callable({
+        items: this.multiItems().map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          direction: item.direction,
+        })),
+        type: this.type(),
+        reason: this.reason().trim(),
+        notes: this.notes().trim(),
+      });
 
-            batch.set(adjustmentRef, {
-              productId: p.id,
-              productName: p.name,
-              productSku: p.sku,
-              type: this.type(),
-              quantity: dir === 'in' ? qty : -qty,
-              previousStock: p.stock,
-              newStock,
-              reason: this.reason().trim(),
-              notes: this.notes().trim(),
-              adjustedBy: actionBy,
-              createdAt: serverTimestamp(),
-              tenantId: TENANT_ID,
-              isDeleted: false,
-            });
-
-            batch.update(productRef, {
-              stock: newStock,
-              updatedAt: serverTimestamp(),
-            });
-          }
-        }
-      );
-
-      const count = this.multiItems().length;
+      const count = res.data.count;
       this.toast.success(
         `${count} product${count > 1 ? 's' : ''} adjusted successfully`
       );
       this.closed.emit(true);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Multi adjustment error', e);
-      this.toast.error('Failed to save adjustments');
+      this.toast.error(e?.message || 'Failed to save adjustments');
     } finally {
       this.isSaving.set(false);
     }

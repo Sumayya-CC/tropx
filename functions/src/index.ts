@@ -7655,3 +7655,127 @@ export const saveStockAdjustment = onCall(
     return result;
   }
 );
+
+// ── saveStockAdjustments (multi-product) ─────────────────────────────────
+// Staff-only admin action (stock-adjustment-modal.component.ts
+// saveMulti()) — the multi-product variant of saveStockAdjustment, same
+// migration reasoning: no read at all before (previousStock came off
+// each item's captured allProducts() snapshot from add-time). One
+// transaction spans every product in the batch — all-or-nothing, matching
+// the original single writeBatch's atomicity. If ANY item would go
+// negative, the WHOLE adjustment is rejected (not just that item),
+// consistent with this being one save action, not N independent ones.
+interface MultiStockAdjustmentItemInput {
+  productId: string;
+  quantity: number;
+  direction: "in" | "out";
+}
+
+export const saveStockAdjustments = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const rawItems: MultiStockAdjustmentItemInput[] = Array.isArray(data.items) ? data.items : [];
+    const type = (data.type || "").toString();
+    const reason = (data.reason || "").toString().trim();
+    const notes = (data.notes || "").toString().trim();
+
+    if (rawItems.length === 0) throw new HttpsError("invalid-argument", "Add at least one product");
+    if (!ADJUSTMENT_TYPE_DIRECTION[type]) throw new HttpsError("invalid-argument", "Invalid adjustment type");
+    if (!reason) throw new HttpsError("invalid-argument", "Please provide a reason");
+    for (const it of rawItems) {
+      const qty = Math.floor(Number(it.quantity) || 0);
+      if (!it.productId || qty <= 0) {
+        throw new HttpsError("invalid-argument", "Every item needs a quantity of at least 1");
+      }
+    }
+
+    const mappedDirection = ADJUSTMENT_TYPE_DIRECTION[type];
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const productRefs = rawItems.map((it) => db.collection("products").doc(it.productId));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      // Resolve every item before writing anything — an all-or-nothing
+      // save, so any missing product or would-go-negative result rejects
+      // the whole adjustment rather than partially applying it.
+      const resolved = rawItems.map((it, i) => {
+        const snap = productSnaps[i];
+        if (!snap.exists) {
+          throw new HttpsError("not-found", "One of the selected products no longer exists");
+        }
+        const product = snap.data()!;
+        const direction = mappedDirection === "either" ?
+          (it.direction === "out" ? "out" : "in") :
+          mappedDirection;
+        const qty = Math.floor(Number(it.quantity) || 0);
+        const currentStock = product["stock"] || 0;
+        const signedQty = direction === "in" ? qty : -qty;
+        const newStock = currentStock + signedQty;
+        if (newStock < 0) {
+          throw new HttpsError(
+            "failed-precondition",
+            `${product["name"] || "A product"}: cannot reduce below 0`
+          );
+        }
+        return {
+          productId: it.productId,
+          productName: product["name"] || "",
+          productSku: product["sku"] || "",
+          signedQty,
+          currentStock,
+          newStock,
+        };
+      });
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+
+      for (const r of resolved) {
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: r.productId,
+          productName: r.productName,
+          productSku: r.productSku,
+          type,
+          quantity: r.signedQty,
+          previousStock: r.currentStock,
+          newStock: r.newStock,
+          reason,
+          notes,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+        });
+
+        tx.update(db.collection("products").doc(r.productId), {stock: r.newStock, updatedAt: now});
+      }
+
+      return {count: resolved.length};
+    });
+
+    return result;
+  }
+);
