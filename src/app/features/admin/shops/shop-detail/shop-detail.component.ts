@@ -351,7 +351,7 @@ export class ShopDetailComponent {
       return;
     }
     try {
-      await this.visits.deleteVisit(v, this.reverseStockOnDelete(), actionBy);
+      await this.visits.deleteVisit(v, this.reverseStockOnDelete());
       this.toast.success('Visit deleted');
       this.showDeleteVisit.set(null);
       await this.loadVisits(s.id);

@@ -4,7 +4,6 @@ import { where, orderBy, limit } from '@angular/fire/firestore';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { FirestoreService } from './firestore.service';
 import { Visit, VisitItem } from '../models/shop.model';
-import { ActionBy } from '../models/action-by.model';
 
 @Injectable({ providedIn: 'root' })
 export class VisitService {
@@ -102,51 +101,24 @@ export class VisitService {
     await this.recomputeShopLastVisitForShop(shopId);
   }
 
+  /**
+   * Runs server-side (Admin SDK, runTransaction) rather than a client
+   * writeBatch: the batch took a getDoc() read of each sampled product
+   * before committing, and had no guard against a repeated delete call
+   * double-reversing stock. See deleteVisit in functions/src/index.ts.
+   * actionBy is no longer accepted — the server derives it from the
+   * caller's own auth token.
+   */
   async deleteVisit(
     visit: Visit,
     reverseStock: boolean,
-    actionBy: ActionBy,
   ): Promise<void> {
-    await this.firestore.runBatch(async (batch, db) => {
-      const { doc, collection, getDoc, serverTimestamp } = await import('@angular/fire/firestore');
+    const callable = httpsCallable<
+      { visitId: string; reverseStock: boolean },
+      { shopId: string; alreadyDeleted: boolean }
+    >(this.functions, 'deleteVisit');
 
-      batch.update(doc(db, `visits/${visit.id}`), {
-        isDeleted: true,
-        isDeletedAt: serverTimestamp(),
-        deletedBy: actionBy,
-      });
-
-      if (reverseStock) {
-        for (const it of visit.items) {
-          if (!it.isSample || !it.productId || !it.sampleQty || it.sampleQty <= 0) continue;
-          const pRef = doc(db, `products/${it.productId}`);
-          const snap = await getDoc(pRef);
-          if (!snap.exists()) continue;
-          const currentStock = snap.data()?.['stock'] || 0;
-          const newStock = currentStock + it.sampleQty;   // add back
-          batch.update(pRef, { stock: newStock });
-
-          const adjRef = doc(collection(db, 'stockAdjustments'));
-          batch.set(adjRef, {
-            productId: it.productId,
-            productName: it.productName,
-            productSku: snap.data()?.['sku'] || '',
-            type: 'sample_reversal',
-            quantity: it.sampleQty,                        // positive = added back
-            previousStock: currentStock,
-            newStock,
-            reason: `Reversed sample from deleted visit`,
-            notes: null,
-            linkedShopId: visit.shopId,
-            linkedVisitId: visit.id,
-            adjustedBy: actionBy,
-            createdAt: serverTimestamp(),
-            tenantId: 1,
-            isDeleted: false,
-          });
-        }
-      }
-    });
+    await callable({ visitId: visit.id, reverseStock });
     await this.recomputeShopLastVisitForShop(visit.shopId);
   }
 

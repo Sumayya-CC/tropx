@@ -7430,3 +7430,111 @@ export const saveVisit = onCall(
     return result;
   }
 );
+
+// ── deleteVisit ───────────────────────────────────────────────────────
+// Staff-only field-ops action (visit.service.ts deleteVisit()). Same
+// getDoc-then-batch race per sample item as saveVisit, same fix. Also
+// closes the same race for the delete path itself: the original code had
+// no guard against a repeated/double delete call, so a double-click could
+// double-reverse stock (soft-delete update — like every soft delete in
+// this app, see FirestoreService.softDelete — would just silently
+// re-stamp isDeletedAt/deletedBy, but the reversal loop underneath it had
+// no such protection). Re-reading the visit fresh inside the transaction
+// makes the already-deleted check free — a repeat call is now a no-op
+// instead of a second reversal, matching this codebase's stated
+// idempotency requirement for anything that could plausibly be invoked
+// twice on the same data.
+export const deleteVisit = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const visitId = (data.visitId || "").toString();
+    const reverseStock = data.reverseStock === true;
+    if (!visitId) throw new HttpsError("invalid-argument", "visitId is required");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const visitRef = db.collection("visits").doc(visitId);
+      const visitSnap = await tx.get(visitRef);
+      if (!visitSnap.exists) throw new HttpsError("not-found", "Visit not found");
+      const visit = visitSnap.data()!;
+
+      if (visit["isDeleted"]) {
+        // Already deleted — idempotent no-op, not a second reversal.
+        return {shopId: visit["shopId"], alreadyDeleted: true};
+      }
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      const items: Array<Record<string, any>> = visit["items"] || [];
+      const sampleItems = reverseStock ?
+        items.filter((it) => it["isSample"] && it["productId"] && (it["sampleQty"] || 0) > 0) :
+        [];
+      const productRefs = sampleItems.map((it) => db.collection("products").doc(it["productId"]));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+
+      tx.update(visitRef, {
+        isDeleted: true,
+        isDeletedAt: now,
+        deletedBy: actionBy,
+      });
+
+      for (let i = 0; i < sampleItems.length; i++) {
+        const it = sampleItems[i];
+        const snap = productSnaps[i];
+        if (!snap.exists) continue;
+
+        const sampleQty = it["sampleQty"] as number;
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        const newStock = currentStock + sampleQty;
+
+        tx.update(productRefs[i], {stock: newStock});
+
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: it["productId"],
+          productName: it["productName"],
+          productSku: p["sku"] || "",
+          type: "sample_reversal",
+          quantity: sampleQty,
+          previousStock: currentStock,
+          newStock,
+          reason: "Reversed sample from deleted visit",
+          notes: null,
+          linkedShopId: visit["shopId"],
+          linkedVisitId: visitId,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+        });
+      }
+
+      return {shopId: visit["shopId"], alreadyDeleted: false};
+    });
+
+    return result;
+  }
+);
