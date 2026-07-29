@@ -7538,3 +7538,120 @@ export const deleteVisit = onCall(
     return result;
   }
 );
+
+// ── saveStockAdjustment ──────────────────────────────────────────────────
+// Staff-only admin action (stock-adjustment-modal.component.ts
+// saveSingle()). This site had NO read at all before — previousStock came
+// straight off a live-listener signal (this.product(), fed by a
+// getDocument() subscription), which can be arbitrarily stale relative to
+// the actual write with no fresh-read step whatsoever — a WIDER race
+// window than the getDoc-then-batch sites elsewhere in 5H, not a
+// narrower one (see the 2026-07-28 re-audit). This migration adds the
+// read that never existed, rather than converting an existing one.
+//
+// Direction is re-derived server-side from `type` via the same
+// ADJUSTMENT_TYPE_DIRECTION mapping the client uses (stock-adjustment.
+// model.ts) — for fixed-direction types the client's direction is
+// ignored entirely, only trusted for 'correction' (the one type marked
+// 'either'). This blocks a tampered request from flipping the sign on a
+// type that has no legitimate "which way" ambiguity.
+//
+// Unlike order/sample paths, this type of manual correction has never
+// clamped-and-recorded-full on an oversell — the original client blocked
+// the save entirely if the result would go negative (isValid()'s
+// noNegativeStock check). That's preserved as a hard reject here, not
+// loosened into a clamp.
+const ADJUSTMENT_TYPE_DIRECTION: Record<string, "in" | "out" | "either"> = {
+  received: "in",
+  sold: "out",
+  damaged: "out",
+  returned: "in",
+  correction: "either",
+  transfer: "out",
+  sample: "out",
+  sample_reversal: "in",
+  opening_balance: "in",
+};
+
+export const saveStockAdjustment = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const productId = (data.productId || "").toString();
+    const type = (data.type || "").toString();
+    const quantity = Math.floor(Number(data.quantity) || 0);
+    const clientDirection = data.direction === "out" ? "out" : "in";
+    const reason = (data.reason || "").toString().trim();
+    const notes = (data.notes || "").toString().trim();
+
+    if (!productId) throw new HttpsError("invalid-argument", "productId is required");
+    if (!ADJUSTMENT_TYPE_DIRECTION[type]) throw new HttpsError("invalid-argument", "Invalid adjustment type");
+    if (quantity <= 0) throw new HttpsError("invalid-argument", "Quantity must be at least 1");
+    if (!reason) throw new HttpsError("invalid-argument", "Please provide a reason");
+
+    const mappedDirection = ADJUSTMENT_TYPE_DIRECTION[type];
+    const direction = mappedDirection === "either" ? clientDirection : mappedDirection;
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const productRef = db.collection("products").doc(productId);
+      const productSnap = await tx.get(productRef);
+      if (!productSnap.exists) throw new HttpsError("not-found", "Product not found");
+      const product = productSnap.data()!;
+      if (product["isDeleted"]) throw new HttpsError("not-found", "Product not found");
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      const currentStock = product["stock"] || 0;
+      const signedQty = direction === "in" ? quantity : -quantity;
+      const newStock = currentStock + signedQty;
+      if (newStock < 0) {
+        throw new HttpsError("failed-precondition", "Cannot reduce stock below 0");
+      }
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+      const adjRef = db.collection("stockAdjustments").doc();
+
+      tx.set(adjRef, {
+        productId,
+        productName: product["name"] || "",
+        productSku: product["sku"] || "",
+        type,
+        quantity: signedQty,
+        previousStock: currentStock,
+        newStock,
+        reason,
+        notes,
+        adjustedBy: actionBy,
+        createdAt: now,
+        tenantId: 1,
+        isDeleted: false,
+      });
+
+      tx.update(productRef, {stock: newStock, updatedAt: now});
+
+      return {adjustmentId: adjRef.id, newStock};
+    });
+
+    return result;
+  }
+);

@@ -7,8 +7,9 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { Product } from '../../../../core/models/product.model';
-import { StockAdjustment, AdjustmentType, ADJUSTMENT_TYPE_LABELS, ADJUSTMENT_TYPE_DIRECTION } from '../../../../core/models/stock-adjustment.model';
+import { AdjustmentType, ADJUSTMENT_TYPE_LABELS, ADJUSTMENT_TYPE_DIRECTION } from '../../../../core/models/stock-adjustment.model';
 import { where, serverTimestamp, doc, collection } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { TENANT_ID } from '../../../../core/config/tenant.config';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../../../shared/components/searchable-select/searchable-select.component';
 
@@ -21,6 +22,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../../../s
 })
 export class StockAdjustmentModalComponent implements OnInit {
   private readonly firestore = inject(FirestoreService);
+  private readonly functions = inject(Functions);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
@@ -253,6 +255,10 @@ export class StockAdjustmentModalComponent implements OnInit {
     }
   }
 
+  // Runs server-side (Admin SDK, runTransaction) rather than a client
+  // writeBatch: this site never read the product fresh at all before —
+  // previousStock came straight off the live-listener signal. See
+  // saveStockAdjustment in functions/src/index.ts.
   private async saveSingle() {
     if (!this.isValid()) {
       if ((this.quantity() ?? 0) <= 0) this.toast.warning('Quantity must be at least 1');
@@ -262,44 +268,36 @@ export class StockAdjustmentModalComponent implements OnInit {
     }
 
     const p = this.product()!;
-    const actionBy = this.auth.getActionBy();
-    if (!actionBy) {
-      this.toast.error('User session not found');
-      return;
-    }
 
     this.isSaving.set(true);
 
     try {
-      await this.firestore.runBatch(async (batch, db) => {
-        const adjustmentRef = doc(collection(db, 'stockAdjustments'));
-        const productRef = doc(db, `products/${p.id}`);
+      const callable = httpsCallable<
+        {
+          productId: string;
+          type: AdjustmentType;
+          quantity: number;
+          direction: 'in' | 'out';
+          reason: string;
+          notes: string;
+        },
+        { adjustmentId: string; newStock: number }
+      >(this.functions, 'saveStockAdjustment');
 
-        const adjustment: Omit<StockAdjustment, 'id'> = {
-          productId: p.id,
-          productName: p.name,
-          productSku: p.sku,
-          type: this.type(),
-          quantity: (this.effectiveDirection() === 'in' ? 1 : -1) * this.quantity()!,
-          previousStock: p.stock,
-          newStock: this.newStock(),
-          reason: this.reason().trim(),
-          notes: this.notes().trim(),
-          adjustedBy: actionBy,
-          createdAt: serverTimestamp(),
-          tenantId: TENANT_ID,
-          isDeleted: false
-        };
-
-        batch.set(adjustmentRef, adjustment);
-        batch.update(productRef, { stock: this.newStock(), updatedAt: serverTimestamp() });
+      await callable({
+        productId: p.id,
+        type: this.type(),
+        quantity: this.quantity()!,
+        direction: this.effectiveDirection(),
+        reason: this.reason().trim(),
+        notes: this.notes().trim(),
       });
 
       this.toast.success('Stock adjusted successfully');
       this.closed.emit(true);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Adjustment error', e);
-      this.toast.error('Failed to save adjustment');
+      this.toast.error(e?.message || 'Failed to save adjustment');
     } finally {
       this.isSaving.set(false);
     }

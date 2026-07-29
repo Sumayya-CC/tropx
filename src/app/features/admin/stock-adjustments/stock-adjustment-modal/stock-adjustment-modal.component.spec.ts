@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { of } from 'rxjs';
+import { Functions } from '@angular/fire/functions';
 import { StockAdjustmentModalComponent } from './stock-adjustment-modal.component';
 import { FirestoreService } from '../../../../core/services/firestore.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -52,6 +53,7 @@ describe('StockAdjustmentModalComponent — stock math (single-product mode)', (
         provideZonelessChangeDetection(),
         { provide: FirestoreService, useValue: { getCollection: () => of([]), getDocument: () => of(null) } },
         { provide: AuthService, useValue: { getActionBy: () => null, currentProfile: () => null, isStaff: () => false } },
+        { provide: Functions, useValue: {} },
         {
           provide: ToastService,
           useValue: {
