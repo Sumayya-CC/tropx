@@ -3,7 +3,8 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { serverTimestamp, where, doc, getDoc, Firestore, collection } from '@angular/fire/firestore';
+import { serverTimestamp, where } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -18,8 +19,6 @@ import {
   RETURN_REASON_LABELS, 
   REFUND_METHOD_LABELS 
 } from '../../../core/models/return.model';
-import { Customer } from '../../../core/models/customer.model';
-import { Order } from '../../../core/models/order.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
@@ -44,6 +43,7 @@ import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
 })
 export class AdminReturnsComponent implements OnInit {
   private readonly firestore = inject(FirestoreService);
+  private readonly functions = inject(Functions);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
@@ -249,120 +249,39 @@ export class AdminReturnsComponent implements OnInit {
     this.restoreStockOnApproval.set(true);
   }
 
-  // Approve workflow
+  // Approve workflow — runs server-side (Admin SDK, runTransaction) rather
+  // than a client writeBatch: the batch took a getDoc() read of the order/
+  // customer/product docs before committing, so the read was never
+  // re-validated at commit time (two concurrent approvals could race on
+  // the same product's stock). See approveReturn in functions/src/index.ts.
   async approveReturn() {
     const returnDoc = this.selectedReturn();
-    const actionBy = this.auth.getActionBy();
-    if (!returnDoc || !actionBy) return;
+    if (!returnDoc) return;
 
     this.isProcessing.set(true);
 
     try {
-      await this.firestore.runBatch(async (batch: any, db: Firestore) => {
-        // 1. Update Return
-        const returnRef = doc(db, `returns/${returnDoc.id}`);
-        const returnUpdates: any = {
-          status: 'approved',
-          processedBy: actionBy,
-          processedAt: serverTimestamp(),
-          stockRestored: this.restoreStockOnApproval()
-        };
+      const callable = httpsCallable<
+        {
+          returnId: string;
+          restoreStock: boolean;
+          refundMethod?: string;
+          refundReferenceNumber?: string;
+        },
+        { returnNumber: string }
+      >(this.functions, 'approveReturn');
 
-        if (returnDoc.type === 'refund') {
-          returnUpdates.refundMethod = this.selectedRefundMethod();
-          returnUpdates.refundedAt = serverTimestamp();
-          returnUpdates.refundedBy = actionBy;
-          if (this.refundReferenceNumber().trim()) {
-            returnUpdates.refundReferenceNumber = this.refundReferenceNumber().trim();
-          }
-        }
-
-        // 2. Update Order Financials
-        const orderRef = doc(db, `orders/${returnDoc.orderId}`);
-        const orderSnap = await getDoc(orderRef);
-        if (orderSnap.exists()) {
-          const orderData = orderSnap.data() as Order;
-          
-          const newTotal = Math.max(0, (orderData.totalCents || 0) - returnDoc.amountCents);
-          const newBalance = Math.max(0, (orderData.balanceCents || 0) - returnDoc.amountCents);
-          const newAmountPaid = Math.min(newTotal, orderData.amountPaidCents || 0);
-          const newPaymentStatus = newBalance <= 0 ? 'paid' : newAmountPaid > 0 ? 'partial' : 'unpaid';
-
-          batch.update(orderRef, {
-            totalCents: newTotal,
-            balanceCents: newBalance,
-            amountPaidCents: newAmountPaid,
-            paymentStatus: newPaymentStatus
-          });
-        }
-
-        // 3. Update Customer Financials
-        const customerRef = doc(db, `customers/${returnDoc.customerId}`);
-        const customerSnap = await getDoc(customerRef);
-        if (customerSnap.exists()) {
-          const customerData = customerSnap.data() as Customer;
-          const updates: any = {
-            totalOrderedCents: Math.max(0, (customerData.totalOrderedCents || 0) - returnDoc.amountCents)
-          };
-
-          if (returnDoc.type === 'credit_note') {
-            updates.totalOwingCents = Math.max(0, (customerData.totalOwingCents || 0) - returnDoc.amountCents);
-          } else if (returnDoc.type === 'refund') {
-            updates.totalPaidCents = Math.max(0, (customerData.totalPaidCents || 0) - returnDoc.amountCents);
-          }
-
-          batch.update(customerRef, updates);
-        }
-
-        // 4. Restore stock if restoreStockOnApproval is true
-        if (this.restoreStockOnApproval()) {
-          const stockAdjustmentIds: string[] = [];
-
-          for (const item of returnDoc.items) {
-            const productRef = doc(db, `products/${item.productId}`);
-            const productSnap = await getDoc(productRef);
-
-            if (productSnap.exists()) {
-              const productData = productSnap.data();
-              const currentStock = productData['stock'] || 0;
-              const newStock = currentStock + item.quantity;
-
-              // Update product stock
-              batch.update(productRef, { stock: newStock });
-
-              // Create stockAdjustment record
-              const adjustRef = doc(collection(db, 'stockAdjustments'));
-              stockAdjustmentIds.push(adjustRef.id);
-
-              batch.set(adjustRef, {
-                productId: item.productId,
-                productName: item.productName,
-                productSku: item.productSku,
-                type: 'returned',
-                quantity: item.quantity,
-                previousStock: currentStock,
-                newStock,
-                reason: `Return ${returnDoc.returnNumber} approved`,
-                notes: `Return reason: ${returnDoc.reason}`,
-                adjustedBy: actionBy,
-                createdAt: serverTimestamp(),
-                tenantId: 1,
-                isDeleted: false,
-                linkedOrderId: returnDoc.orderId,
-                linkedOrderNumber: returnDoc.orderNumber
-              });
-            }
-          }
-
-          returnUpdates.stockAdjustmentIds = stockAdjustmentIds;
-        }
-
-        // Apply return document updates
-        batch.update(returnRef, returnUpdates);
+      await callable({
+        returnId: returnDoc.id,
+        restoreStock: this.restoreStockOnApproval(),
+        ...(returnDoc.type === 'refund' && {
+          refundMethod: this.selectedRefundMethod(),
+          refundReferenceNumber: this.refundReferenceNumber().trim(),
+        }),
       });
 
       this.toast.success(`Return ${returnDoc.returnNumber} approved successfully`);
-      
+
       // Update local panel state
       const updated = this.allReturns().find(r => r.id === returnDoc.id);
       if (updated) {
@@ -370,9 +289,9 @@ export class AdminReturnsComponent implements OnInit {
       } else {
         this.selectedReturn.set(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error approving return:', err);
-      this.toast.error('Failed to approve return');
+      this.toast.error(err?.message || 'Failed to approve return');
     } finally {
       this.isProcessing.set(false);
     }

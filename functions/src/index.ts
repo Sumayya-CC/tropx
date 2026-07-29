@@ -6220,3 +6220,160 @@ export const submitReturn = onCall(
     return result;
   }
 );
+
+// ── approveReturn ────────────────────────────────────────────────────────
+// Staff-only admin action (admin-returns.component.ts). Used to be a
+// client Firestore writeBatch that took a getDoc() read of the order/
+// customer/product docs, then committed the batch — the read is never
+// re-validated at commit time, so two concurrent approvals (two staff
+// tabs, a retry) can race on the same product's stock. Same defect class
+// as placeOrder pre-migration; moved to a runTransaction so every read is
+// re-taken atomically with the write. Money/customer-counter logic is
+// unchanged from the original component method — see git history on
+// admin-returns.component.ts for the pre-migration version this mirrors.
+const STAFF_ROLES = ["admin", "manager", "sales_rep", "warehouse"];
+
+export const approveReturn = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const returnId = (data.returnId || "").toString();
+    const restoreStock = data.restoreStock !== false; // defaults true, matches the component signal
+    const refundMethod = (data.refundMethod || "").toString();
+    const refundReferenceNumber = (data.refundReferenceNumber || "").toString().trim();
+
+    if (!returnId) throw new HttpsError("invalid-argument", "returnId is required");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const returnRef = db.collection("returns").doc(returnId);
+      const returnSnap = await tx.get(returnRef);
+      if (!returnSnap.exists) throw new HttpsError("not-found", "Return not found");
+      const ret = returnSnap.data()!;
+      if (ret["isDeleted"]) throw new HttpsError("not-found", "Return not found");
+
+      if (ret["type"] === "refund" && !refundMethod) {
+        throw new HttpsError("invalid-argument", "refundMethod is required for a refund");
+      }
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      const orderRef = db.collection("orders").doc(ret["orderId"]);
+      const orderSnap = await tx.get(orderRef);
+
+      const customerRef = db.collection("customers").doc(ret["customerId"]);
+      const customerSnap = await tx.get(customerRef);
+
+      const items: Array<Record<string, any>> = ret["items"] || [];
+      const productRefs = items.map((it) => db.collection("products").doc(it["productId"]));
+      const productSnaps = restoreStock ?
+        await Promise.all(productRefs.map((r) => tx.get(r))) :
+        [];
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+      const returnUpdates: Record<string, unknown> = {
+        status: "approved",
+        processedBy: actionBy,
+        processedAt: now,
+        stockRestored: restoreStock,
+      };
+
+      if (ret["type"] === "refund") {
+        returnUpdates["refundMethod"] = refundMethod;
+        returnUpdates["refundedAt"] = now;
+        returnUpdates["refundedBy"] = actionBy;
+        if (refundReferenceNumber) returnUpdates["refundReferenceNumber"] = refundReferenceNumber;
+      }
+
+      if (orderSnap.exists) {
+        const order = orderSnap.data()!;
+        const amountCents = ret["amountCents"] || 0;
+        const newTotal = Math.max(0, (order["totalCents"] || 0) - amountCents);
+        const newBalance = Math.max(0, (order["balanceCents"] || 0) - amountCents);
+        const newAmountPaid = Math.min(newTotal, order["amountPaidCents"] || 0);
+        const newPaymentStatus = newBalance <= 0 ? "paid" : newAmountPaid > 0 ? "partial" : "unpaid";
+
+        tx.update(orderRef, {
+          totalCents: newTotal,
+          balanceCents: newBalance,
+          amountPaidCents: newAmountPaid,
+          paymentStatus: newPaymentStatus,
+        });
+      }
+
+      if (customerSnap.exists) {
+        const cust = customerSnap.data()!;
+        const amountCents = ret["amountCents"] || 0;
+        const custUpdates: Record<string, unknown> = {
+          totalOrderedCents: Math.max(0, (cust["totalOrderedCents"] || 0) - amountCents),
+        };
+        if (ret["type"] === "credit_note") {
+          custUpdates["totalOwingCents"] = Math.max(0, (cust["totalOwingCents"] || 0) - amountCents);
+        } else if (ret["type"] === "refund") {
+          custUpdates["totalPaidCents"] = Math.max(0, (cust["totalPaidCents"] || 0) - amountCents);
+        }
+        tx.update(customerRef, custUpdates);
+      }
+
+      if (restoreStock) {
+        const stockAdjustmentIds: string[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const snap = productSnaps[i];
+          if (!snap.exists) continue;
+          const p = snap.data()!;
+          const currentStock = p["stock"] || 0;
+          const newStock = currentStock + (item["quantity"] || 0);
+
+          tx.update(productRefs[i], {stock: newStock});
+
+          const adjRef = db.collection("stockAdjustments").doc();
+          stockAdjustmentIds.push(adjRef.id);
+          tx.set(adjRef, {
+            productId: item["productId"],
+            productName: item["productName"],
+            productSku: item["productSku"],
+            type: "returned",
+            quantity: item["quantity"],
+            previousStock: currentStock,
+            newStock,
+            reason: `Return ${ret["returnNumber"]} approved`,
+            notes: `Return reason: ${ret["reason"]}`,
+            adjustedBy: actionBy,
+            createdAt: now,
+            tenantId: 1,
+            isDeleted: false,
+            linkedOrderId: ret["orderId"],
+            linkedOrderNumber: ret["orderNumber"],
+          });
+        }
+        returnUpdates["stockAdjustmentIds"] = stockAdjustmentIds;
+      }
+
+      tx.update(returnRef, returnUpdates);
+
+      return {returnNumber: ret["returnNumber"]};
+    });
+
+    return result;
+  }
+);
