@@ -4,15 +4,14 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../../core/services/firestore.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { SettingsService } from '../../../../core/services/settings.service';
 import { ToastService } from '../../../../shared/services/toast.service';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { PurchaseOrder } from '../../../../core/models/purchase-order.model';
-import { PurchaseReceiveItem } from '../../../../core/models/purchase-receive.model';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { doc, getDoc, collection, serverTimestamp, where } from '@angular/fire/firestore';
-import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../../shared/utils/date.utils';
+import { where } from '@angular/fire/firestore';
+import { todayInputValue } from '../../../../shared/utils/date.utils';
 
 interface ReceiveRow {
   productId: string;
@@ -240,7 +239,7 @@ export class PoReceiveComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly firestore = inject(FirestoreService);
-  private readonly auth = inject(AuthService);
+  private readonly functions = inject(Functions);
   private readonly settings = inject(SettingsService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
@@ -315,6 +314,12 @@ export class PoReceiveComponent {
     this.rows.set(current);
   }
 
+  // Runs server-side (Admin SDK, runTransaction) rather than a client
+  // writeBatch preceded by a separate getNextReceiveNumber() transaction:
+  // that split meant a receive-number could be consumed even if the batch
+  // that followed it failed, and a getDoc() read of each product was never
+  // re-validated at commit time. See receivePurchaseOrder in
+  // functions/src/index.ts.
   async saveReceive() {
     const order = this.po();
     if (!order) return;
@@ -325,121 +330,39 @@ export class PoReceiveComponent {
     }
 
     const invSettings = this.inventorySettings();
-    let finalWarehouseId = this.warehouseId();
-    let finalWarehouseName = order.warehouseName;
-
-    if (invSettings.multiWarehouseEnabled) {
-      if (!finalWarehouseId) {
-        this.toast.error('Select a warehouse');
-        return;
-      }
-      finalWarehouseName = this.warehouses().find(w => w.id === finalWarehouseId)?.name || finalWarehouseName;
-    } else {
-      finalWarehouseId = invSettings.defaultWarehouseId;
-      finalWarehouseName = invSettings.defaultWarehouseName;
+    if (invSettings.multiWarehouseEnabled && !this.warehouseId()) {
+      this.toast.error('Select a warehouse');
+      return;
     }
 
     this.isSaving.set(true);
     try {
-      const receiveNumber = await this.settings.getNextReceiveNumber();
-      const actionBy = this.auth.getActionBy();
+      const callable = httpsCallable<
+        {
+          purchaseOrderId: string;
+          rows: { productId: string; receiveNow: number }[];
+          notes: string;
+          receivedDate: string;
+          warehouseId: string;
+        },
+        { receiveNumber: string; purchaseOrderId: string }
+      >(this.functions, 'receivePurchaseOrder');
 
-      await this.firestore.runBatch(async (batch, db) => {
-        const receiveItems: PurchaseReceiveItem[] = [];
-        const poItemsUpdate = [...order.items];
-
-        for (const row of this.rows()) {
-          if (row.receiveNow > 0) {
-            const productRef = doc(db, `products/${row.productId}`);
-            const productSnap = await getDoc(productRef);
-            const currentStock = productSnap.exists() ? (productSnap.data()?.['stock'] || 0) : 0;
-            const newStock = currentStock + row.receiveNow;
-
-            // 1. Update product stock (and cost)
-            if (productSnap.exists()) {
-              batch.update(productRef, {
-                stock: newStock,
-                costCents: row.unitCostCents
-              });
-            }
-
-            // 2. Create Stock Adjustment
-            const adjRef = doc(collection(db, 'stockAdjustments'));
-            batch.set(adjRef, {
-              productId: row.productId,
-              productName: row.productName,
-              productSku: row.productSku,
-              type: 'received',
-              quantity: row.receiveNow,
-              previousStock: currentStock,
-              newStock,
-              reason: `PO ${order.poNumber} received (${receiveNumber})`,
-              adjustedBy: actionBy,
-              createdAt: serverTimestamp(),
-              tenantId: 1,
-              isDeleted: false,
-              linkedPoId: order.id,
-              linkedPoNumber: order.poNumber,
-              warehouseId: finalWarehouseId
-            });
-
-            // 3. Collect receive item
-            receiveItems.push({
-              productId: row.productId,
-              productName: row.productName,
-              productSku: row.productSku,
-              quantityReceived: row.receiveNow,
-              previousStock: currentStock,
-              newStock
-            });
-
-            // 4. Update PO items memory
-            const poItemIdx = poItemsUpdate.findIndex(i => i.productId === row.productId);
-            if (poItemIdx >= 0) {
-              poItemsUpdate[poItemIdx].quantityReceived += row.receiveNow;
-            }
-          }
-        }
-
-        // 5. Create PurchaseReceive doc
-        const recRef = doc(collection(db, 'purchaseReceives'));
-        batch.set(recRef, {
-          receiveNumber,
-          purchaseOrderId: order.id,
-          poNumber: order.poNumber,
-          supplierId: order.supplierId,
-          supplierName: order.supplierName,
-          warehouseId: finalWarehouseId,
-          warehouseName: finalWarehouseName,
-          items: receiveItems,
-          receivedDate: this.receivedDate() ? new Date(this.receivedDate() + 'T12:00:00Z') : serverTimestamp(),
-          notes: this.notes(),
-          createdAt: serverTimestamp(),
-          createdBy: actionBy,
-          tenantId: 1,
-          isDeleted: false
-        });
-
-        // 6. Update PO status
-        const allReceived = poItemsUpdate.every(i => i.quantityReceived >= i.quantityOrdered);
-        const poUpdate: Partial<PurchaseOrder> = {
-          items: poItemsUpdate,
-          status: allReceived ? 'received' : 'partially_received'
-        };
-        if (allReceived) {
-          poUpdate.receivedAt = serverTimestamp();
-        }
-
-        const poRef = doc(db, `purchaseOrders/${order.id}`);
-        batch.update(poRef, poUpdate);
+      const res = await callable({
+        purchaseOrderId: order.id,
+        rows: this.rows()
+          .filter(r => r.receiveNow > 0)
+          .map(r => ({ productId: r.productId, receiveNow: r.receiveNow })),
+        notes: this.notes(),
+        receivedDate: this.receivedDate(),
+        warehouseId: this.warehouseId(),
       });
 
-      this.toast.success(`Received goods successfully (GRN: ${receiveNumber})`);
+      this.toast.success(`Received goods successfully (GRN: ${res.data.receiveNumber})`);
       this.router.navigate(['/admin/purchase-orders', order.id]);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error('Receive error', err);
-      this.toast.error('Failed to process receipt');
+      this.toast.error(err?.message || 'Failed to process receipt');
     } finally {
       this.isSaving.set(false);
     }

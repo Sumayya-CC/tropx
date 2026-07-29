@@ -452,22 +452,6 @@ export class SettingsService {
     });
   }
 
-  async getNextReceiveNumber(): Promise<string> {
-    const { runTransaction } = await import('@angular/fire/firestore');
-    return runTransaction(this.firestoreDb, async (tx) => {
-      const ref = doc(this.firestoreDb, 'settings/receiveSequence');
-      const snap = await tx.get(ref);
-      const data = (snap.exists() ? snap.data() : { prefix: 'GRN', nextNumber: 1, padding: 5 }) as any;
-      const nextNum = data['nextNumber'] || 1;
-      const prefix = data['prefix'] || 'GRN';
-      const padding = data['padding'] || 5;
-
-      tx.set(ref, { ...data, nextNumber: nextNum + 1 });
-
-      return `${prefix}-${String(nextNum).padStart(padding, '0')}`;
-    });
-  }
-
   async getNextBillNumber(): Promise<string> {
     const { runTransaction } = await import('@angular/fire/firestore');
     return runTransaction(this.firestoreDb, async (tx) => {
