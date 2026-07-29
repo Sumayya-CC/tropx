@@ -242,7 +242,7 @@ export class LogVisitComponent implements OnInit {
         id = this.editVisit.id;
         this.toast.success('Visit updated');
       } else {
-        id = await this.visits.saveVisit(this.shop.id, this.shop.name, body, actionBy);
+        id = await this.visits.saveVisit(this.shop.id, body);
         this.toast.success('Visit saved');
       }
       this.saved.emit({

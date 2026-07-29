@@ -7289,3 +7289,144 @@ export const saveOrderQuantityEdits = onCall(
     return result;
   }
 );
+
+// ── saveVisit ─────────────────────────────────────────────────────────
+// Staff-only field-ops action (visit.service.ts saveVisit()). Used to be
+// a client writeBatch with a getDoc-then-batch race per sample item, same
+// defect class as the other 5H sites — lower urgency than the order/
+// return/PO sites (single-user-initiated, not concurrent-admin-prone),
+// but the same fix. shopName is now re-derived from a fresh read rather
+// than trusted from the client, since it only ever fed an audit-trail
+// reason string — cheap to make correct while already reading the shop
+// doc to validate shopId exists.
+interface VisitItemInput {
+  productId?: string;
+  productName: string;
+  left?: number;
+  found?: number;
+  added?: number;
+  isSample?: boolean;
+  sampleQty?: number;
+}
+
+export const saveVisit = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const shopId = (data.shopId || "").toString();
+    const rawItems: VisitItemInput[] = Array.isArray(data.items) ? data.items : [];
+    const outcome = data.outcome ?? null;
+    const managerAvailable = data.managerAvailable ?? null;
+    const notes = data.notes ?? null;
+    const markedConversion = data.markedConversion ?? false;
+    const visitDateMs = typeof data.visitDateMs === "number" ? data.visitDateMs : Date.now();
+
+    if (!shopId) throw new HttpsError("invalid-argument", "shopId is required");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const shopRef = db.collection("shops").doc(shopId);
+      const shopSnap = await tx.get(shopRef);
+      if (!shopSnap.exists) throw new HttpsError("not-found", "Shop not found");
+      const shop = shopSnap.data()!;
+      const shopName = shop["name"] || "";
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      // Compute soldSinceLastVisit per item (left - found, floored at 0),
+      // stripping undefined keys — matches the original client mapping.
+      const items = rawItems.map((it) => {
+        const sold = (it.left != null && it.found != null) ?
+          Math.max(0, it.left - it.found) :
+          undefined;
+        const item: Record<string, unknown> = {...it, soldSinceLastVisit: sold};
+        for (const key of Object.keys(item)) {
+          if (item[key] === undefined) delete item[key];
+        }
+        return item;
+      });
+
+      const sampleItems = items.filter((it) =>
+        it["isSample"] && it["productId"] && (it["sampleQty"] as number) > 0);
+      const productRefs = sampleItems.map((it) => db.collection("products").doc(it["productId"] as string));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+      const visitDate = new Date(visitDateMs);
+      const visitRef = db.collection("visits").doc();
+
+      tx.set(visitRef, {
+        shopId,
+        visitDate,
+        items,
+        outcome,
+        managerAvailable,
+        notes,
+        markedConversion,
+        visitedBy: actionBy,
+        tenantId: 1,
+        createdAt: now,
+        isDeleted: false,
+      });
+
+      tx.update(shopRef, {lastVisitDate: visitDate});
+
+      for (let i = 0; i < sampleItems.length; i++) {
+        const it = sampleItems[i];
+        const snap = productSnaps[i];
+        if (!snap.exists) continue;
+
+        const sampleQty = it["sampleQty"] as number;
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        const newStock = Math.max(0, currentStock - sampleQty);
+
+        tx.update(productRefs[i], {stock: newStock});
+
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: it["productId"],
+          productName: it["productName"],
+          productSku: p["sku"] || "",
+          type: "sample",
+          quantity: -sampleQty,
+          previousStock: currentStock,
+          newStock,
+          reason: `Sample given at ${shopName}`,
+          notes: sampleQty > currentStock ?
+            `Sampled ${sampleQty}, stock was ${currentStock}` :
+            null,
+          linkedShopId: shopId,
+          linkedVisitId: visitRef.id,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+        });
+      }
+
+      return {visitId: visitRef.id};
+    });
+
+    return result;
+  }
+);

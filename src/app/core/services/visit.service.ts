@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { where, orderBy, limit, serverTimestamp } from '@angular/fire/firestore';
+import { where, orderBy, limit } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { FirestoreService } from './firestore.service';
 import { Visit, VisitItem } from '../models/shop.model';
 import { ActionBy } from '../models/action-by.model';
@@ -8,6 +9,7 @@ import { ActionBy } from '../models/action-by.model';
 @Injectable({ providedIn: 'root' })
 export class VisitService {
   private readonly firestore = inject(FirestoreService);
+  private readonly functions = inject(Functions);
 
   /** Visits for a shop, newest first. */
   async listForShop(shopId: string, max = 50): Promise<Visit[]> {
@@ -28,13 +30,15 @@ export class VisitService {
   }
 
   /**
-   * Save a visit. For each sample item with a productId, clamp product.stock at 0
-   * (matches the rest of the app) but record the FULL sampled quantity in
-   * stockAdjustments so the audit trail is honest even when the counter clamps.
+   * Save a visit. Runs server-side (Admin SDK, runTransaction) rather than
+   * a client writeBatch: the batch took a getDoc() read of each sampled
+   * product before committing, so the read was never re-validated at
+   * commit time. See saveVisit in functions/src/index.ts. shopName and
+   * actionBy are no longer accepted — the server re-derives shopName from
+   * a fresh shop read and actionBy from the caller's own auth token.
    */
   async saveVisit(
     shopId: string,
-    shopName: string,
     payload: {
       visitDate: Date;
       items: VisitItem[];
@@ -43,81 +47,31 @@ export class VisitService {
       notes?: string;
       markedConversion?: boolean;
     },
-    actionBy: ActionBy,
   ): Promise<string> {
-    // Compute soldSinceLastVisit per item (left - found, floored at 0).
-    const items: VisitItem[] = payload.items.map(it => {
-      const sold = (it.left != null && it.found != null)
-        ? Math.max(0, it.left - it.found) : undefined;
-      
-      const item: any = { ...it, soldSinceLastVisit: sold };
-      for (const key of Object.keys(item)) {
-        if (item[key] === undefined) {
-          delete item[key];
-        }
-      }
-      return item as VisitItem;
+    const callable = httpsCallable<
+      {
+        shopId: string;
+        items: VisitItem[];
+        outcome?: string;
+        managerAvailable?: boolean;
+        notes?: string;
+        markedConversion?: boolean;
+        visitDateMs: number;
+      },
+      { visitId: string }
+    >(this.functions, 'saveVisit');
+
+    const res = await callable({
+      shopId,
+      items: payload.items,
+      outcome: payload.outcome,
+      managerAvailable: payload.managerAvailable,
+      notes: payload.notes,
+      markedConversion: payload.markedConversion,
+      visitDateMs: payload.visitDate.getTime(),
     });
 
-    let newVisitId = '';
-    await this.firestore.runBatch(async (batch, db) => {
-      const { collection, doc, getDoc } = await import('@angular/fire/firestore');
-
-      const visitRef = doc(collection(db, 'visits'));
-      newVisitId = visitRef.id;
-
-      batch.set(visitRef, {
-        shopId,
-        visitDate: payload.visitDate,
-        items,
-        outcome: payload.outcome ?? null,
-        managerAvailable: payload.managerAvailable ?? null,
-        notes: payload.notes ?? null,
-        markedConversion: payload.markedConversion ?? false,
-        visitedBy: actionBy,
-        tenantId: 1,
-        createdAt: serverTimestamp(),
-        isDeleted: false,
-      });
-
-      const shopRef = doc(db, `shops/${shopId}`);
-      batch.update(shopRef, { lastVisitDate: payload.visitDate });
-
-      // Sample stock adjustments (catalog items only).
-      for (const it of items) {
-        if (!it.isSample || !it.productId || !it.sampleQty || it.sampleQty <= 0) continue;
-        const productRef = doc(db, `products/${it.productId}`);
-        const snap = await getDoc(productRef);
-        if (!snap.exists()) continue;
-        const currentStock = snap.data()?.['stock'] || 0;
-        const newStock = Math.max(0, currentStock - it.sampleQty);
-
-        batch.update(productRef, { stock: newStock });
-
-        const adjRef = doc(collection(db, 'stockAdjustments'));
-        batch.set(adjRef, {
-          productId: it.productId,
-          productName: it.productName,
-          productSku: snap.data()?.['sku'] || '',
-          type: 'sample',
-          quantity: -it.sampleQty,          // full honest amount
-          previousStock: currentStock,
-          newStock,                          // clamped
-          reason: `Sample given at ${shopName}`,
-          notes: it.sampleQty > currentStock
-            ? `Sampled ${it.sampleQty}, stock was ${currentStock}`
-            : null,
-          linkedShopId: shopId,
-          linkedVisitId: visitRef.id,
-          adjustedBy: actionBy,
-          createdAt: serverTimestamp(),
-          tenantId: 1,
-          isDeleted: false,
-        });
-      }
-    });
-
-    return newVisitId;
+    return res.data.visitId;
   }
 
   async updateVisit(
