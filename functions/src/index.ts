@@ -6995,3 +6995,126 @@ export const updateAdminOrder = onCall(
     return result;
   }
 );
+
+// ── cancelAdminOrder ─────────────────────────────────────────────────────
+// Staff-only admin action (order-detail.component.ts confirmCancel()).
+// Used to be a client writeBatch keyed off the order()/customer live-
+// listener snapshots plus a getDoc-then-batch race on every touched
+// product, same defect class as the other 5H sites. Moved to a
+// runTransaction: order, customer, and every product read fresh. Named
+// distinctly from the portal's own cancelOrder (self-service, confirmed-
+// only, no reason-required UI) — this is the staff path, reachable from
+// confirmed/preparing/out_for_delivery, matching the "Cancel Order"
+// button's visibility in order-detail.component.html exactly.
+export const cancelAdminOrder = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const orderId = (data.orderId || "").toString();
+    const reason = (data.reason || "").toString().trim();
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
+    if (!reason) throw new HttpsError("invalid-argument", "Please provide a reason for cancellation");
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await tx.get(orderRef);
+      if (!orderSnap.exists) throw new HttpsError("not-found", "Order not found");
+      const order = orderSnap.data()!;
+      if (order["isDeleted"]) throw new HttpsError("not-found", "Order not found");
+      if (!["confirmed", "preparing", "out_for_delivery"].includes(order["status"])) {
+        throw new HttpsError("failed-precondition", "This order can no longer be cancelled");
+      }
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      const customerRef = db.collection("customers").doc(order["customerId"]);
+      const customerSnap = await tx.get(customerRef);
+
+      const items: Array<Record<string, any>> = order["items"] || [];
+      const productRefs = items.map((it) => db.collection("products").doc(it["productId"]));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+
+      tx.update(orderRef, {
+        status: "cancelled",
+        cancelledAt: now,
+        cancelledBy: actionBy,
+        cancellationReason: reason,
+        balanceCents: 0,
+      });
+
+      if (customerSnap.exists) {
+        const cd = customerSnap.data()!;
+        const amountPaid = order["amountPaidCents"] || 0;
+        const totalOrdered = (cd["totalOrderedCents"] || 0) - (order["totalCents"] || 0);
+        const totalOwing = (cd["totalOwingCents"] || 0) - ((order["totalCents"] || 0) - amountPaid);
+
+        const custUpdates: Record<string, unknown> = {
+          totalOrderedCents: Math.max(0, totalOrdered),
+          totalOwingCents: Math.max(0, totalOwing),
+        };
+        if (amountPaid > 0) {
+          custUpdates["totalPaidCents"] = Math.max(0, (cd["totalPaidCents"] || 0) - amountPaid);
+          custUpdates["creditBalanceCents"] = (cd["creditBalanceCents"] || 0) + amountPaid;
+        }
+        tx.update(customerRef, custUpdates);
+      }
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const snap = productSnaps[i];
+        if (!snap.exists) continue;
+
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        const newStock = currentStock + (item["quantity"] || 0);
+
+        tx.update(productRefs[i], {stock: newStock});
+
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: item["productId"],
+          productName: item["productName"],
+          productSku: item["productSku"],
+          type: "returned",
+          quantity: item["quantity"],
+          previousStock: currentStock,
+          newStock,
+          reason: `Order ${order["orderNumber"]} cancelled`,
+          notes: `Cancellation reason: ${reason}`,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+          linkedOrderId: orderId,
+          linkedOrderNumber: order["orderNumber"],
+        });
+      }
+
+      return {orderNumber: order["orderNumber"]};
+    });
+
+    return result;
+  }
+);

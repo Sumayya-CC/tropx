@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Functions } from '@angular/fire/functions';
 import { OrderDetailComponent } from './order-detail.component';
 import { FirestoreService } from '../../../../core/services/firestore.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -73,6 +74,7 @@ describe('OrderDetailComponent — money math (editTotals)', () => {
           useValue: { getDocument: () => of(order), getCollection: () => of([]) },
         },
         { provide: AuthService, useValue: { getActionBy: () => null, currentProfile: () => null, isStaff: () => false } },
+        { provide: Functions, useValue: {} },
         { provide: SettingsService, useValue: { ordering: () => ({}), business: () => ({}) } },
         { provide: ToastService, useValue: { success: jasmine.createSpy('success'), error: jasmine.createSpy('error') } },
       ],

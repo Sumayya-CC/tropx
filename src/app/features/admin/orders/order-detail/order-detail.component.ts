@@ -10,6 +10,7 @@ import { StatusBadgeComponent } from '../../../../shared/components/status-badge
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { serverTimestamp, doc, getDoc, where } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { take } from 'rxjs/operators';
 import { RecordPaymentModalComponent } from '../../payments/record-payment-modal/record-payment-modal.component';
@@ -31,6 +32,7 @@ export class OrderDetailComponent {
   private readonly route = inject(ActivatedRoute);
   protected readonly router = inject(Router);
   private readonly firestore = inject(FirestoreService);
+  private readonly functions = inject(Functions);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   protected readonly settingsService = inject(SettingsService);
@@ -166,6 +168,10 @@ export class OrderDetailComponent {
     }
   }
 
+  // Runs server-side (Admin SDK, runTransaction) rather than a client
+  // writeBatch keyed off live-listener snapshots: order/customer/every
+  // product are now re-read fresh inside the transaction. See
+  // cancelAdminOrder in functions/src/index.ts.
   async confirmCancel(reason: string) {
     if (!reason.trim()) {
       this.toast.error('Please provide a reason for cancellation');
@@ -173,94 +179,22 @@ export class OrderDetailComponent {
     }
 
     const order = this.order();
-    const actionBy = this.auth.getActionBy();
-    if (!order || !actionBy) return;
+    if (!order) return;
 
     this.isUpdating.set(true);
     try {
-      await this.firestore.runBatch(async (batch, db) => {
-        // 1. Update Order
-        const orderRef = doc(db, `orders/${order.id}`);
-        batch.update(orderRef, {
-          status: 'cancelled',
-          cancelledAt: serverTimestamp(),
-          cancelledBy: actionBy,
-          cancellationReason: reason,
-          balanceCents: 0,
-        });
+      const callable = httpsCallable<
+        { orderId: string; reason: string },
+        { orderNumber: string }
+      >(this.functions, 'cancelAdminOrder');
 
-        // 2. Reverse Customer Totals
-        const customerRef = doc(db, `customers/${order.customerId}`);
-        const customerSnap = await getDoc(customerRef);
-        
-        if (customerSnap.exists()) {
-          const customerData = customerSnap.data();
-          const amountPaid = order.amountPaidCents || 0;
-
-          const totalOrdered = (customerData['totalOrderedCents'] || 0) - order.totalCents;
-          const totalOwing = (customerData['totalOwingCents'] || 0) - (order.totalCents - amountPaid);
-
-          const custUpdates: any = {
-            totalOrderedCents: Math.max(0, totalOrdered),
-            totalOwingCents: Math.max(0, totalOwing)
-          };
-
-          if (amountPaid > 0) {
-            custUpdates.totalPaidCents = Math.max(
-              0,
-              (customerData['totalPaidCents'] || 0) -
-              amountPaid
-            );
-            custUpdates.creditBalanceCents =
-              (customerData['creditBalanceCents'] || 0) +
-              amountPaid;
-          }
-
-          batch.update(customerRef, custUpdates);
-        }
-
-        // 3. Restore stock for each item
-        const { collection } = await import('@angular/fire/firestore');
-        for (const item of order.items) {
-          const productRef = doc(db, `products/${item.productId}`);
-          const productSnap = await getDoc(productRef);
-          if (productSnap.exists()) {
-            const productData = productSnap.data();
-            const currentStock = productData['stock'] || 0;
-            const newStock = currentStock + item.quantity;
-            
-            batch.update(productRef, { stock: newStock });
-            
-            // Create stock adjustment record for the reversal
-            const adjustRef = doc(
-              collection(db, 'stockAdjustments')
-            );
-            batch.set(adjustRef, {
-              productId: item.productId,
-              productName: item.productName,
-              productSku: item.productSku,
-              type: 'returned',
-              quantity: item.quantity,
-              previousStock: currentStock,
-              newStock,
-              reason: `Order ${order.orderNumber} cancelled`,
-              notes: `Cancellation reason: ${reason}`,
-              adjustedBy: actionBy,
-              createdAt: serverTimestamp(),
-              tenantId: 1,
-              isDeleted: false,
-              linkedOrderId: order.id,
-              linkedOrderNumber: order.orderNumber,
-            });
-          }
-        }
-      });
+      await callable({ orderId: order.id, reason });
 
       this.toast.success('Order cancelled successfully');
       this.showCancelForm.set(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error cancelling order:', error);
-      this.toast.error('Failed to cancel order');
+      this.toast.error(error?.message || 'Failed to cancel order');
     } finally {
       this.isUpdating.set(false);
     }
