@@ -6596,3 +6596,214 @@ export const receivePurchaseOrder = onCall(
     return result;
   }
 );
+
+// ── createAdminOrder ─────────────────────────────────────────────────────
+// Staff-only admin action (order-form.component.ts saveOrder(), create
+// mode). Used to be a client writeBatch that took a getDoc() read of each
+// product before committing (same race as approveReturn/
+// receivePurchaseOrder), preceded by its own order-number sequence read —
+// and that sequence tracked a *different* field (`lastNumber`) than the
+// one placeOrder uses (`sequence`) on the very same settings/orderSequence
+// document, so a portal order and an admin-created order could land on
+// the identical order number. Moved to a single runTransaction reusing
+// placeOrder's `sequence` field: nextSeq is one past whichever of the two
+// legacy counters is higher, so nothing already issued under either
+// scheme can collide, and both paths share `sequence` from here on.
+// Unlike placeOrder, staff may still set a custom unitPriceCents per line
+// (negotiated pricing, a pre-existing capability) — that trust boundary
+// is unchanged; this migration only fixes the stock/sequence race.
+interface AdminOrderItemInput {
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPriceCents: number;
+  unitCostCents: number;
+}
+
+export const createAdminOrder = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const customerId = (data.customerId || "").toString();
+    const rawItems: AdminOrderItemInput[] = Array.isArray(data.items) ? data.items : [];
+    const discountCents = Math.floor(Number(data.discountCents) || 0);
+    const taxRatePercent = Number(data.taxRatePercent) || 0;
+    const deliveryType: "delivery" | "pickup" = data.deliveryType === "pickup" ? "pickup" : "delivery";
+    const customerNotes = (data.customerNotes || "").toString().slice(0, 2000) || null;
+    const internalNotes = (data.internalNotes || "").toString().slice(0, 2000) || null;
+    // Epoch ms computed client-side from the browser's local midnight
+    // (dateInputToLocalDate) — recomputing "local midnight" here would
+    // use the Functions runtime's timezone (UTC), not the browser's, and
+    // silently shift the stored date by the offset between them.
+    const expectedDeliveryDateMs = typeof data.expectedDeliveryDateMs === "number" ?
+      data.expectedDeliveryDateMs :
+      null;
+
+    if (!customerId) throw new HttpsError("invalid-argument", "customerId is required");
+    if (rawItems.length === 0) throw new HttpsError("invalid-argument", "Add at least one item");
+    for (const it of rawItems) {
+      const qty = Math.floor(Number(it.quantity) || 0);
+      if (!it.productId || qty <= 0) {
+        throw new HttpsError("invalid-argument", "All items must have a quantity greater than 0");
+      }
+    }
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const custRef = db.collection("customers").doc(customerId);
+      const custSnap = await tx.get(custRef);
+      if (!custSnap.exists) throw new HttpsError("not-found", "Customer not found");
+      const cust = custSnap.data()!;
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      let serviceAreaName = "";
+      if (cust["serviceAreaId"]) {
+        const saSnap = await tx.get(db.collection("serviceAreas").doc(cust["serviceAreaId"]));
+        if (saSnap.exists && !saSnap.data()!["isDeleted"]) {
+          serviceAreaName = saSnap.data()!["name"] || "";
+        }
+      }
+
+      const seqRef = db.collection("settings").doc("orderSequence");
+      const seqSnap = await tx.get(seqRef);
+      const seqData = seqSnap.exists ? seqSnap.data()! : {};
+      const nextSeq = Math.max(seqData["sequence"] || 0, seqData["lastNumber"] || 0) + 1;
+      const prefix = seqData["prefix"] || "TRX";
+      const year = new Date().getFullYear();
+      const orderNumber = `${prefix}-${year}-${String(nextSeq).padStart(4, "0")}`;
+
+      // Products: read fresh inside the transaction (the race this
+      // migration exists to fix) — but item name/sku/price/cost stay
+      // client-supplied; staff pricing overrides are unchanged.
+      const productRefs = rawItems.map((it) => db.collection("products").doc(it.productId));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+      const orderRef = db.collection("orders").doc();
+
+      const items = rawItems.map((it) => {
+        const qty = Math.floor(Number(it.quantity) || 0);
+        const unitPriceCents = Math.floor(Number(it.unitPriceCents) || 0);
+        const unitCostCents = Math.floor(Number(it.unitCostCents) || 0);
+        return {
+          productId: it.productId,
+          productName: it.productName,
+          productSku: it.productSku,
+          quantity: qty,
+          unitPriceCents,
+          unitCostCents,
+          lineTotalCents: qty * unitPriceCents,
+          lineCostCents: qty * unitCostCents,
+          currencyCode: "CAD",
+        };
+      });
+
+      const subtotalCents = items.reduce((sum, i) => sum + i.lineTotalCents, 0);
+      const taxableCents = Math.max(0, subtotalCents - discountCents);
+      const taxCents = Math.round(taxableCents * (taxRatePercent / 100));
+      const totalCents = taxableCents + taxCents;
+      const totalCostCents = items.reduce((sum, i) => sum + i.lineCostCents, 0);
+
+      tx.set(orderRef, {
+        orderNumber,
+        customerId,
+        customerName: cust["businessName"] || "",
+        customerPhone: cust["phone"] ?? null,
+        customerEmail: cust["email"] || "",
+        serviceAreaId: cust["serviceAreaId"] || null,
+        serviceAreaName: serviceAreaName || null,
+        items,
+        subtotalCents,
+        taxRatePercent,
+        taxCents,
+        discountCents,
+        totalCents,
+        currencyCode: "CAD",
+        totalCostCents,
+        marginCents: totalCents - totalCostCents,
+        status: "confirmed",
+        paymentStatus: "unpaid",
+        amountPaidCents: 0,
+        balanceCents: totalCents,
+        source: "admin_created",
+        deliveryType,
+        customerNotes,
+        internalNotes,
+        expectedDeliveryDate: expectedDeliveryDateMs != null ? new Date(expectedDeliveryDateMs) : null,
+        confirmedAt: now,
+        confirmedBy: actionBy,
+        tenantId: 1,
+        createdAt: now,
+        createdBy: actionBy,
+        isDeleted: false,
+      });
+
+      tx.update(custRef, {
+        totalOrderedCents: (cust["totalOrderedCents"] || 0) + totalCents,
+        totalOwingCents: (cust["totalOwingCents"] || 0) + totalCents,
+        lastOrderAt: now,
+      });
+
+      tx.set(seqRef, {sequence: nextSeq}, {merge: true});
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const snap = productSnaps[i];
+        if (!snap.exists) continue; // matches original: skip stock entirely if the product doc is gone
+
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        // Clamp at 0, oversell allowed — staff already confirmed via the
+        // client-side warning dialog; no server-side oversell block for
+        // admin-created orders (unlike placeOrder's portal guard).
+        const newStock = Math.max(0, currentStock - item.quantity);
+
+        tx.update(productRefs[i], {stock: newStock});
+
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          type: "sold",
+          quantity: -item.quantity,
+          previousStock: currentStock,
+          newStock,
+          reason: `Order ${orderNumber}`,
+          notes: null,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+          linkedOrderId: orderRef.id,
+          linkedOrderNumber: orderNumber,
+        });
+      }
+
+      return {orderId: orderRef.id, orderNumber};
+    });
+
+    return result;
+  }
+);

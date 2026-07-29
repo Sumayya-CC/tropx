@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Functions } from '@angular/fire/functions';
 import { OrderFormComponent } from './order-form.component';
 import { FirestoreService } from '../../../../core/services/firestore.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -39,6 +40,7 @@ describe('OrderFormComponent — money math (create mode)', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
         { provide: Router, useValue: { navigate: () => Promise.resolve(true) } },
         { provide: FirestoreService, useValue: { getCollection: () => of([]), getDocument: () => of(null) } },
+        { provide: Functions, useValue: {} },
         { provide: AuthService, useValue: { getActionBy: () => null, currentProfile: () => null, isStaff: () => false } },
         {
           provide: SettingsService,

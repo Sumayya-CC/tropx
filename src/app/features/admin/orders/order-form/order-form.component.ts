@@ -11,7 +11,8 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../../../s
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { where, serverTimestamp, doc, getDoc, setDoc } from '@angular/fire/firestore';
+import { where, serverTimestamp } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
 import { SettingsService } from '../../../../core/services/settings.service';
 import { OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
@@ -26,6 +27,7 @@ import { dateInputToLocalDate, toDateInputValue } from '../../../../shared/utils
 })
 export class OrderFormComponent {
   protected readonly firestore = inject(FirestoreService);
+  protected readonly functions = inject(Functions);
   protected readonly auth = inject(AuthService);
   protected readonly toast = inject(ToastService);
   protected readonly router = inject(Router);
@@ -410,138 +412,61 @@ export class OrderFormComponent {
     this.isSaving.set(true);
 
     try {
-      await this.firestore.runBatch(async (batch, db) => {
-        const { collection, doc } = await import('@angular/fire/firestore');
-        
-        // 1. Generate Order Number
-        const seqRef = doc(db, 'settings/orderSequence');
-        const seqSnap = await getDoc(seqRef);
-        
-        let lastNumber = 0;
-        let prefix = 'TRX';
-        
-        if (seqSnap.exists()) {
-          const data = seqSnap.data();
-          lastNumber = data['lastNumber'] || 0;
-          prefix = data['prefix'] || 'TRX';
-        } else {
-          // Initialize if not exists
-          batch.set(seqRef, { lastNumber: 0, prefix: 'TRX' });
-        }
+      const callable = httpsCallable<
+        {
+          customerId: string;
+          items: { productId: string; productName: string; productSku: string; quantity: number; unitPriceCents: number; unitCostCents: number }[];
+          discountCents: number;
+          taxRatePercent: number;
+          deliveryType: DeliveryType;
+          customerNotes: string;
+          internalNotes: string;
+          expectedDeliveryDateMs: number | null;
+        },
+        { orderId: string; orderNumber: string }
+      >(this.functions, 'createAdminOrder');
 
-        const newNumber = lastNumber + 1;
-        const year = new Date().getFullYear();
-        const orderNumber = `${prefix}-${year}-${newNumber.toString().padStart(4, '0')}`;
+      // Epoch ms of the browser-local midnight this date input represents —
+      // sent as a primitive so the server doesn't have to re-derive "local
+      // midnight" in its own (UTC) timezone. See createAdminOrder in
+      // functions/src/index.ts.
+      const expectedDate = this.expectedDeliveryDate() ? dateInputToLocalDate(this.expectedDeliveryDate()) : null;
 
-        // Update sequence
-        batch.update(seqRef, { lastNumber: newNumber });
-
-        // 2. Build Order Doc
-        const newOrderRef = doc(collection(db, 'orders'));
-
-        const totalCostCents = items.reduce((sum, i) => sum + i.lineCostCents, 0);
-        
-        const orderData: Order = {
-          id: newOrderRef.id,
-          orderNumber,
-          customerId: customer.id,
-          customerName: customer.businessName,
-          customerPhone: customer.phone ?? null,
-          customerEmail: customer.email || '',
-          serviceAreaId: customer.serviceAreaId || null,
-          serviceAreaName: this.resolveServiceAreaName(customer),
-          items,
-          subtotalCents: this.subtotalCents(),
-          taxRatePercent: this.taxRatePercent(),
-          taxCents: this.taxCents(),
-          discountCents: this.discountCents(),
-          totalCents: this.totalCents(),
-          currencyCode: 'CAD',
-          totalCostCents,
-          marginCents: this.totalCents() - totalCostCents,
-          status: 'confirmed',
-          paymentStatus: 'unpaid',
-          amountPaidCents: 0,
-          balanceCents: this.totalCents(),
-          source: 'admin_created',
-          deliveryType: this.deliveryType(),
-          customerNotes: this.customerNotes() || null,
-          internalNotes: this.internalNotes() || null,
-          expectedDeliveryDate: this.expectedDeliveryDate() ? dateInputToLocalDate(this.expectedDeliveryDate()) : null,
-          confirmedAt: serverTimestamp(),
-          confirmedBy: actionBy,
-          tenantId: 1,
-          createdAt: serverTimestamp(),
-          createdBy: actionBy,
-          isDeleted: false
-        };
-
-        batch.set(newOrderRef, orderData);
-
-        // 3. Update Customer Doc
-        const customerRef = doc(db, `customers/${customer.id}`);
-        batch.update(customerRef, {
-          totalOrderedCents: (customer.totalOrderedCents || 0) + orderData.totalCents,
-          totalOwingCents: (customer.totalOwingCents || 0) + orderData.totalCents,
-          lastOrderAt: serverTimestamp()
-        });
-
-        // 4. Deduct stock for each item
-        for (const item of items) {
-          const productRef = doc(db, `products/${item.productId}`);
-          const productSnap = await getDoc(productRef);
-          if (productSnap.exists()) {
-            const productData = productSnap.data();
-            const currentStock = productData['stock'] || 0;
-            const newStock = Math.max(0, currentStock - item.quantity);
-            
-            // Update product stock
-            batch.update(productRef, { stock: newStock });
-            
-            // Create stock adjustment record
-            const adjustRef = doc(collection(db, 'stockAdjustments'));
-            batch.set(adjustRef, {
-              productId: item.productId,
-              productName: item.productName,
-              productSku: item.productSku,
-              type: 'sold',
-              quantity: -item.quantity,
-              previousStock: currentStock,
-              newStock,
-              reason: `Order ${orderNumber}`,
-              notes: null,
-              adjustedBy: actionBy,
-              createdAt: serverTimestamp(),
-              tenantId: 1,
-              isDeleted: false,
-              linkedOrderId: newOrderRef.id,
-              linkedOrderNumber: orderNumber,
-            });
-          }
-        }
-
-        // Store ID for navigation
-        (this as any)._newOrderId = newOrderRef.id;
-        (this as any)._newOrderNumber = orderNumber;
+      const res = await callable({
+        customerId: customer.id,
+        items: items.map(i => ({
+          productId: i.productId,
+          productName: i.productName,
+          productSku: i.productSku,
+          quantity: i.quantity,
+          unitPriceCents: i.unitPriceCents,
+          unitCostCents: i.unitCostCents,
+        })),
+        discountCents: this.discountCents(),
+        taxRatePercent: this.taxRatePercent(),
+        deliveryType: this.deliveryType(),
+        customerNotes: this.customerNotes(),
+        internalNotes: this.internalNotes(),
+        expectedDeliveryDateMs: expectedDate ? expectedDate.getTime() : null,
       });
 
       localStorage.removeItem('tropx_order_draft');
-      
+
       const rvid = this.restockVisitId();
-      if (rvid && (this as any)._newOrderId) {
+      if (rvid) {
         try {
           await this.firestore.updateDocument(`visits/${rvid}`, {
-            restockOrderId: (this as any)._newOrderId,
+            restockOrderId: res.data.orderId,
           });
         } catch (e) { console.error('Failed to stamp restock visit', e); }
       }
 
-      this.toast.success(`Order ${(this as any)._newOrderNumber} created successfully`);
-      this.router.navigate(['/admin/orders', (this as any)._newOrderId]);
+      this.toast.success(`Order ${res.data.orderNumber} created successfully`);
+      this.router.navigate(['/admin/orders', res.data.orderId]);
 
     } catch (error: any) {
       console.error('Error saving order:', error);
-      this.toast.error('Failed to create order. Please try again.');
+      this.toast.error(error?.message || 'Failed to create order. Please try again.');
     } finally {
       this.isSaving.set(false);
     }
@@ -688,16 +613,6 @@ export class OrderFormComponent {
     if (customer.serviceAreaCustom) {
       return customer.serviceAreaCustom;
     }
-    if (customer.serviceAreaId) {
-      const sa = this.allServiceAreas().find(
-        s => s.id === customer.serviceAreaId
-      );
-      return sa?.name || '';
-    }
-    return '';
-  }
-
-  private resolveServiceAreaName(customer: Customer): string {
     if (customer.serviceAreaId) {
       const sa = this.allServiceAreas().find(
         s => s.id === customer.serviceAreaId
