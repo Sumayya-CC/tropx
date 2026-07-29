@@ -6807,3 +6807,191 @@ export const createAdminOrder = onCall(
     return result;
   }
 );
+
+// ── updateAdminOrder ─────────────────────────────────────────────────────
+// Staff-only admin action (order-form.component.ts saveEditedOrder()).
+// Used to be a client writeBatch keyed off originalOrder() — a live
+// listener snapshot that could be stale by the time save ran — plus a
+// getDoc()-then-batch race on the customer doc and every touched product,
+// same defect class as the other 5H sites. Moved to a runTransaction that
+// re-reads the order fresh: the diff baseline (originalItems, totalCents,
+// amountPaidCents, status) all come from the transaction's own read, never
+// from whatever the client had open. New item data (name/sku/qty/price/
+// cost) stays client-supplied, same trust boundary as createAdminOrder.
+interface AdminOrderItemInput2 {
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPriceCents: number;
+  unitCostCents: number;
+}
+
+export const updateAdminOrder = onCall(
+  {
+    region: "northamerica-northeast2",
+    cors: true,
+    secrets: [sentryDsn],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Must be signed in");
+
+    const role = (auth.token["role"] as string) || "none";
+    if (!STAFF_ROLES.includes(role)) {
+      throw new HttpsError("permission-denied", "Staff only");
+    }
+
+    const data = request.data || {};
+    const orderId = (data.orderId || "").toString();
+    const rawItems: AdminOrderItemInput2[] = Array.isArray(data.items) ? data.items : [];
+    const discountCents = Math.floor(Number(data.discountCents) || 0);
+    const taxRatePercent = Number(data.taxRatePercent) || 0;
+    const deliveryType: "delivery" | "pickup" = data.deliveryType === "pickup" ? "pickup" : "delivery";
+    const customerNotes = (data.customerNotes || "").toString().slice(0, 2000) || null;
+    const internalNotes = (data.internalNotes || "").toString().slice(0, 2000) || null;
+    const expectedDeliveryDateMs = typeof data.expectedDeliveryDateMs === "number" ?
+      data.expectedDeliveryDateMs :
+      null;
+
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
+    if (rawItems.length === 0) throw new HttpsError("invalid-argument", "Add at least one item");
+    for (const it of rawItems) {
+      const qty = Math.floor(Number(it.quantity) || 0);
+      if (!it.productId || qty <= 0) {
+        throw new HttpsError("invalid-argument", "All items must have a quantity greater than 0");
+      }
+    }
+
+    const result = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await tx.get(orderRef);
+      if (!orderSnap.exists) throw new HttpsError("not-found", "Order not found");
+      const order = orderSnap.data()!;
+      if (order["isDeleted"]) throw new HttpsError("not-found", "Order not found");
+      // Matches the client-side load-time gate in loadOrderForEdit — only
+      // 'confirmed' orders are editable via this form (narrower than the
+      // general edit-window documented for order status elsewhere; this
+      // migration preserves the existing gate as-is, not broaden it).
+      if (order["status"] !== "confirmed") {
+        throw new HttpsError("failed-precondition", "Only confirmed orders can be edited");
+      }
+
+      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
+      const userProfile = userSnap.exists ? userSnap.data()! : {};
+      const actionBy = {
+        uid: auth.uid,
+        firstName: userProfile["firstName"] || "Staff",
+        lastName: userProfile["lastName"] || "",
+      };
+
+      const customerRef = db.collection("customers").doc(order["customerId"]);
+      const customerSnap = await tx.get(customerRef);
+
+      const newItems = rawItems.map((it) => {
+        const qty = Math.floor(Number(it.quantity) || 0);
+        const unitPriceCents = Math.floor(Number(it.unitPriceCents) || 0);
+        const unitCostCents = Math.floor(Number(it.unitCostCents) || 0);
+        return {
+          productId: it.productId,
+          productName: it.productName,
+          productSku: it.productSku,
+          quantity: qty,
+          unitPriceCents,
+          unitCostCents,
+          lineTotalCents: qty * unitPriceCents,
+          lineCostCents: qty * unitCostCents,
+          currencyCode: "CAD",
+        };
+      });
+
+      const originalItems: Array<Record<string, any>> = order["items"] || [];
+      const originalMap = new Map(originalItems.map((it) => [it["productId"], it["quantity"] || 0]));
+      const newMap = new Map(newItems.map((it) => [it.productId, it.quantity]));
+      const allProductIds = new Set([...originalMap.keys(), ...newMap.keys()]);
+
+      const productRefs = [...allProductIds].map((pid) => db.collection("products").doc(pid));
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+      const productSnapByPid = new Map([...allProductIds].map((pid, i) => [pid, productSnaps[i]]));
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+
+      const subtotalCents = newItems.reduce((sum, i) => sum + i.lineTotalCents, 0);
+      const taxableCents = Math.max(0, subtotalCents - discountCents);
+      const taxCents = Math.round(taxableCents * (taxRatePercent / 100));
+      const totalCents = taxableCents + taxCents;
+      const totalCostCents = newItems.reduce((sum, i) => sum + i.lineCostCents, 0);
+      const totalDiff = totalCents - (order["totalCents"] || 0);
+
+      tx.update(orderRef, {
+        items: newItems,
+        subtotalCents,
+        taxRatePercent,
+        taxCents,
+        discountCents,
+        totalCents,
+        totalCostCents,
+        marginCents: totalCents - totalCostCents,
+        balanceCents: Math.max(0, totalCents - (order["amountPaidCents"] || 0)),
+        deliveryType,
+        customerNotes,
+        internalNotes,
+        expectedDeliveryDate: expectedDeliveryDateMs != null ? new Date(expectedDeliveryDateMs) : null,
+        updatedAt: now,
+        updatedBy: actionBy,
+      });
+
+      if (totalDiff !== 0 && customerSnap.exists) {
+        const cd = customerSnap.data()!;
+        tx.update(customerRef, {
+          totalOrderedCents: Math.max(0, (cd["totalOrderedCents"] || 0) + totalDiff),
+          totalOwingCents: Math.max(0, (cd["totalOwingCents"] || 0) + totalDiff),
+        });
+      }
+
+      for (const productId of allProductIds) {
+        const originalQty = originalMap.get(productId) || 0;
+        const newQty = newMap.get(productId) || 0;
+        const diff = newQty - originalQty;
+        if (diff === 0) continue;
+
+        const snap = productSnapByPid.get(productId)!;
+        if (!snap.exists) continue;
+
+        const p = snap.data()!;
+        const currentStock = p["stock"] || 0;
+        // diff > 0: more ordered, deduct more. diff < 0: less ordered, restore some.
+        const newStock = Math.max(0, currentStock - diff);
+        tx.update(db.collection("products").doc(productId), {stock: newStock});
+
+        const itemSnapshot = newItems.find((i) => i.productId === productId) ||
+          originalItems.find((i) => i["productId"] === productId);
+
+        const adjRef = db.collection("stockAdjustments").doc();
+        tx.set(adjRef, {
+          productId,
+          productName: itemSnapshot?.["productName"] || productId,
+          productSku: itemSnapshot?.["productSku"] || "",
+          type: diff > 0 ? "sold" : "returned",
+          quantity: -diff,
+          previousStock: currentStock,
+          newStock,
+          reason: `Order ${order["orderNumber"]} edited`,
+          notes: `Quantity changed from ${originalQty} to ${newQty}`,
+          adjustedBy: actionBy,
+          createdAt: now,
+          tenantId: 1,
+          isDeleted: false,
+          linkedOrderId: orderId,
+          linkedOrderNumber: order["orderNumber"],
+        });
+      }
+
+      return {orderId, orderNumber: order["orderNumber"]};
+    });
+
+    return result;
+  }
+);

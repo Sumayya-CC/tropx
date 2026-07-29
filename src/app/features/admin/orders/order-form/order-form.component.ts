@@ -475,9 +475,8 @@ export class OrderFormComponent {
   private async saveEditedOrder() {
     const order = this.originalOrder();
     const items = this.items();
-    const actionBy = this.auth.getActionBy();
-    
-    if (!order || !actionBy) return;
+
+    if (!order) return;
 
     if (this.oversoldLines().length > 0) {
       const msg = `These items exceed available stock and will be backordered:\n${this.oversoldLines().map(i => `- ${i.productName} (Avail: ${this.getAvailableStock(i)}, Order: ${i.quantity})`).join('\n')}\n\nContinue?`;
@@ -487,118 +486,45 @@ export class OrderFormComponent {
     this.isSaving.set(true);
 
     try {
-      const totalCostCents = items.reduce((sum, i) => sum + i.lineCostCents, 0);
-      const subtotal = this.subtotalCents();
-      const tax = this.taxCents();
-      const discount = this.discountCents();
-      const total = this.totalCents();
-      
-      const totalDiff = total - order.totalCents;
+      const callable = httpsCallable<
+        {
+          orderId: string;
+          items: { productId: string; productName: string; productSku: string; quantity: number; unitPriceCents: number; unitCostCents: number }[];
+          discountCents: number;
+          taxRatePercent: number;
+          deliveryType: DeliveryType;
+          customerNotes: string;
+          internalNotes: string;
+          expectedDeliveryDateMs: number | null;
+        },
+        { orderId: string; orderNumber: string }
+      >(this.functions, 'updateAdminOrder');
 
-      await this.firestore.runBatch(async (batch, db) => {
-        const { doc, getDoc, collection } = await import('@angular/fire/firestore');
-        
-        const orderRef = doc(db, `orders/${order.id}`);
-        batch.update(orderRef, {
-          items,
-          subtotalCents: subtotal,
-          taxRatePercent: this.taxRatePercent(),
-          taxCents: tax,
-          discountCents: discount,
-          totalCents: total,
-          totalCostCents,
-          marginCents: total - totalCostCents,
-          balanceCents: Math.max(0, total - (order.amountPaidCents || 0)),
-          deliveryType: this.deliveryType(),
-          customerNotes: this.customerNotes() || null,
-          internalNotes: this.internalNotes() || null,
-          expectedDeliveryDate: this.expectedDeliveryDate() ? dateInputToLocalDate(this.expectedDeliveryDate()) : null,
-          updatedAt: serverTimestamp(),
-          updatedBy: actionBy,
-        });
+      const expectedDate = this.expectedDeliveryDate() ? dateInputToLocalDate(this.expectedDeliveryDate()) : null;
 
-        if (totalDiff !== 0) {
-          const customerRef = doc(db, `customers/${order.customerId}`);
-          const customerSnap = await getDoc(customerRef);
-          if (customerSnap.exists()) {
-            const cd = customerSnap.data();
-            batch.update(customerRef, {
-              totalOrderedCents: Math.max(0, (cd['totalOrderedCents'] || 0) + totalDiff),
-              totalOwingCents: Math.max(0, (cd['totalOwingCents'] || 0) + totalDiff),
-            });
-          }
-        }
-
-        // 3. Adjust stock for item changes
-        const originalItems = order.items;
-        const newItems = items;
-
-        // Build maps for easy lookup
-        const originalMap: Record<string, number> = {};
-        for (const item of originalItems) {
-          originalMap[item.productId] = item.quantity;
-        }
-        const newMap: Record<string, number> = {};
-        for (const item of newItems) {
-          newMap[item.productId] = item.quantity;
-        }
-
-        // All product IDs involved
-        const allProductIds = new Set([
-          ...Object.keys(originalMap),
-          ...Object.keys(newMap)
-        ]);
-
-        for (const productId of allProductIds) {
-          const originalQty = originalMap[productId] || 0;
-          const newQty = newMap[productId] || 0;
-          const diff = newQty - originalQty;
-          
-          if (diff === 0) continue; // No change
-          
-          const productRef = doc(db, `products/${productId}`);
-          const productSnap = await getDoc(productRef);
-          if (!productSnap.exists()) continue;
-          
-          const productData = productSnap.data();
-          const currentStock = productData['stock'] || 0;
-          // diff > 0 means more ordered = deduct more
-          // diff < 0 means less ordered = restore some
-          const newStock = Math.max(0, currentStock - diff);
-          
-          batch.update(productRef, { stock: newStock });
-          
-          // Find item name for snapshot
-          const itemSnapshot = newItems.find(
-            i => i.productId === productId
-          ) || originalItems.find(i => i.productId === productId);
-          
-          const adjustRef = doc(collection(db, 'stockAdjustments'));
-          batch.set(adjustRef, {
-            productId,
-            productName: itemSnapshot?.productName || productId,
-            productSku: itemSnapshot?.productSku || '',
-            type: diff > 0 ? 'sold' : 'returned',
-            quantity: -diff,  // negative if sold, positive if returned
-            previousStock: currentStock,
-            newStock,
-            reason: `Order ${order.orderNumber} edited`,
-            notes: `Quantity changed from ${originalQty} to ${newQty}`,
-            adjustedBy: actionBy,
-            createdAt: serverTimestamp(),
-            tenantId: 1,
-            isDeleted: false,
-            linkedOrderId: order.id,
-            linkedOrderNumber: order.orderNumber,
-          });
-        }
+      const res = await callable({
+        orderId: order.id,
+        items: items.map(i => ({
+          productId: i.productId,
+          productName: i.productName,
+          productSku: i.productSku,
+          quantity: i.quantity,
+          unitPriceCents: i.unitPriceCents,
+          unitCostCents: i.unitCostCents,
+        })),
+        discountCents: this.discountCents(),
+        taxRatePercent: this.taxRatePercent(),
+        deliveryType: this.deliveryType(),
+        customerNotes: this.customerNotes(),
+        internalNotes: this.internalNotes(),
+        expectedDeliveryDateMs: expectedDate ? expectedDate.getTime() : null,
       });
 
       this.toast.success('Order updated successfully');
-      this.router.navigate(['/admin/orders', order.id]);
-    } catch (error) {
+      this.router.navigate(['/admin/orders', res.data.orderId]);
+    } catch (error: any) {
       console.error('Error updating order:', error);
-      this.toast.error('Failed to update order.');
+      this.toast.error(error?.message || 'Failed to update order.');
     } finally {
       this.isSaving.set(false);
     }
