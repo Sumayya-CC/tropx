@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import {randomUUID} from "crypto";
 import {initializeApp as initClientApp, deleteApp, FirebaseApp} from "firebase/app";
 import {getAuth, connectAuthEmulator, signInWithCustomToken, signOut, Auth} from "firebase/auth";
 import {getFunctions, connectFunctionsEmulator, httpsCallable, Functions} from "firebase/functions";
@@ -24,15 +25,17 @@ let clientApp: FirebaseApp;
 let clientAuth: Auth;
 let clientFunctions: Functions;
 
-let seq = 0;
 /**
- * Unique-per-test id so tests never collide on shared fixtures.
+ * Unique-per-test id. Uses randomUUID() rather than Date.now()+counter —
+ * spec files run in parallel Jest workers against one shared emulator
+ * Firestore instance, so a timestamp+per-file-counter scheme can produce
+ * the same id from two different files in the same millisecond, causing
+ * one test to read back another test's fixture.
  * @param {string} prefix Label prepended to the generated id.
- * @return {string} A unique id like "product-<timestamp>-<n>".
+ * @return {string} A unique id like "product-<uuid>".
  */
 function uid(prefix: string): string {
-  seq += 1;
-  return `${prefix}-${Date.now()}-${seq}`;
+  return `${prefix}-${randomUUID()}`;
 }
 
 async function seedProduct(overrides: Partial<Record<string, unknown>> = {}) {

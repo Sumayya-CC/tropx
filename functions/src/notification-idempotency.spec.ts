@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import {randomUUID} from "crypto";
 
 /**
  * Phase 4 (security hardening) — idempotency guards on the reactive
@@ -29,15 +30,17 @@ const FIRESTORE_PORT = 8080;
 
 let db: admin.firestore.Firestore;
 
-let seq = 0;
 /**
- * Unique-per-test id so tests never collide on shared fixtures.
+ * Unique-per-test id. Uses randomUUID() rather than Date.now()+counter —
+ * spec files run in parallel Jest workers against one shared emulator
+ * Firestore instance, so a timestamp+per-file-counter scheme can produce
+ * the same id from two different files in the same millisecond, causing
+ * one test to read back another test's fixture.
  * @param {string} prefix Label prepended to the generated id.
- * @return {string} A unique id like "order-<timestamp>-<n>".
+ * @return {string} A unique id like "product-<uuid>".
  */
 function uid(prefix: string): string {
-  seq += 1;
-  return `${prefix}-${Date.now()}-${seq}`;
+  return `${prefix}-${randomUUID()}`;
 }
 
 beforeAll(() => {
