@@ -747,6 +747,21 @@ per-threshold state on the cart document itself
 (`abandonedEmailSent24h/72h/7d`) so a threshold never re-sends, and clears
 all three flags when the cart converts to an order.
 
+The three triggers hanging off unauthenticated public-create collections
+(`sendPasswordResetEmail`, `onContactInquiry`, `onAccessRequestNotification`
+— `passwordResetRequests`/`contactInquiries`/`accessRequests` all allow
+`create: if true` in `firestore.rules`) add a second gate before the
+`isNotificationEnabled` check: `isRateLimited(scope, email)`, keyed by a
+sha256 hash of the submitter's email in `rateLimitCounters/{hash}` (a
+Cloud-Functions-only collection, staff read-only in `firestore.rules`),
+config-driven via `settings/rateLimits`. This exists because Firestore
+rules can't see IP address or request velocity — the request document
+still gets created either way, but an over-limit submission stamps
+`rateLimited: true` and returns before ever reaching Resend, closing the
+password-reset email-bombing vector specifically (unrestricted, that
+trigger calls `admin.auth().generatePasswordResetLink` for whatever email
+is in the payload). See `functions/src/rate-limit.spec.ts`.
+
 ### 8.8 Cloud Function Interaction Map
 
 ```mermaid

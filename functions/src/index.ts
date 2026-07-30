@@ -7,6 +7,7 @@ import {FieldValue} from "firebase-admin/firestore";
 import {onDocumentCreated, onDocumentUpdated, onDocumentWritten} from "firebase-functions/v2/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
+import {createHash} from "crypto";
 import {Resend} from "resend";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "./logger";
@@ -62,6 +63,103 @@ async function isNotificationEnabled(
   } catch {
     return true;
   }
+}
+
+// ─── Rate limiting: public-create job-queue collections ───────────────────
+// accessRequests/contactInquiries/passwordResetRequests are writable by
+// anyone (firestore.rules: `allow create: if true`) to support public-
+// facing forms — see CLAUDE.md's Firestore-as-job-queue pattern. Firestore
+// rules have no visibility into IP address or request velocity, so rate
+// limiting can't live there; it lives here instead, gating the actual side
+// effect (the outbound email via Resend) rather than the Firestore write
+// itself. An over-limit submission still creates its request document (a
+// minor storage/read-quota cost) but never triggers a real email — this is
+// what actually matters, since `sendPasswordResetEmail` calls
+// `admin.auth().generatePasswordResetLink` for whatever email is in the
+// payload: unrestricted, that's a mass-email-bombing vector against real
+// users, not just noise. Keyed by the submitted email (sha256'd before use
+// as a Firestore doc id — avoids storing raw emails as ids and sidesteps
+// doc-id character restrictions), since a Firestore trigger has no access
+// to the original HTTP request's IP.
+interface RateLimitConfig {
+  maxPerWindow: number;
+  windowMinutes: number;
+}
+
+const RATE_LIMIT_DEFAULTS: Record<string, RateLimitConfig> = {
+  passwordResetRequests: {maxPerWindow: 3, windowMinutes: 15},
+  contactInquiries: {maxPerWindow: 5, windowMinutes: 60},
+  accessRequests: {maxPerWindow: 5, windowMinutes: 60},
+};
+
+/**
+ * Checks and atomically consumes one slot in the rate-limit window for
+ * `scope` (a job-queue collection name) + `identifier` (the submitter's
+ * email). Config is read from `settings/rateLimits` per-scope, falling back
+ * to RATE_LIMIT_DEFAULTS when unset (`??` fallback per the project's
+ * settings-field convention) — `settings/rateLimits.enabled === false` is a
+ * kill switch that always returns "not limited," mirroring the
+ * notifications enable-toggle pattern above.
+ * @param {string} scope Job-queue collection name (matches a
+ *   RATE_LIMIT_DEFAULTS key).
+ * @param {string} identifier The submitter's email (or other per-request
+ *   identity signal) to key the window on.
+ * @return {Promise<boolean>} true if this request is over the limit and
+ *   should be silently dropped rather than acted on.
+ */
+export async function isRateLimited(
+  scope: string,
+  identifier: string
+): Promise<boolean> {
+  let config: RateLimitConfig = RATE_LIMIT_DEFAULTS[scope];
+
+  try {
+    const settingsDoc = await db.collection("settings").doc("rateLimits").get();
+    const data = settingsDoc.data();
+    if (data?.enabled === false) return false;
+    const override = data?.[scope];
+    if (override) {
+      config = {
+        maxPerWindow: override.maxPerWindow ?? config.maxPerWindow,
+        windowMinutes: override.windowMinutes ?? config.windowMinutes,
+      };
+    }
+  } catch {
+    // Settings unreadable — fall through with the hardcoded default rather
+    // than failing open (unlimited) or closed (blocking every submission).
+  }
+
+  const key = createHash("sha256")
+    .update(`${scope}:${identifier.trim().toLowerCase()}`)
+    .digest("hex");
+  const ref = db.collection("rateLimitCounters").doc(key);
+  const windowMs = config.windowMinutes * 60_000;
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data();
+    const windowStartMs = data?.windowStart ?
+      (data.windowStart as admin.firestore.Timestamp).toMillis() :
+      0;
+    const now = Date.now();
+
+    if (!data || now - windowStartMs > windowMs) {
+      tx.set(ref, {
+        scope,
+        windowStart: FieldValue.serverTimestamp(),
+        count: 1,
+        tenantId: 1,
+      });
+      return false;
+    }
+
+    if (data.count < config.maxPerWindow) {
+      tx.update(ref, {count: FieldValue.increment(1)});
+      return false;
+    }
+
+    return true;
+  });
 }
 
 // ─── Reconciliation: shared counter recompute ──────────────────────────────
@@ -1463,6 +1561,11 @@ export const sendPasswordResetEmail = onDocumentCreated(
     const {email} = data;
     if (!email) return;
 
+    if (await isRateLimited("passwordResetRequests", email)) {
+      await event.data?.ref.update({processed: true, rateLimited: true});
+      return;
+    }
+
     const resend = new Resend(resendApiKey.value());
     const from = fromEmail.value();
 
@@ -1639,13 +1742,20 @@ export const onContactInquiry = onDocumentCreated(
     // Guards against a redelivered trigger event re-sending the admin
     // notification — see the "idempotency" comment block above
     // onOrderNotification for the shared reasoning across these
-    // business-doc-triggered notification functions.
-    if (!data || data.notificationSentAt) return;
+    // business-doc-triggered notification functions. rateLimited is a
+    // separate terminal marker (see isRateLimited above) — either one
+    // means this doc is already handled, don't reprocess.
+    if (!data || data.notificationSentAt || data.rateLimited) return;
+
+    const {name, email, phone, businessName, message} = data;
+
+    if (email && (await isRateLimited("contactInquiries", email))) {
+      await event.data?.ref.update({rateLimited: true});
+      return;
+    }
 
     const resend = new Resend(resendApiKey.value());
     const from = fromEmail.value();
-
-    const {name, email, phone, businessName, message} = data;
 
     const html = contactInquiryEmailHtml(
       name, email, phone, businessName, message
@@ -2012,16 +2122,12 @@ export const onAccessRequestNotification = onDocumentCreated(
   },
   async (event) => {
     const data = event.data?.data();
-    if (!data || data.notificationSentAt) return;
+    if (!data || data.notificationSentAt || data.rateLimited) return;
 
     const enabled = await isNotificationEnabled(
       "accessRequestAlert"
     );
     if (!enabled) return;
-
-    const adminEmail = await getAdminEmail();
-    const resend = new Resend(resendApiKey.value());
-    const from = fromEmail.value();
 
     const {
       businessName,
@@ -2032,6 +2138,15 @@ export const onAccessRequestNotification = onDocumentCreated(
       businessType,
       address,
     } = data;
+
+    if (email && (await isRateLimited("accessRequests", email))) {
+      await event.data?.ref.update({rateLimited: true});
+      return;
+    }
+
+    const adminEmail = await getAdminEmail();
+    const resend = new Resend(resendApiKey.value());
+    const from = fromEmail.value();
 
     const ownerFullName = [ownerFirstName, ownerLastName]
       .filter(Boolean)

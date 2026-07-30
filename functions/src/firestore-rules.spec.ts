@@ -187,6 +187,23 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("rateLimitCounters: staff read-only, no client write ever", () => {
+    it("staff can read but not write", async () => {
+      await seed("rateLimitCounters", "c1", {scope: "x", count: 1});
+      const db = staffCtx("admin").firestore();
+      await assertSucceeds(getDoc(doc(db, "rateLimitCounters", "c1")));
+      await assertFails(updateDoc(doc(db, "rateLimitCounters", "c1"), {count: 99}));
+    });
+
+    it("customer and unauthenticated cannot read or write", async () => {
+      await seed("rateLimitCounters", "c1", {scope: "x", count: 1});
+      for (const db of [customerCtx("cust-1").firestore(), anon().firestore()]) {
+        await assertFails(getDoc(doc(db, "rateLimitCounters", "c1")));
+        await assertFails(setDoc(doc(db, "rateLimitCounters", "c1"), {count: 1}));
+      }
+    });
+  });
+
   describe("admin-only collections (reconciliationLog, employeeInvitations)", () => {
     for (const col of ["reconciliationLog", "employeeInvitations"]) {
       it(`${col}: admin can read/write, other staff roles cannot`, async () => {

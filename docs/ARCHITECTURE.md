@@ -453,6 +453,30 @@ Every queue-consumer trigger checks `if (data.processed) return;` (or
 equivalent) before doing work, so redelivery/retry never double-sends email
 or double-provisions an account.
 
+### 6.5 Rate limiting on public-create collections
+
+`accessRequests`, `contactInquiries`, and `passwordResetRequests` are
+writable by anyone (`firestore.rules: allow create: if true`) to support
+public-facing forms. Firestore rules have no visibility into IP address or
+request velocity, so rate limiting can't live there — it lives in the same
+`onDocumentCreated` trigger that already processes each one (§6.4's guard
+pattern), gating the outbound email rather than the Firestore write itself.
+`isRateLimited(scope, identifier)` (`functions/src/index.ts`) keys a
+counter by `sha256(scope:email)` in `rateLimitCounters/{hash}` — a
+Cloud-Functions-only collection (`firestore.rules`: staff read-only, write
+always `false`) — inside a transaction, so concurrent requests serialize
+correctly. Config (`maxPerWindow`/`windowMinutes` per scope, plus an
+`enabled` kill switch) reads from `settings/rateLimits` with `??` fallback
+to hardcoded defaults, matching the `isNotificationEnabled` pattern in
+§6.3. An over-limit submission still creates its request document (a minor
+storage/read-quota cost) but never reaches Resend — the sharpest edge this
+closes is `passwordResetRequests`, since `sendPasswordResetEmail` calls
+`admin.auth().generatePasswordResetLink` for whatever email is in the
+payload: unrestricted, that's a mass-email-bombing vector against real
+users. `bannerClicks` has no processing trigger at all (pure write-only
+click analytics) so this pattern doesn't apply to it — out of scope for
+this pass, lower risk (metrics inflation, not abuse of a real side effect).
+
 ---
 
 ## 7. Security Model
