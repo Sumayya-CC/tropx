@@ -264,11 +264,20 @@ service cloud.firestore {
     }
 
     // ── Fallback ──────────────────────────────────────────
-    // Any unlisted collection requires staff access.
-    // Prevents new collections from being accidentally
-    // public during development.
+    // Deny by default. Firestore evaluates every matching
+    // block for a path, not just the most specific one — a
+    // recursive wildcard here matches every document at every
+    // depth, so an `allow` in this block would OR together
+    // with (and silently override) narrower rules above it,
+    // e.g. reconciliationLog/employeeInvitations's isAdmin()
+    // check, or orders/returns' `allow delete: if false`. Every
+    // real collection already has its own explicit match block
+    // above (verified against every collection name referenced
+    // in src/ and functions/src/index.ts) — this only guards
+    // against a genuinely new, not-yet-ruled collection, and
+    // must deny it rather than default-grant staff access.
     match /{document=**} {
-      allow read, write: if isStaff();
+      allow read, write: if false;
     }
   }
 }

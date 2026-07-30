@@ -472,9 +472,22 @@ client-side (`getIdToken(user, true)`) after they change.
 
 Notable rule details worth knowing before touching `firestore.rules`:
 
-- **Fallback catch-all requires staff access** — any collection not
-  explicitly matched defaults to staff-only, so a new collection is never
-  accidentally public.
+- **Fallback catch-all denies by default** (`allow read, write: if false`)
+  — deliberately *not* "staff-only". Firestore evaluates every `match`
+  block whose path applies to a request, not just the most specific one:
+  a recursive-wildcard fallback matches every document at every depth,
+  and access is granted if *any* matching block allows it (OR, not
+  first-match-wins). A staff-permissive fallback therefore doesn't just
+  cover unlisted collections — it silently ORs staff access on top of
+  every narrower rule elsewhere in the file. That was this rule's actual
+  state until Phase 3.5 (2026-07-30) added a rules-unit-testing suite and
+  caught it: any staff role could read/write `reconciliationLog`/
+  `employeeInvitations` (meant to be `isAdmin()`-only) and hard-delete
+  `orders`/`returns` (meant to be undeletable via `allow delete: if
+  false`). Fixed by narrowing the fallback to `if false`, verified safe
+  via a full-codebase grep confirming every real collection already has
+  its own explicit rule. **Never make this fallback more permissive than
+  the single strictest rule anywhere else in the file.**
 - **`shops`/`visits` are staff-only** — no customer role has any access;
   field-ops data never reaches the portal.
 - `reconciliationLog` is **admin-only**, not staff — financial-integrity

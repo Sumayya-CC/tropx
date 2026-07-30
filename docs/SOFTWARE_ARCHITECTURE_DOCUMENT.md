@@ -934,21 +934,53 @@ flowchart TD
   | unauthenticated | `create`-only: `accessRequests`, `contactInquiries`, `passwordResetRequests`, `bannerClicks`; public read: `products`, `categories`, `brands`, `serviceAreas`, storefront-facing `settings` docs | |
 
 - **Fallback-deny-by-default** on both `firestore.rules`
-  (`match /{document=**} { allow read, write: if isStaff(); }`) and
+  (`match /{document=**} { allow read, write: if false; }`) and
   `storage.rules` (`match /{allPaths=**} { allow read, write: if false; }`)
   — any newly added collection or Storage path is unreachable until an
-  explicit rule is written for it.
+  explicit rule is written for it. `firestore.rules`'s fallback read
+  `isStaff()` instead of `false` until Phase 3.5 (2026-07-30) — see §9.3
+  for why that was a real bug, not just a stricter-than-necessary default.
 
-### 9.3 A real historical bug, corrected
+### 9.3 Real historical bugs, corrected
 
-An earlier `firestore.rules` revision scoped customer access by comparing
-`customerId == request.auth.uid`. This **never matched**, because
-`customerId` is a Firestore document ID, not the customer's Firebase Auth
-UID — an easy mistake to make, and one worth remembering precisely because
-it fails *closed* (over-restrictive, not a leak) but silently breaks
-legitimate customer access. The fix — scoping through the
-`linkedCustomerId` custom claim — is now the standing pattern for every
-customer-scoped rule.
+**Bug 1 — `customerId == request.auth.uid`.** An earlier `firestore.rules`
+revision scoped customer access by comparing `customerId ==
+request.auth.uid`. This **never matched**, because `customerId` is a
+Firestore document ID, not the customer's Firebase Auth UID — an easy
+mistake to make, and one worth remembering precisely because it fails
+*closed* (over-restrictive, not a leak) but silently breaks legitimate
+customer access. The fix — scoping through the `linkedCustomerId` custom
+claim — is now the standing pattern for every customer-scoped rule.
+
+**Bug 2 — the fallback rule silently overrode narrower rules (found by
+Phase 3.5, fixed 2026-07-30).** Firestore evaluates every `match` block
+whose path applies to a request and grants access if *any* of them
+allows it — matches are OR'd, not first-match-wins. The fallback
+`match /{document=**} { allow read, write: if isStaff(); }` therefore
+matched every document at every depth, including ones already governed
+by a stricter rule above it. In practice this meant any staff role (not
+just admin) could read/write `reconciliationLog` and
+`employeeInvitations` despite their `isAdmin()` guard, and any staff
+member could hard-delete `orders`/`returns` despite `allow delete: if
+false` — a direct violation of the soft-delete-only invariant (§5). This
+fails *open* (a leak, not over-restriction) — the more dangerous
+direction of the two bugs in this section — and went unnoticed because
+nothing had ever exercised it: no test asserted the admin-only or
+delete-denial rules against an actual non-admin-staff or delete
+request. Caught by the Phase 3.5 rules-unit-testing suite
+(`functions/src/firestore-rules.spec.ts`), which asserts the per-role
+matrix against the real rules file rather than trusting the rule
+author's stated intent. Fixed by narrowing the fallback to `if false`;
+a full-codebase grep of every collection name referenced in `src/` and
+`functions/src/index.ts` (including every Cloud Functions trigger)
+confirmed every real collection already has its own explicit rule, so
+the change is deny-only for genuinely unlisted paths — nothing in
+production relied on the permissive fallback. **Lesson: a
+recursive-wildcard fallback rule is never "just" a safety net for
+unlisted collections — it silently participates in every other rule's
+decision for every path. Never make it more permissive than the single
+most-restrictive rule anywhere else in the file; `if false` is the only
+fallback that can't undermine something else.**
 
 ### 9.4 Storage rules
 
