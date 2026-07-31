@@ -434,7 +434,6 @@ northeast2**. Mixing these up is a recurring mistake (see [§8](#8-operational-c
 | `onAccessRequestApproved` | `accessRequestApprovals/{id}` create | northeast2 | Creates the customer's Auth user + `users` doc + sets custom claims |
 | `onAdminPasswordReset` | `adminPasswordResets/{id}` create | northeast2 | Provisions Auth user + Firestore profile during admin-initiated reset |
 | `onEmployeeInvitation` | `employeeInvitations/{id}` create | northeast2 | Creates staff Auth user, sends branded invite email, deletes the temp password field after processing |
-| `backfillLinkedCustomerIdClaims` / `backfillCustomClaims` | `onCall` | northeast2 | One-time backfill callables for pre-existing users before a claims-dependent rule tightened (kept, not scheduled to auto-run) |
 
 ### 6.3 Email / notifications (Resend)
 
@@ -643,10 +642,13 @@ which would erase the staff/customer boundary for every path at once.
   processor webhooks would create `Payment` documents directly, which would
   then flow through the existing `onPaymentReceipt` trigger with no new
   email code needed.
-- **One-time backfill callables (`backfillCustomClaims`,
-  `backfillLinkedCustomerIdClaims`) are still present** in
-  `functions/src/index.ts` after their one-time use, flagged in commit
-  messages as safe/intended to remove in a future deploy — not deleted yet.
+- **One-time backfill callables have been removed** (`backfillLinkedCustomerIdClaims`,
+  `backfillOpeningStockLedger` — 2026-07-31, after both were confirmed run
+  to completion). This was previously a known gap ("still present after
+  their one-time use, flagged as safe to remove") — resolved, not
+  outstanding anymore. If a similar one-time migration callable is added in
+  the future, follow the same lifecycle: build it, run it, confirm it's
+  done, then remove it rather than leaving it deployed indefinitely.
 - **`serviceAreaCustom` on `Customer` is deprecated but retained** for
   backward compatibility with pre-existing documents that predate
   `ServiceAreaSelectComponent`; new code should treat `serviceAreaId` as

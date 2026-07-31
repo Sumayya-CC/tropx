@@ -1307,7 +1307,6 @@ rather than let them go unstated; each has a clear next step.
 | Multi-warehouse | Data-model-ready | `warehouseId` already exists on stock documents and a `warehouses` collection is seeded (`InventoryBootstrapService`); activating multi-warehouse fulfillment is a scoped follow-on once `StockAvailabilityService` keys committed stock per warehouse, not a redesign |
 | Firestore composite indexing | Roadmap | Proven today on `visits`; extending the same `searchName` + composite-index + server-pagination pattern to the remaining large lists (customers, orders) is planned, deliberate follow-on work (§7.4) |
 | Cloud Functions modularization | Roadmap | Splitting the single Cloud Functions file by domain becomes increasingly worthwhile as it grows — a natural next refactor |
-| One-time backfill callables | Cleanup pending | `backfillCustomClaims`/`backfillLinkedCustomerIdClaims` remain in place after their one-time use; removal is flagged and scheduled |
 | Payment processor integration | Modeled, not yet built | Vendor-neutral schema is already in place (§7.3, ADR-005); wiring an actual processor is the remaining step, with the integration shape already decided |
 | `serviceAreaCustom` on `Customer` | Deprecated, retained | Kept for backward compatibility with documents predating `ServiceAreaSelectComponent`; new code treats `serviceAreaId` as primary |
 | Route "added-driving" metric | Deliberately deferred | The current nearby-shops panel reports honest cluster proximity; a harder re-optimize-with-insertion metric is a considered future enhancement (ADR-014), not an oversight |
@@ -1347,10 +1346,6 @@ anticipate or explicitly defer — not speculative net-new feature ideas.
    composite-index + server-side-pagination pattern (proven on `visits`)
    to the remaining large lists (customers, orders) before store count
    makes in-memory sort/filter a real latency problem.
-7. **One-time backfill cleanup** — removing `backfillCustomClaims` and
-   `backfillLinkedCustomerIdClaims` once their one-time use is fully
-   confirmed complete across environments, as already flagged in commit
-   messages.
 
 ---
 

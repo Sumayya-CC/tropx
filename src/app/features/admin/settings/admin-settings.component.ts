@@ -1076,24 +1076,6 @@ export class AdminSettingsComponent {
     }
   }
 
-  async runBackfill() {
-    try {
-      const fn = httpsCallable(
-        this.functions2,
-        'backfillLinkedCustomerIdClaims'
-      );
-      const result = await fn({});
-      console.log('Backfill result:', result.data);
-      this.toast.success(
-        'Backfill complete: ' +
-        JSON.stringify(result.data)
-      );
-    } catch (err) {
-      console.error('Backfill error:', err);
-      this.toast.error('Backfill failed');
-    }
-  }
-
   async saveGallery() {
     this.isSaving.set(true);
     try {
