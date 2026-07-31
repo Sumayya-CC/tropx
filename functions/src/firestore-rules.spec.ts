@@ -555,9 +555,15 @@ describe("firestore.rules", () => {
       await assertFails(getDoc(doc(db, "contactInquiries", "c1")));
     });
 
-    it("passwordResetRequests: unauthenticated can create, but not read", async () => {
+    it("passwordResetRequests: unauthenticated cannot create or read (write moved to a callable)", async () => {
+      // Phase 4 fix: this collection used to be public-create like its
+      // siblings, but an email-keyed rate limit on a public-write
+      // password-reset queue is a lockout vector against the account
+      // owner (see the isRateLimited comment block in index.ts). It's now
+      // written only by requestPasswordReset, which bypasses rules via the
+      // Admin SDK and rate-limits by requester IP before writing.
       const db = anon().firestore();
-      await assertSucceeds(
+      await assertFails(
         setDoc(doc(db, "passwordResetRequests", "p1"), {email: "a@b.com"}),
       );
       await assertFails(getDoc(doc(db, "passwordResetRequests", "p1")));

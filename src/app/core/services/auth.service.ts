@@ -1,7 +1,7 @@
 import { Injectable, inject, computed, signal, effect } from '@angular/core';
 import { Auth, signInWithEmailAndPassword, signOut,
   authState, getIdToken } from '@angular/fire/auth';
-import { serverTimestamp } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
 import { FirestoreService } from './firestore.service';
@@ -32,6 +32,7 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
 export class AuthService {
   private readonly _auth = inject(Auth);
   private readonly _firestore = inject(FirestoreService);
+  private readonly _functions = inject(Functions);
 
   private readonly _currentUser = toSignal(authState(this._auth), { initialValue: null });
   private readonly _currentProfile = signal<AppUser | null>(null);
@@ -107,12 +108,14 @@ export class AuthService {
   }
 
   async sendPasswordResetEmail(email: string) {
-    await this._firestore.addDocument('passwordResetRequests', {
-      email: email.trim().toLowerCase(),
-      processed: false,
-      tenantId: 1,
-      createdAt: serverTimestamp()
-    });
+    // Goes through the requestPasswordReset callable, not a direct
+    // Firestore write — the callable rate-limits by requester IP, which a
+    // Firestore trigger has no access to. See the rate-limiting comment
+    // block in functions/src/index.ts for why this collection specifically
+    // can't use the email-keyed trigger-gate pattern the other public-create
+    // collections use.
+    const requestPasswordReset = httpsCallable(this._functions, 'requestPasswordReset');
+    await requestPasswordReset({ email: email.trim().toLowerCase() });
   }
 
   getActionBy(): ActionBy | null {

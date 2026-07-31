@@ -108,7 +108,7 @@ Firebase App Check (reCAPTCHA v3) is wired into the client but **off by default*
 
 **Local dev / emulators**: `initAppCheck()` sets `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` automatically outside production, which prints a debug token to the browser console on first load. Register that token in Firebase console → App Check → the debug token allowlist so local testing against the real (non-emulator) dev project isn't blocked once enforcement is on. The Local Emulator Suite itself does not enforce App Check by default, so this mainly matters when running against the real dev Firebase project, not `firebase emulators:start`.
 
-**Not done in this pass**: rate limiting on public-create collections (`accessRequests`, `contactInquiries`, `passwordResetRequests`, `bannerClicks`), an idempotency-guard audit across all queue-consumer triggers, a rules-vs-documented-model audit, and confirming no client path still writes to `products`/`stockAdjustments` outside `placeOrder` — the rest of the security hardening pass, tracked separately.
+Rate limiting on public-create collections (`accessRequests`, `contactInquiries`) plus IP-rate-limited password reset (`requestPasswordReset` onCall, `passwordResetRequests` no longer publicly writable) landed in the same hardening pass — see CLAUDE.md's Cloud Functions bullets and `docs/ARCHITECTURE.md` §6.5. **Not done in this pass**: an idempotency-guard audit across all queue-consumer triggers, a rules-vs-documented-model audit, and confirming no client path still writes to `products`/`stockAdjustments` outside `placeOrder` — tracked separately.
 
 ---
 

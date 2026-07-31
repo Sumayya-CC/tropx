@@ -42,7 +42,12 @@ service cloud.firestore {
     }
 
     match /passwordResetRequests/{doc} {
-      allow create: if true;
+      // No public create: the only writer is the requestPasswordReset
+      // onCall function (Admin SDK, bypasses rules), which rate-limits by
+      // requester IP before writing. A direct client write here would
+      // reopen the email-keyed victim-lockout vector that function exists
+      // to close — see the rate-limiting comment block in index.ts.
+      allow create: if false;
       allow read, update, delete: if isSignedIn();
     }
 

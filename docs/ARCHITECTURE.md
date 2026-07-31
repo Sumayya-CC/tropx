@@ -454,27 +454,71 @@ or double-provisions an account.
 
 ### 6.5 Rate limiting on public-create collections
 
-`accessRequests`, `contactInquiries`, and `passwordResetRequests` are
-writable by anyone (`firestore.rules: allow create: if true`) to support
-public-facing forms. Firestore rules have no visibility into IP address or
-request velocity, so rate limiting can't live there — it lives in the same
-`onDocumentCreated` trigger that already processes each one (§6.4's guard
-pattern), gating the outbound email rather than the Firestore write itself.
-`isRateLimited(scope, identifier)` (`functions/src/index.ts`) keys a
-counter by `sha256(scope:email)` in `rateLimitCounters/{hash}` — a
+`accessRequests` and `contactInquiries` are writable by anyone
+(`firestore.rules: allow create: if true`) to support public-facing forms.
+Firestore rules have no visibility into IP address or request velocity, so
+rate limiting can't live there — it lives in the same `onDocumentCreated`
+trigger that already processes each one (§6.4's guard pattern), gating the
+outbound email rather than the Firestore write itself. `isRateLimited(scope,
+identifier)` (`functions/src/index.ts`) keys a counter by
+`sha256(scope:identifier)` in `rateLimitCounters/{hash}` — a
 Cloud-Functions-only collection (`firestore.rules`: staff read-only, write
 always `false`) — inside a transaction, so concurrent requests serialize
 correctly. Config (`maxPerWindow`/`windowMinutes` per scope, plus an
 `enabled` kill switch) reads from `settings/rateLimits` with `??` fallback
 to hardcoded defaults, matching the `isNotificationEnabled` pattern in
-§6.3. An over-limit submission still creates its request document (a minor
-storage/read-quota cost) but never reaches Resend — the sharpest edge this
-closes is `passwordResetRequests`, since `sendPasswordResetEmail` calls
-`admin.auth().generatePasswordResetLink` for whatever email is in the
-payload: unrestricted, that's a mass-email-bombing vector against real
-users. `bannerClicks` has no processing trigger at all (pure write-only
-click analytics) so this pattern doesn't apply to it — out of scope for
-this pass, lower risk (metrics inflation, not abuse of a real side effect).
+§6.3. These two scopes key `identifier` on the submitted email — acceptable
+because the worst case of exhausting someone else's limit is spam noise to
+staff, not harm to the email's real owner. `bannerClicks` has no processing
+trigger at all (pure write-only click analytics) so this pattern doesn't
+apply to it — lower risk (metrics inflation, not abuse of a real side
+effect).
+
+`passwordResetRequests` does **not** use this pattern, and its
+`firestore.rules` entry is `allow create: if false` — public writes were
+removed. An email-keyed limiter on password reset is a denial-of-service
+against the exact person it's meant to protect: an attacker who doesn't own
+the victim's inbox can still submit the victim's email repeatedly and burn
+*their* rate-limit window, locking the victim out of their own legitimate
+reset attempts. This was caught in review, not designed in from the start —
+see the `isRateLimited` doc comment in `index.ts` for the incident. The fix
+moves the collection's only writer to `requestPasswordReset`, an `onCall`
+function that rate-limits by a hash of `request.rawRequest.ip` — a signal
+only a real callable invocation exposes, since a Firestore trigger only
+ever sees the document's own data — before writing the request doc itself
+via the Admin SDK. `sendPasswordResetEmail` (the downstream trigger) no
+longer rate-limits at all; doing so would reintroduce the same email-keyed
+lockout one layer down. IP-based limiting has its own known weakness
+(shared/NAT IPs occasionally bucket unrelated users together), but the
+blast radius is a stranger on the same network briefly rate-limited, not
+the specific targeted victim locked out — a materially smaller cost, and
+the standard tradeoff every IP-based limiter makes.
+
+**Accepted residual risk — counter-doc growth under a varying-identity
+attack.** Because `rateLimitCounters` docs are keyed per-identifier, an
+attacker who cycles through many identifiers (many emails, or many IPs)
+can still cause unbounded document writes — each identifier gets its own
+fresh counter, so no single identifier ever trips the per-scope limit. A
+global circuit breaker (one counter per scope regardless of identity) would
+close this fully, but was judged disproportionate for this platform's
+threat model: it forces sharding to avoid becoming a write-throughput
+bottleneck on legitimate traffic (Firestore's practical ~1 write/sec
+ceiling on a single hot document), and it degrades *all* users during a
+real attack, not just the attacker. Instead: App Check (§7, once enforced)
+rejects sub-threshold reCAPTCHA v3 scores by default before a request ever
+reaches this logic, which is real friction against a scripted
+varying-identity attacker — not just token-presence theater — and
+`rateLimitCounters` has a Firestore TTL policy on `expiresAt` (48h,
+stamped by `isRateLimited` on every write) bounding long-term storage
+growth regardless of attack volume. This is risk *reduction*, not a hard
+ceiling — a sophisticated attacker clearing the App Check score bar at
+volume is not stopped by either measure. If Tropx's threat model changes
+(becomes a high-value target for scripted volumetric abuse), the named
+upgrade path is the sharded global circuit breaker described above.
+
+`isRateLimited`'s Firestore transaction is wrapped in try/catch and fails
+closed **by design**: a transient failure returns `true` (treat as
+over-limit, skip the send) rather than letting the exception propagate.
 
 ---
 
@@ -491,7 +535,7 @@ client-side (`getIdToken(user, true)`) after they change.
 | `admin` | Full access, including `reconciliationLog` and `employeeInvitations` (admin-only, not general staff) |
 | `manager`, `sales_rep`, `warehouse` (collectively "staff") | Full read/write on operational collections (`orders`, `payments`, `returns`, `customers`, `stockAdjustments`, `shops`, `visits`, purchasing, expenses/bills) |
 | `customer` | Read/create **own** `orders`/`returns` and read own `payments`, scoped by `token.linkedCustomerId == resource.data.customerId` — not by matching Firestore doc IDs to the Auth UID |
-| unauthenticated | `create`-only on `accessRequests`, `contactInquiries`, `passwordResetRequests`, `bannerClicks`; public `read` on `products`, `categories`, `brands`, `serviceAreas`, and the storefront-facing `settings` docs (`storefront`, `ordering`, `business`, `content`) |
+| unauthenticated | `create`-only on `accessRequests`, `contactInquiries`, `bannerClicks`; can invoke `requestPasswordReset` (onCall, IP-rate-limited — see §6.5) but cannot write `passwordResetRequests` directly; public `read` on `products`, `categories`, `brands`, `serviceAreas`, and the storefront-facing `settings` docs (`storefront`, `ordering`, `business`, `content`) |
 
 Notable rule details worth knowing before touching `firestore.rules`:
 

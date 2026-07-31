@@ -747,20 +747,31 @@ per-threshold state on the cart document itself
 (`abandonedEmailSent24h/72h/7d`) so a threshold never re-sends, and clears
 all three flags when the cart converts to an order.
 
-The three triggers hanging off unauthenticated public-create collections
-(`sendPasswordResetEmail`, `onContactInquiry`, `onAccessRequestNotification`
-— `passwordResetRequests`/`contactInquiries`/`accessRequests` all allow
-`create: if true` in `firestore.rules`) add a second gate before the
-`isNotificationEnabled` check: `isRateLimited(scope, email)`, keyed by a
-sha256 hash of the submitter's email in `rateLimitCounters/{hash}` (a
-Cloud-Functions-only collection, staff read-only in `firestore.rules`),
-config-driven via `settings/rateLimits`. This exists because Firestore
-rules can't see IP address or request velocity — the request document
-still gets created either way, but an over-limit submission stamps
-`rateLimited: true` and returns before ever reaching Resend, closing the
-password-reset email-bombing vector specifically (unrestricted, that
-trigger calls `admin.auth().generatePasswordResetLink` for whatever email
-is in the payload). See `functions/src/rate-limit.spec.ts`.
+`onContactInquiry` and `onAccessRequestNotification` hang off
+unauthenticated public-create collections (`contactInquiries`/
+`accessRequests`, `create: if true` in `firestore.rules`) and add a second
+gate before the `isNotificationEnabled` check: `isRateLimited(scope,
+email)`, keyed by a sha256 hash of the submitter's email in
+`rateLimitCounters/{hash}` (a Cloud-Functions-only collection, staff
+read-only in `firestore.rules`), config-driven via `settings/rateLimits`.
+This exists because Firestore rules can't see IP address or request
+velocity — the request document still gets created either way, but an
+over-limit submission stamps `rateLimited: true` and returns before ever
+reaching Resend.
+
+`sendPasswordResetEmail` does **not** use this pattern — an email-keyed
+limiter on password reset lets an attacker who doesn't own the victim's
+inbox lock the victim out of their own reset attempts by burning the
+victim's own limit. Instead, `passwordResetRequests` denies public
+`create` entirely; the only writer is `requestPasswordReset` (`onCall`),
+which rate-limits by a hash of `request.rawRequest.ip` — real requester
+signal only a callable exposes, unlike a Firestore trigger — before
+writing the request doc itself via the Admin SDK. See the `isRateLimited`
+comment block in `functions/src/index.ts` and ARCHITECTURE.md §6.5 for the
+full incident/fix writeup, including the accepted residual risk around
+per-identifier counter-doc growth (mitigated by App Check's score-based
+rejection plus a Firestore TTL policy on `rateLimitCounters.expiresAt`,
+not eliminated). See `functions/src/rate-limit.spec.ts`.
 
 ### 8.8 Cloud Function Interaction Map
 
@@ -922,7 +933,8 @@ flowchart TD
         ServerFn["Server-side transactional functions\n(placeOrder, stamping sweeps,\nreconciliation)"]
     end
 
-    Guest -->|create-only: accessRequests,\ncontactInquiries, passwordResetRequests| Rules2
+    Guest -->|create-only: accessRequests,\ncontactInquiries| Rules2
+    Guest -->|requestPasswordReset\n(onCall, IP-rate-limited)| ServerFn
     CustClient -->|read/create own orders/returns,\nread own payments, own cart| Rules2
     CustClient -->|checkout| ServerFn
     StaffClient -->|full read/write on operational collections| Rules2
@@ -946,7 +958,7 @@ flowchart TD
   | `admin` | Full access, plus `reconciliationLog` and `employeeInvitations` (admin-only, narrower than general staff) | |
   | `manager` / `sales_rep` / `warehouse` | Full read/write on orders, payments, returns, customers, stockAdjustments, shops, visits, purchasing, expenses/bills | Collectively "staff" |
   | `customer` | Read/create own `orders`/`returns`, read own `payments`, own `portalCarts` doc; `update` own `customers` record through a narrow field allowlist (business name, owner name, phone, address, logo) | Scoped by `linkedCustomerId` claim, not UID; money/status/link fields on the customer doc stay staff-only even for the owning customer |
-  | unauthenticated | `create`-only: `accessRequests`, `contactInquiries`, `passwordResetRequests`, `bannerClicks`; public read: `products`, `categories`, `brands`, `serviceAreas`, storefront-facing `settings` docs | |
+  | unauthenticated | `create`-only: `accessRequests`, `contactInquiries`, `bannerClicks`; public read: `products`, `categories`, `brands`, `serviceAreas`, storefront-facing `settings` docs | `passwordResetRequests` denies public `create` — reached only via the IP-rate-limited `requestPasswordReset` onCall (§8.7, §9.2 diagram) |
 
 - **Fallback-deny-by-default** on both `firestore.rules`
   (`match /{document=**} { allow read, write: if false; }`) and
