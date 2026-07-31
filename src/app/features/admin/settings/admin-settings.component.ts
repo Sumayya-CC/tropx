@@ -582,8 +582,6 @@ export class AdminSettingsComponent {
       if (!proceed) return;
     }
 
-    console.log('saveFeaturedBanner ENTRY, slides:',
-      this.featuredBannerSlides().length);
     this.isSaving.set(true);
     const slidesToSave = [...this.featuredBannerSlides()];
     const enabledToSave = this.featuredBannerEnabled();

@@ -40,8 +40,6 @@ export class InventoryBootstrapService {
           defaultWarehouseName: 'Main Warehouse',
           multiWarehouseEnabled: false
         }, { merge: true });
-        
-        console.log('Bootstrapped Main Warehouse successfully');
       }
     } catch (err) {
       console.error('Failed to bootstrap inventory:', err);
