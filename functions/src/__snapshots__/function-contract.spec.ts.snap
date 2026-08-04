@@ -562,17 +562,6 @@ exports[`function contract baseline (Prompt 5, 5.0 preconditions gate) every exp
     "trigger": "callable",
   },
   {
-    "name": "testSentryReporting",
-    "region": [
-      "northamerica-northeast2",
-    ],
-    "secrets": [
-      "SENTRY_DSN",
-    ],
-    "timeoutSeconds": null,
-    "trigger": "callable",
-  },
-  {
     "name": "updateAdminOrder",
     "region": [
       "northamerica-northeast2",
