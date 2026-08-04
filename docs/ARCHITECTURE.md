@@ -98,7 +98,8 @@ All routes are standalone with `loadComponent()` lazy imports
 
 Order placement moved from a **client-side batch write** (original portal
 launch, May 2026) to a **server-side transaction** (`placeOrder` onCall, in
-`functions/src/index.ts`) once the security-rules tightening work landed.
+`functions/src/domains/orders.ts`) once the security-rules tightening work
+landed.
 This is the single most important data-flow path to understand because it
 touches money, stock, and counters atomically.
 
@@ -394,9 +395,52 @@ one is free.
 
 ## 6. Cloud Functions
 
-All functions live in one large file, `functions/src/index.ts`,
-Gen2 (`firebase-functions/v2`). The active database ID is resolved at
-runtime from `GCLOUD_PROJECT`, never hardcoded:
+Gen2 (`firebase-functions/v2`), split by domain (Prompt 5 file split,
+2026-08-04). `functions/src/index.ts` is now a thin re-export aggregator
+(`export * from "./domains/<name>"`) — every actual trigger/callable lives
+in `functions/src/domains/*.ts`:
+
+| File | Contents |
+|---|---|
+| `domains/reconciliation.ts` | Customer-counter recompute triggers + nightly/weekly sweeps |
+| `domains/shop-health.ts` | Shop↔customer link recon, shop health stamping, pipeline-stuck stamping (kept together — shared banding helpers) |
+| `domains/auth-lifecycle.ts` | Welcome/password-reset/employee-invitation/auth-action triggers, `requestPasswordReset` |
+| `domains/notifications.ts` | Business-event email triggers (orders/returns/access-requests/stock/abandoned-cart/portal-confirmation/payment-receipt) |
+| `domains/purchasing.ts` | `onPoRequest`, `receivePurchaseOrder` |
+| `domains/popular-products.ts` | `computePopularProducts` + its scheduled/on-demand pair |
+| `domains/orders.ts` | The transactional `onCall` order/return group: `placeOrder`, `cancelOrder`, `submitReturn`, `approveReturn`, `createAdminOrder`, `updateAdminOrder`, `cancelAdminOrder`, `saveOrderQuantityEdits` |
+| `domains/field-ops-transactions.ts` | `saveVisit`, `deleteVisit`, `saveStockAdjustment`, `saveStockAdjustments` |
+
+Shared infra lives at the top level, not under `domains/`: `core.ts`
+(bootstrap — `admin.initializeApp()`, `db`, `DATABASE_ID`/`PROJECT_ID`, the
+three `defineSecret()` bindings, `STAFF_ROLES`, `getAdminEmail`,
+`isNotificationEnabled`), `rate-limit.ts` (`isRateLimited`), `email-templates.ts`
+(the 12 pure `*EmailHtml()` generators), and `staff-transactions-shared.ts`
+(`buildStaffActionBy`, `allocateOrderNumber`/`allocateReturnNumber`,
+`computeOrderTotals` — extracted from real duplication found across 10
+call sites in the transactional `onCall` group; see that file's doc
+comments for the two formula divergences resolved during extraction).
+
+**Import direction is one-way and enforced by convention, not tooling:**
+`core.ts` imports nothing local; `rate-limit.ts`/`email-templates.ts`/
+`staff-transactions-shared.ts` import only `core.ts`; `domains/*.ts` import
+from the shared files but never from each other. A cycle here would fail
+silently at cold start, not at `tsc` — check new files by eye.
+
+**Why the split preserves every function's deployed identity:** Firebase
+identifies a function by its export name, trigger type, region, and
+secrets — not by which file it's compiled from. `functions/src/
+function-contract.spec.ts` snapshots every exported function's real
+contract (read from its own `__endpoint` metadata, the same data
+firebase-functions uses to build the deploy manifest) as a regression
+test: any future reorganization that renames, drops, or reconfigures an
+export shows up as a snapshot diff before it ever reaches a `firebase
+deploy`. Confirmed live during the split itself — every one of the 47
+functions deployed as an **update**, never a delete-and-recreate, across
+all 9 split phases.
+
+The active database ID is resolved at runtime from `GCLOUD_PROJECT`,
+never hardcoded (`core.ts`):
 
 ```ts
 const DATABASE_ID = PROJECT_ID === "tropx-wholesale-prod" ? "tropx-prod" : "tropx-dev";
@@ -460,7 +504,7 @@ Firestore rules have no visibility into IP address or request velocity, so
 rate limiting can't live there — it lives in the same `onDocumentCreated`
 trigger that already processes each one (§6.4's guard pattern), gating the
 outbound email rather than the Firestore write itself. `isRateLimited(scope,
-identifier)` (`functions/src/index.ts`) keys a counter by
+identifier)` (`functions/src/rate-limit.ts`) keys a counter by
 `sha256(scope:identifier)` in `rateLimitCounters/{hash}` — a
 Cloud-Functions-only collection (`firestore.rules`: staff read-only, write
 always `false`) — inside a transaction, so concurrent requests serialize

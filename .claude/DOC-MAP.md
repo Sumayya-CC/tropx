@@ -6,7 +6,7 @@ Section references are exact headings that exist today in `docs/ARCHITECTURE.md`
 
 | Area touched | Docs to update |
 |---|---|
-| `functions/src/**` (triggers, callables, scheduled jobs in `index.ts`) | ARCHITECTURE.md §6 Cloud Functions (6.1 Reconciliation & stamping / 6.2 Transactional writes / 6.3 Email-notifications / 6.4 Guard pattern) · SAD §8.8 Cloud Function Interaction Map · SAD §8.9 Scheduled Jobs · SAD §16.1 Cloud Functions by region · CLAUDE.md "Cloud Functions" (`functions/src/index.ts`) + Development Rules → Cloud Functions |
+| `functions/src/**` (triggers, callables, scheduled jobs — split by domain under `functions/src/domains/*.ts` since the Prompt 5 file split, `index.ts` is a re-export aggregator only) | ARCHITECTURE.md §6 Cloud Functions (6.1 Reconciliation & stamping / 6.2 Transactional writes / 6.3 Email-notifications / 6.4 Guard pattern) · SAD §8.8 Cloud Function Interaction Map · SAD §8.9 Scheduled Jobs · SAD §16.1 Cloud Functions by region · CLAUDE.md "Cloud Functions" (`functions/src/`) + Development Rules → Cloud Functions |
 | `firestore.rules` | ARCHITECTURE.md §7 Security Model · SAD §9 Security Architecture (9.1 Trust model / 9.2 Authorization mechanics / 9.3 historical bug) · CLAUDE.md "Firestore security rules" |
 | `storage.rules` | ARCHITECTURE.md §7 Security Model · SAD §9.4 Storage rules · CLAUDE.md "Firestore security rules" (storage mirrors it — same section) |
 | `src/app/core/models/**` | ARCHITECTURE.md §3 Data Model (pick sub-section: 3.1 Core commerce / 3.2 Field operations / 3.3 Purchasing & money-out / 3.5 Job-queue collections) · SAD §7 Data Architecture (7.1 ER Commerce & Field Ops / 7.2 ER Purchasing & Money-Out) · SAD §16.3 Firestore top-level collections |

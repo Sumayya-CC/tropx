@@ -171,7 +171,7 @@ flowchart TB
         Auth["Firebase Auth\n+ custom claims (role, linkedCustomerId, tenantId)"]
         Firestore["Firestore\nnamed database: tropx-dev / tropx-prod"]
         Storage["Cloud Storage\nstorage.rules — per-path scoped"]
-        Functions["Cloud Functions v2\nsingle-file codebase, functions/src/index.ts"]
+        Functions["Cloud Functions v2\nsplit by domain, functions/src/domains/*.ts"]
     end
 
     Resend["Resend API"]
@@ -1064,12 +1064,16 @@ bugs by construction.
 
 Strong: config-driven UI (`core/config/*.config.ts`), one folder per admin
 domain, standalone components with no NgModule boilerplate, a documented
-and (mostly) followed convention set in `CLAUDE.md`. Weak spot: **all
-Cloud Functions logic lives in one ~5,600-line file**
-(`functions/src/index.ts`) rather than split by domain — every function
-shares module scope, secrets, and imports, which is simple to reason about
-today but will become a real maintainability cost as function count grows
-further (see §14).
+and (mostly) followed convention set in `CLAUDE.md`. Cloud Functions were
+the one identified weak spot (all logic in one ~7,700-line
+`functions/src/index.ts`) — resolved by the Prompt 5 file split
+(2026-08-04): `index.ts` is now a thin re-export aggregator, with every
+function split into `functions/src/domains/*.ts` by business domain and
+shared infra factored into `core.ts`/`rate-limit.ts`/`email-templates.ts`/
+`staff-transactions-shared.ts` (see ARCHITECTURE.md §6). A
+`function-contract.spec.ts` snapshot of every function's real deploy
+contract, captured before the split began, is the regression test proving
+the reorganization changed nothing about what's actually deployed.
 
 ### 10.4 Security
 
@@ -1304,6 +1308,30 @@ Storage upload feature needs its own scoped rule before it will work —
 this is treated as a feature of the design (nothing is reachable by
 accident), not friction.
 
+#### ADR-016: Cloud Functions split by domain, with a snapshot test proving deploy identity preserved
+**Context:** `functions/src/index.ts` had grown to 7,700 lines / 47
+exported functions — the identified maintainability weak spot in §10.3.
+Firebase identifies a deployed function by export name, trigger type,
+region, and secrets, not by source file, so a naive split risked
+delete-and-recreating live production functions on a rename/miscopy.
+**Decision:** Sequenced, individually-verified phases (2026-08-04): first
+capture a baseline (`function-contract.spec.ts`, a Jest snapshot of every
+function's real `__endpoint` contract), then move one domain cluster at a
+time into `domains/*.ts`, re-running the snapshot after each move. Real
+duplication found along the way (the same staff `actionBy`-snapshot block
+copy-pasted at 10 call sites, order/return-sequence allocation, and
+subtotal/tax math) was extracted into `staff-transactions-shared.ts` as
+its own phase, separated from the file-move phases, with its own
+equivalence tests before any call site adopted it — including two
+formula divergences resolved by adopting the more defensive of the two
+existing behaviors, and one (the order-number prefix source) that turned
+out to be a real, live prod difference and was escalated for an explicit
+decision rather than silently normalized. **Consequences:** Every one of
+the 47 functions deployed as an update (never delete-and-recreate) across
+all 9 phases, confirmed via live `firebase deploy` output each time. The
+snapshot test is now permanent regression coverage for any future
+reorganization of this codebase.
+
 ---
 
 ## 14. Roadmap & Deliberate Trade-offs
@@ -1350,11 +1378,7 @@ anticipate or explicitly defer — not speculative net-new feature ideas.
    bridge is official tax-invoice numbering integrity and CRA HST-return
    generation, explicitly treated as a separate future track rather than
    something to build incidentally alongside other features.
-5. **Cloud Functions modularization** — splitting `functions/src/index.ts`
-   by domain (reconciliation, field-ops stamping, notifications, purchasing,
-   auth-lifecycle) becomes increasingly worthwhile as the file continues to
-   grow.
-6. **Closing the indexing gap** — extending the `searchName` +
+5. **Closing the indexing gap** — extending the `searchName` +
    composite-index + server-side-pagination pattern (proven on `visits`)
    to the remaining large lists (customers, orders) before store count
    makes in-memory sort/filter a real latency problem.
