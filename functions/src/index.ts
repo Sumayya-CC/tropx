@@ -545,16 +545,11 @@ export const submitReturn = onCall(
         });
       }
 
-      const [seqSnap, orderingSnap, custSnap] = await Promise.all([
-        tx.get(db.collection("settings").doc("returnSequence")),
-        tx.get(db.collection("settings").doc("ordering")),
+      const [allocation, custSnap] = await Promise.all([
+        allocateReturnNumber(tx),
         tx.get(db.collection("customers").doc(linkedCustomerId)),
       ]);
-      const currentSeq = seqSnap.exists ? (seqSnap.data()?.["sequence"] || 0) : 0;
-      const nextSeq = currentSeq + 1;
-      const prefix = orderingSnap.data()?.["returnPrefix"] || "RET";
-      const year = new Date().getFullYear();
-      const returnNumber = `${prefix}-${year}-${String(nextSeq).padStart(4, "0")}`;
+      const {number: returnNumber, nextSeq} = allocation;
       const cust = custSnap.exists ? custSnap.data()! : {};
 
       const now = FieldValue.serverTimestamp();
