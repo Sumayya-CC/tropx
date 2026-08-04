@@ -8,6 +8,7 @@
 import {FieldValue} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {db, sentryDsn, STAFF_ROLES} from "./core";
+import {allocateReturnNumber} from "./staff-transactions-shared";
 import {isRateLimited} from "./rate-limit";
 
 // Phase 5 (file split) 5.1: `core.ts`/`rate-limit.ts`/`email-templates.ts`
@@ -344,19 +345,13 @@ export const cancelOrder = onCall(
       // A credit/refund audit record is only needed when money already
       // changed hands — reserve a return number for it now (read before
       // write) so the whole thing stays one atomic transaction.
+      const retSeqRef = db.collection("settings").doc("returnSequence");
       let returnNumber = "";
       let nextRetSeq = 0;
-      const retSeqRef = db.collection("settings").doc("returnSequence");
       if (amountPaid > 0) {
-        const [retSeqSnap, orderingSnap] = await Promise.all([
-          tx.get(retSeqRef),
-          tx.get(db.collection("settings").doc("ordering")),
-        ]);
-        const currentSeq = retSeqSnap.exists ? (retSeqSnap.data()?.["sequence"] || 0) : 0;
-        nextRetSeq = currentSeq + 1;
-        const retPrefix = orderingSnap.data()?.["returnPrefix"] || "RET";
-        const year = new Date().getFullYear();
-        returnNumber = `${retPrefix}-${year}-${String(nextRetSeq).padStart(4, "0")}`;
+        const allocation = await allocateReturnNumber(tx);
+        returnNumber = allocation.number;
+        nextRetSeq = allocation.nextSeq;
       }
 
       const now = FieldValue.serverTimestamp();
