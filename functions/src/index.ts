@@ -9,6 +9,7 @@ import {FieldValue} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {db, sentryDsn, STAFF_ROLES} from "./core";
 import {isRateLimited} from "./rate-limit";
+import {buildStaffActionBy} from "./staff-transactions-shared";
 
 // Phase 5 (file split) 5.1: `core.ts`/`rate-limit.ts`/`email-templates.ts`
 // hold shared infra with zero exported Cloud Functions — index.ts imports
@@ -117,13 +118,7 @@ export const saveVisit = onCall(
       const shop = shopSnap.data()!;
       const shopName = shop["name"] || "";
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       // Compute soldSinceLastVisit per item (left - found, floored at 0),
       // stripping undefined keys — matches the original client mapping.
@@ -250,13 +245,7 @@ export const deleteVisit = onCall(
         return {shopId: visit["shopId"], alreadyDeleted: true};
       }
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       const items: Array<Record<string, any>> = visit["items"] || [];
       const sampleItems = reverseStock ?
@@ -386,13 +375,7 @@ export const saveStockAdjustment = onCall(
       const product = productSnap.data()!;
       if (product["isDeleted"]) throw new HttpsError("not-found", "Product not found");
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       const currentStock = product["stock"] || 0;
       const signedQty = direction === "in" ? quantity : -quantity;
@@ -483,13 +466,7 @@ export const saveStockAdjustments = onCall(
       const productRefs = rawItems.map((it) => db.collection("products").doc(it.productId));
       const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       // Resolve every item before writing anything — an all-or-nothing
       // save, so any missing product or would-go-negative result rejects
