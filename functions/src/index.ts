@@ -1165,13 +1165,7 @@ export const cancelAdminOrder = onCall(
         throw new HttpsError("failed-precondition", "This order can no longer be cancelled");
       }
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       const customerRef = db.collection("customers").doc(order["customerId"]);
       const customerSnap = await tx.get(customerRef);
