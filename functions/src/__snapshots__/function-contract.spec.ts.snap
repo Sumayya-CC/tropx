@@ -1,0 +1,615 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`function contract baseline (Prompt 5, 5.0 preconditions gate) every exported Cloud Function's trigger/region/secret contract matches the pre-split baseline 1`] = `
+[
+  {
+    "name": "approveReturn",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "cancelAdminOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "cancelOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "checkAbandonedCarts",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every 60 minutes",
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeZone": undefined,
+    "timeoutSeconds": 300,
+    "trigger": "schedule",
+  },
+  {
+    "name": "computePopularProductsNow",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "computePopularProductsScheduled",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "0 2 * * *",
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 120,
+    "trigger": "schedule",
+  },
+  {
+    "name": "createAdminOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "deleteVisit",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "nightlyLinkReconcile",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every day 03:30",
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 540,
+    "trigger": "schedule",
+  },
+  {
+    "name": "nightlyPipelineStuckStamp",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every day 04:00",
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 540,
+    "trigger": "schedule",
+  },
+  {
+    "name": "nightlyReconcileSweep",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every day 03:00",
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 540,
+    "trigger": "schedule",
+  },
+  {
+    "name": "nightlyShopHealthStamp",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every day 03:45",
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 540,
+    "trigger": "schedule",
+  },
+  {
+    "document": "accessRequestApprovals/{approvalId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onAccessRequestApproved",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "accessRequests/{requestId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onAccessRequestNotification",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "adminPasswordResets/{id}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onAdminPasswordReset",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "authActions/{id}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onAuthAction",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "contactInquiries/{inquiryId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onContactInquiry",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "customers/{customerId}",
+    "eventType": "google.cloud.firestore.document.v1.updated",
+    "name": "onCustomerDeleted",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "employeeInvitations/{id}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onEmployeeInvitation",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "invoiceRequests/{id}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onInvoiceRequest",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "stockAdjustments/{adjustmentId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onLowStockAlert",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "orders/{orderId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onOrderNotification",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "orders/{orderId}",
+    "eventType": "google.cloud.firestore.document.v1.updated",
+    "name": "onOrderStatusChanged",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "orders/{orderId}",
+    "eventType": "google.cloud.firestore.document.v1.written",
+    "name": "onOrderWriteReconcile",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "payments/{paymentId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onPaymentReceipt",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "payments/{paymentId}",
+    "eventType": "google.cloud.firestore.document.v1.written",
+    "name": "onPaymentWriteReconcile",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "poRequests/{id}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onPoRequest",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "orders/{orderId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onPortalOrderConfirmation",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "products/{productId}",
+    "eventType": "google.cloud.firestore.document.v1.updated",
+    "name": "onProductRestocked",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "returns/{returnId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "onReturnNotification",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "document": "returns/{returnId}",
+    "eventType": "google.cloud.firestore.document.v1.updated",
+    "name": "onReturnStatusChanged",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "name": "placeOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "receivePurchaseOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "reconcileShopLinksNow",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "refreshPipelineStuckNow",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "refreshShopHealthNow",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "requestPasswordReset",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "saveOrderQuantityEdits",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "saveStockAdjustment",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "saveStockAdjustments",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "saveVisit",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "document": "passwordResetRequests/{requestId}",
+    "eventType": "google.cloud.firestore.document.v1.created",
+    "name": "sendPasswordResetEmail",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "firestore",
+  },
+  {
+    "name": "submitReturn",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "testSentryReporting",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "updateAdminOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "weeklyLinkReconcile",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every sunday 04:30",
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 540,
+    "trigger": "schedule",
+  },
+  {
+    "name": "weeklyReconcileSweep",
+    "region": [
+      "northamerica-northeast1",
+    ],
+    "schedule": "every sunday 04:00",
+    "secrets": [
+      "FROM_EMAIL",
+      "RESEND_API_KEY",
+      "SENTRY_DSN",
+    ],
+    "timeZone": "America/Toronto",
+    "timeoutSeconds": 540,
+    "trigger": "schedule",
+  },
+]
+`;

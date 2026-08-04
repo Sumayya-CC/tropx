@@ -1370,6 +1370,8 @@ anticipate or explicitly defer — not speculative net-new feature ideas.
 | `northamerica-northeast2` | Firestore triggers (`onDocumentCreated/Updated/Written`), `onCall` callables | Matches the Firestore database's region |
 | `northamerica-northeast1` | `onSchedule` only | Cloud Scheduler does not support `northeast2` |
 
+The full per-function contract (trigger type, document/schedule, region, secrets) for every exported function in `functions/src/index.ts` is captured as a Jest snapshot in `functions/src/function-contract.spec.ts` — the Prompt 5 (file-split) 5.0 preconditions-gate baseline every later split phase diffs against, rather than hand-maintained here.
+
 ### 16.2 Role → permission surface (from `AuthService.ROLE_PERMISSIONS`)
 
 | Role | Representative permissions |
