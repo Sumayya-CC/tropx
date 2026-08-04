@@ -115,7 +115,6 @@ export const placeOrder = onCall(
       // ── ordering settings ──
       const orderingSnap = await tx.get(db.collection("settings").doc("ordering"));
       const ordering = orderingSnap.data() || {};
-      const prefix = ordering["orderPrefix"] || "TRX";
       const taxRatePercent = ordering["defaultTaxRatePercent"] ?? 13;
       const outOfStockBehavior = ordering["outOfStockBehavior"] || "show_disabled";
 
@@ -180,18 +179,19 @@ export const placeOrder = onCall(
       }
 
       // ── order sequence (transactional) ──
+      // Unified onto orderSequence.prefix (via allocateOrderNumber) rather
+      // than the ordering.orderPrefix this used to read — a deliberate,
+      // known change (Prompt 5 phase 5.8.8): the two diverged in prod
+      // ("TRX" vs "TW"), and orderSequence.prefix was chosen as canonical
+      // since createAdminOrder already used it. Confirm the real prod
+      // orderSequence.prefix value is the intended one before this reaches
+      // prod traffic.
       const seqRef = db.collection("settings").doc("orderSequence");
-      const seqSnap = await tx.get(seqRef);
-      const currentSeq = seqSnap.exists ? (seqSnap.data()?.["sequence"] || 0) : 0;
-      const nextSeq = currentSeq + 1;
-      const year = new Date().getFullYear();
-      const orderNumber = `${prefix}-${year}-${String(nextSeq).padStart(4, "0")}`;
+      const {number: orderNumber, nextSeq} = await allocateOrderNumber(tx);
 
       // ── totals ──
       const discountCents = 0;
-      const taxableCents = subtotalCents - discountCents;
-      const taxCents = Math.round((taxableCents * taxRatePercent) / 100);
-      const totalCents = taxableCents + taxCents;
+      const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const marginCents = subtotalCents - costTotalCents;
 
       const hasBackorder = lineItems.some((li) => li.backorderedQty > 0);
