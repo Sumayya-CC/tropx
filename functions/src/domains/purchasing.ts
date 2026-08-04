@@ -5,6 +5,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {Resend} from "resend";
 import * as logger from "../logger";
 import {db, DATABASE_ID, sentryDsn, resendApiKey, fromEmail, STAFF_ROLES} from "../core";
+import {buildStaffActionBy} from "../staff-transactions-shared";
 
 // ─── Purchase Order Requests ────────────────────────────────────────────────
 
@@ -110,13 +111,7 @@ export const receivePurchaseOrder = onCall(
         );
       }
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       const inventorySnap = await tx.get(db.collection("settings").doc("inventory"));
       const inventory = inventorySnap.data() || {};
