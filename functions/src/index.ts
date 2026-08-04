@@ -1013,13 +1013,7 @@ export const updateAdminOrder = onCall(
         throw new HttpsError("failed-precondition", "Only confirmed orders can be edited");
       }
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       const customerRef = db.collection("customers").doc(order["customerId"]);
       const customerSnap = await tx.get(customerRef);
@@ -1054,9 +1048,7 @@ export const updateAdminOrder = onCall(
       const now = FieldValue.serverTimestamp();
 
       const subtotalCents = newItems.reduce((sum, i) => sum + i.lineTotalCents, 0);
-      const taxableCents = Math.max(0, subtotalCents - discountCents);
-      const taxCents = Math.round(taxableCents * (taxRatePercent / 100));
-      const totalCents = taxableCents + taxCents;
+      const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const totalCostCents = newItems.reduce((sum, i) => sum + i.lineCostCents, 0);
       const totalDiff = totalCents - (order["totalCents"] || 0);
 
