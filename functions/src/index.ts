@@ -8,7 +8,12 @@
 import {FieldValue} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {db, sentryDsn, STAFF_ROLES} from "./core";
-import {buildStaffActionBy, allocateReturnNumber} from "./staff-transactions-shared";
+import {
+  buildStaffActionBy,
+  allocateOrderNumber,
+  allocateReturnNumber,
+  computeOrderTotals,
+} from "./staff-transactions-shared";
 import {isRateLimited} from "./rate-limit";
 
 // Phase 5 (file split) 5.1: `core.ts`/`rate-limit.ts`/`email-templates.ts`
@@ -811,13 +816,7 @@ export const createAdminOrder = onCall(
       if (!custSnap.exists) throw new HttpsError("not-found", "Customer not found");
       const cust = custSnap.data()!;
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       let serviceAreaName = "";
       if (cust["serviceAreaId"]) {
@@ -828,12 +827,7 @@ export const createAdminOrder = onCall(
       }
 
       const seqRef = db.collection("settings").doc("orderSequence");
-      const seqSnap = await tx.get(seqRef);
-      const seqData = seqSnap.exists ? seqSnap.data()! : {};
-      const nextSeq = Math.max(seqData["sequence"] || 0, seqData["lastNumber"] || 0) + 1;
-      const prefix = seqData["prefix"] || "TRX";
-      const year = new Date().getFullYear();
-      const orderNumber = `${prefix}-${year}-${String(nextSeq).padStart(4, "0")}`;
+      const {number: orderNumber, nextSeq} = await allocateOrderNumber(tx);
 
       // Products: read fresh inside the transaction (the race this
       // migration exists to fix) — but item name/sku/price/cost stay
@@ -863,9 +857,7 @@ export const createAdminOrder = onCall(
       });
 
       const subtotalCents = items.reduce((sum, i) => sum + i.lineTotalCents, 0);
-      const taxableCents = Math.max(0, subtotalCents - discountCents);
-      const taxCents = Math.round(taxableCents * (taxRatePercent / 100));
-      const totalCents = taxableCents + taxCents;
+      const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const totalCostCents = items.reduce((sum, i) => sum + i.lineCostCents, 0);
 
       tx.set(orderRef, {
