@@ -8,7 +8,7 @@
 import {FieldValue} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {db, sentryDsn, STAFF_ROLES} from "./core";
-import {allocateReturnNumber} from "./staff-transactions-shared";
+import {buildStaffActionBy, allocateReturnNumber} from "./staff-transactions-shared";
 import {isRateLimited} from "./rate-limit";
 
 // Phase 5 (file split) 5.1: `core.ts`/`rate-limit.ts`/`email-templates.ts`
@@ -635,13 +635,7 @@ export const approveReturn = onCall(
         throw new HttpsError("invalid-argument", "refundMethod is required for a refund");
       }
 
-      const userSnap = await tx.get(db.collection("users").doc(auth.uid));
-      const userProfile = userSnap.exists ? userSnap.data()! : {};
-      const actionBy = {
-        uid: auth.uid,
-        firstName: userProfile["firstName"] || "Staff",
-        lastName: userProfile["lastName"] || "",
-      };
+      const actionBy = await buildStaffActionBy(tx, auth.uid);
 
       const orderRef = db.collection("orders").doc(ret["orderId"]);
       const orderSnap = await tx.get(orderRef);
