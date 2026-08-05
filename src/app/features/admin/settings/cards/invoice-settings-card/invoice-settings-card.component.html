@@ -1,0 +1,210 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Invoice Settings</h2>
+      <p>Payment terms and invoice configuration</p>
+    </div>
+    @if (!editingInvoice()) {
+      <button class="btn-edit"
+        (click)="editingInvoice.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0
+            0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3
+            3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+
+  @if (!editingInvoice()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Payment Terms</div>
+          <div class="view-value">
+            Net {{ settings.invoice().paymentTermsDays }}
+            days
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">E-Transfer Email</div>
+          <div class="view-value">
+            {{ settings.invoice().etransferEmail || '—'}}
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Invoice Footer</div>
+          <div class="view-value">
+            {{ settings.invoice().footerMessage || '—' }}
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Cash on Delivery</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="settings.invoice().acceptCash"
+              [class.no]="!settings.invoice().acceptCash">
+              {{ settings.invoice().acceptCash
+                ? 'Accepted' : 'Not accepted' }}
+            </span>
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">HST Breakdown</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="
+                settings.invoice().showHstBreakdown"
+              [class.no]="
+                !settings.invoice().showHstBreakdown">
+              {{ settings.invoice().showHstBreakdown
+                ? 'Shown on invoice'
+                : 'Hidden' }}
+            </span>
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Portal Invoice Download</div>
+          <div class="view-value">
+            @if (settings.invoice().portalInvoiceDownloadEnabled ?? true) {
+              Enabled
+            } @else {
+              Disabled — note shown to customers
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Payment Terms (Days)</label>
+            <input type="number" min="0"
+              [value]="paymentTermsDays()"
+              (input)="paymentTermsDays.set(
+                +$any($event.target).value
+              )">
+            <span class="hint">
+              e.g. 30 = "Net 30" on invoices
+            </span>
+          </div>
+          <div class="form-group">
+            <label>E-Transfer Email</label>
+            <input type="email"
+              [value]="etransferEmail()"
+              (input)="etransferEmail.set(
+                $any($event.target).value
+              )">
+            <span class="hint">
+              Shown on invoices as payment destination
+            </span>
+          </div>
+          <div class="form-group full-width">
+            <label>Invoice Footer Message</label>
+            <textarea rows="2"
+              [value]="footerMessage()"
+              (input)="footerMessage.set(
+                $any($event.target).value
+              )"></textarea>
+          </div>
+        </div>
+
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">
+                Accept Cash on Delivery
+              </span>
+              <span class="toggle-desc">
+                Show cash payment option on invoices
+              </span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="acceptCash()"
+                (change)="acceptCash.set(
+                  $any($event.target).checked
+                )">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">
+                Show HST Breakdown
+              </span>
+              <span class="toggle-desc">
+                Show HST line item separately
+              </span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="showHstBreakdown()"
+                (change)="showHstBreakdown.set(
+                  $any($event.target).checked
+                )">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">
+                Allow Invoice Download on Portal
+              </span>
+              <span class="toggle-desc">
+                When off, customers see your custom note instead of a download button
+              </span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="portalInvoiceDownloadEnabled()"
+                (change)="portalInvoiceDownloadEnabled.set(
+                  $any($event.target).checked
+                )">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        @if (!portalInvoiceDownloadEnabled()) {
+          <div class="form-group full-width" style="margin-top: 1rem;">
+            <label>Note Shown to Customers</label>
+            <textarea rows="2"
+              [value]="portalInvoiceDownloadNote()"
+              (input)="portalInvoiceDownloadNote.set(
+                $any($event.target).value
+              )"
+              placeholder="Invoice will be sent by email once your order is delivered."></textarea>
+            <span class="hint">
+              This message appears where the Download Invoice button would normally be.
+            </span>
+          </div>
+        }
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelInvoice()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveInvoice()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Invoice Settings }
+        </button>
+      </div>
+    </div>
+  }
+</div>

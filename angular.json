@@ -27,7 +27,8 @@
               "src/_redirects"
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/app/features/admin/settings/settings-cards-shared.scss"
             ]
           },
           "configurations": {
@@ -103,7 +104,8 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/app/features/admin/settings/settings-cards-shared.scss"
             ]
           }
         },
