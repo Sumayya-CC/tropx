@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FirestoreService } from '../../../core/services/firestore.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { SettingsService } from '../../../core/services/settings.service';
@@ -30,7 +29,6 @@ export class AdminSettingsComponent {
   protected readonly settings = inject(SettingsService);
   private readonly firestore = inject(FirestoreService);
   private readonly toast = inject(ToastService);
-  private readonly auth = inject(AuthService);
   private readonly storage = inject(Storage);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -1855,156 +1853,4 @@ export class AdminSettingsComponent {
     }
   }
 
-  exporting = signal<string | null>(null);
-
-  async exportToCsv(type: 'orders' | 'payments' | 'customers') {
-    this.exporting.set(type);
-    try {
-      const { firstValueFrom } = await import('rxjs');
-      let data: any[] = [];
-      
-      if (type === 'orders') {
-        const obs = this.firestore.getCollection<any>('orders');
-        const all = await firstValueFrom(obs);
-        data = all.filter(item => !item.isDeleted);
-        
-        const headers = [
-          'Order ID', 'Order Number', 'Customer Name', 'Customer Email',
-          'Delivery Type', 'Service Area', 'Status', 'Subtotal', 'Discount',
-          'HST', 'Total', 'Balance', 'Confirmed At', 'Created At'
-        ];
-        
-        const rows = data.map(o => [
-          o.id,
-          o.orderNumber,
-          o.customerName,
-          o.customerEmail,
-          o.deliveryType,
-          o.serviceAreaName,
-          o.status,
-          this.formatCurrency(o.subtotalCents),
-          this.formatCurrency(o.discountCents),
-          this.formatCurrency(o.taxCents),
-          this.formatCurrency(o.totalCents),
-          this.formatCurrency(o.balanceCents),
-          this.formatDate(o.confirmedAt),
-          this.formatDate(o.createdAt)
-        ]);
-        
-        const csvContent = this.generateCsvContent(headers, rows);
-        this.downloadCsv(`orders_export_${Date.now()}.csv`, csvContent);
-        
-      } else if (type === 'payments') {
-        const obs = this.firestore.getCollection<any>('payments');
-        const all = await firstValueFrom(obs);
-        data = all.filter(item => !item.isDeleted);
-        
-        const headers = [
-          'Payment ID', 'Payment Number', 'Order Number', 'Customer Name',
-          'Amount', 'Method', 'Reference', 'Received Date', 'Created At'
-        ];
-        
-        const rows = data.map(p => [
-          p.id,
-          p.paymentNumber,
-          p.orderNumber,
-          p.customerName,
-          this.formatCurrency(p.amountCents),
-          p.method,
-          p.referenceNumber,
-          p.receivedDate,
-          this.formatDate(p.createdAt)
-        ]);
-        
-        const csvContent = this.generateCsvContent(headers, rows);
-        this.downloadCsv(`payments_export_${Date.now()}.csv`, csvContent);
-        
-      } else if (type === 'customers') {
-        const obs = this.firestore.getCollection<any>('customers');
-        const all = await firstValueFrom(obs);
-        data = all.filter(item => !item.isDeleted);
-        
-        const headers = [
-          'Customer ID', 'Business Name', 'Owner Name', 'Email', 'Phone',
-          'Business Type', 'Service Area', 'Status', 'Total Ordered',
-          'Total Owing', 'Created At'
-        ];
-        
-        const rows = data.map(c => [
-          c.id,
-          c.businessName,
-          [c.ownerFirstName, c.ownerLastName].filter(Boolean).join(' '),
-          c.email,
-          c.phone,
-          c.businessType,
-          c.serviceAreaName || c.serviceAreaCustom || '',
-          c.status,
-          this.formatCurrency(c.totalOrderedCents),
-          this.formatCurrency(c.totalOwingCents),
-          this.formatDate(c.createdAt)
-        ]);
-        
-        const csvContent = this.generateCsvContent(headers, rows);
-        this.downloadCsv(`customers_export_${Date.now()}.csv`, csvContent);
-      }
-      
-      this.toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully`);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(`Failed to export ${type}`);
-    } finally {
-      this.exporting.set(null);
-    }
-  }
-
-  private generateCsvContent(headers: string[], rows: any[][]): string {
-    const csvRows = [
-      headers.map(h => this.escapeCsv(h)).join(','),
-      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
-    ];
-    return csvRows.join('\r\n');
-  }
-
-  private escapeCsv(val: any): string {
-    if (val === null || val === undefined) return '';
-    let str = String(val);
-    str = str.replace(/"/g, '""');
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str}"`;
-    }
-    return str;
-  }
-
-  private formatCurrency(cents: number | undefined | null): string {
-    if (cents === undefined || cents === null) return '$0.00';
-    return '$' + (cents / 100).toFixed(2);
-  }
-
-  private formatDate(ts: any): string {
-    if (!ts) return '';
-    let date: Date;
-    if (ts.toDate) {
-      date = ts.toDate();
-    } else if (ts.seconds) {
-      date = new Date(ts.seconds * 1000);
-    } else {
-      date = new Date(ts);
-    }
-    if (isNaN(date.getTime())) return '';
-    return date.toISOString().replace('T', ' ').substring(0, 19);
-  }
-
-  private downloadCsv(filename: string, csvContent: string) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  }
 }

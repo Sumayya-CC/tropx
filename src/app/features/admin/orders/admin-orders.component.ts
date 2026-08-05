@@ -9,6 +9,7 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { generateCsvContent, downloadCsv } from '../../../shared/utils/csv-export.utils';
 
 @Component({
   selector: 'app-admin-orders',
@@ -332,7 +333,7 @@ export class AdminOrdersComponent {
       ];
     });
 
-    const csvContent = this.generateCsvContent(
+    const csvContent = generateCsvContent(
       headers, rows
     );
 
@@ -342,29 +343,11 @@ export class AdminOrdersComponent {
         `${this.exportToDate()}`
       : '';
 
-    this.downloadCsv(
+    downloadCsv(
       `orders${dateTag}_export.csv`,
       csvContent
     );
     this.showExportModal.set(false);
-  }
-
-  private generateCsvContent(headers: string[], rows: any[][]): string {
-    const csvRows = [
-      headers.map(h => this.escapeCsv(h)).join(','),
-      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
-    ];
-    return csvRows.join('\r\n');
-  }
-
-  private escapeCsv(val: any): string {
-    if (val === null || val === undefined) return '';
-    let str = String(val);
-    str = str.replace(/"/g, '""');
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str}"`;
-    }
-    return str;
   }
 
   private formatDate(ts: any): string {
@@ -379,20 +362,6 @@ export class AdminOrdersComponent {
     }
     if (isNaN(date.getTime())) return '';
     return date.toISOString().replace('T', ' ').substring(0, 19);
-  }
-
-  private downloadCsv(filename: string, csvContent: string) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   }
 
   // Handlers

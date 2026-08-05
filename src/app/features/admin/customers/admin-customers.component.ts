@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { FirestoreService } from '../../../core/services/firestore.service';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { generateCsvContent, downloadCsv } from '../../../shared/utils/csv-export.utils';
 import { where, orderBy } from '@angular/fire/firestore';
 import { Customer } from '../../../core/models/customer.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
@@ -110,41 +111,9 @@ export class AdminCustomersComponent {
       c.status
     ]);
 
-    const csvContent = this.generateCsvContent(headers, rows);
-    this.downloadCsv(`customers_export_${Date.now()}.csv`, csvContent);
+    const csvContent = generateCsvContent(headers, rows);
+    downloadCsv(`customers_export_${Date.now()}.csv`, csvContent);
     this.showExportModal.set(false);
-  }
-
-  private generateCsvContent(headers: string[], rows: any[][]): string {
-    const csvRows = [
-      headers.map(h => this.escapeCsv(h)).join(','),
-      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
-    ];
-    return csvRows.join('\r\n');
-  }
-
-  private escapeCsv(val: any): string {
-    if (val === null || val === undefined) return '';
-    let str = String(val);
-    str = str.replace(/"/g, '""');
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str}"`;
-    }
-    return str;
-  }
-
-  private downloadCsv(filename: string, csvContent: string) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   }
 
   constructor() {

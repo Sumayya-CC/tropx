@@ -13,6 +13,7 @@ import { Order } from '../../../core/models/order.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { generateCsvContent, downloadCsv } from '../../../shared/utils/csv-export.utils';
 import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
 import { FullNamePipe } from '../../../shared/pipes/full-name.pipe';
@@ -258,27 +259,9 @@ export class AdminPaymentsComponent {
       p.voidReason || ''
     ]);
 
-    const csvContent = this.generateCsvContent(headers, rows);
-    this.downloadCsv(`payments_export_${Date.now()}.csv`, csvContent);
+    const csvContent = generateCsvContent(headers, rows);
+    downloadCsv(`payments_export_${Date.now()}.csv`, csvContent);
     this.showExportModal.set(false);
-  }
-
-  private generateCsvContent(headers: string[], rows: any[][]): string {
-    const csvRows = [
-      headers.map(h => this.escapeCsv(h)).join(','),
-      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
-    ];
-    return csvRows.join('\r\n');
-  }
-
-  private escapeCsv(val: any): string {
-    if (val === null || val === undefined) return '';
-    let str = String(val);
-    str = str.replace(/"/g, '""');
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str}"`;
-    }
-    return str;
   }
 
   private formatDate(ts: any): string {
@@ -293,20 +276,6 @@ export class AdminPaymentsComponent {
     }
     if (isNaN(date.getTime())) return '';
     return date.toISOString().replace('T', ' ').substring(0, 19);
-  }
-
-  private downloadCsv(filename: string, csvContent: string) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   }
 
   formatCurrency(cents: number): string {

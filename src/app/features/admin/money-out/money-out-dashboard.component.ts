@@ -10,6 +10,7 @@ import { Order } from '../../../core/models/order.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
+import { generateCsvContent, downloadCsv } from '../../../shared/utils/csv-export.utils';
 import { TENANT_ID } from '../../../core/config/tenant.config';
 
 interface RevenueByCustomer {
@@ -183,8 +184,8 @@ export class MoneyOutDashboardComponent {
         e.vendor || '',
         e.note || '',
       ]);
-    const csv = this.generateCsvContent(['Date', 'Category', 'Amount', 'Vendor', 'Note'], rows);
-    this.downloadCsv(`expenses_${this.monthLabel()}.csv`, csv);
+    const csv = generateCsvContent(['Date', 'Category', 'Amount', 'Vendor', 'Note'], rows);
+    downloadCsv(`expenses_${this.monthLabel()}.csv`, csv);
   }
 
   exportBillsCsv() {
@@ -200,11 +201,11 @@ export class MoneyOutDashboardComponent {
         (b.balanceCents / 100).toFixed(2),
         b.status,
       ]);
-    const csv = this.generateCsvContent(
+    const csv = generateCsvContent(
       ['Bill #', 'Supplier', 'Bill Date', 'Due Date', 'Total', 'Paid', 'Balance', 'Status'],
       rows
     );
-    this.downloadCsv(`bills_${this.monthLabel()}.csv`, csv);
+    downloadCsv(`bills_${this.monthLabel()}.csv`, csv);
   }
 
   private monthLabel(): string {
@@ -214,35 +215,5 @@ export class MoneyOutDashboardComponent {
   private formatDateForCsv(ts: any): string {
     const d = this.toDate(ts);
     return d.getTime() ? d.toISOString().slice(0, 10) : '';
-  }
-
-  private generateCsvContent(headers: string[], rows: any[][]): string {
-    const csvRows = [
-      headers.map(h => this.escapeCsv(h)).join(','),
-      ...rows.map(row => row.map(cell => this.escapeCsv(cell)).join(','))
-    ];
-    return csvRows.join('\r\n');
-  }
-
-  private escapeCsv(val: any): string {
-    if (val === null || val === undefined) return '';
-    let str = String(val);
-    str = str.replace(/"/g, '""');
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str}"`;
-    }
-    return str;
-  }
-
-  private downloadCsv(filename: string, csvContent: string) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   }
 }
