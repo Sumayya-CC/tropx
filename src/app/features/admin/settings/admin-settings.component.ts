@@ -1786,7 +1786,7 @@ export class AdminSettingsComponent {
   async saveReconciliation() {
     this.isSaving.set(true);
     try {
-      await this.firestore.setDocument(
+      await this.firestore.updateDocument(
         'settings/reconciliation', {
           notifyThresholdCents: Math.round(
             this.reconNotifyThresholdDollars() * 100
