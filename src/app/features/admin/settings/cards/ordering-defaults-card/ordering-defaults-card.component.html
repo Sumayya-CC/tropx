@@ -1,0 +1,197 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Ordering Defaults</h2>
+      <p>Default values for new orders and numbering</p>
+    </div>
+    @if (!editingOrdering()) {
+      <button class="btn-edit"
+        (click)="editingOrdering.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0
+            0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3
+            3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+
+  @if (!editingOrdering()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Default Tax Rate</div>
+          <div class="view-value">
+            {{ settings.ordering().defaultTaxRatePercent
+            }}% HST
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">
+            Default Delivery Type
+          </div>
+          <div class="view-value capitalize">
+            {{ settings.ordering().defaultDeliveryType }}
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Overdue After</div>
+          <div class="view-value">
+            {{ settings.ordering().overdueAfterDays }} days
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Order Prefix</div>
+          <div class="view-value mono">
+            {{ settings.ordering().orderPrefix }}-2026-XXXX
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Payment Prefix</div>
+          <div class="view-value mono">
+            {{ settings.ordering().paymentPrefix }}-2026-XXXX
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Return Prefix</div>
+          <div class="view-value mono">
+            {{ settings.ordering().returnPrefix }}-2026-XXXX
+          </div>
+        </div>
+      </div>
+    </div>
+
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Order Defaults</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Default Tax Rate (%)</label>
+            <input type="number" min="0" max="100"
+              step="0.5"
+              [value]="defaultTaxRatePercent()"
+              (input)="defaultTaxRatePercent.set(
+                +$any($event.target).value
+              )">
+          </div>
+          <div class="form-group">
+            <label>Default Delivery Type</label>
+            <div class="radio-group">
+              <label>
+                <input type="radio"
+                  name="deliveryType"
+                  value="delivery"
+                  [checked]="
+                    defaultDeliveryType() === 'delivery'"
+                  (change)="
+                    defaultDeliveryType.set('delivery')">
+                Delivery
+              </label>
+              <label>
+                <input type="radio"
+                  name="deliveryType"
+                  value="pickup"
+                  [checked]="
+                    defaultDeliveryType() === 'pickup'"
+                  (change)="
+                    defaultDeliveryType.set('pickup')">
+                Pickup
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Overdue After (Days)</label>
+            <input type="number" min="1" max="365"
+              [value]="overdueAfterDays()"
+              (input)="overdueAfterDays.set(
+                +$any($event.target).value
+              )">
+            <span class="hint">
+              Invoices older than this are marked overdue
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>Number Prefixes</h3>
+        <p class="section-desc">
+          Changing a prefix only affects new records.
+          Existing records keep their current numbers.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Order Prefix</label>
+            <input type="text" maxlength="10"
+              [value]="orderPrefix()"
+              (input)="orderPrefix.set(
+                $any($event.target).value.toUpperCase()
+              ); orderPrefixChanged.set(true)">
+            <span class="hint mono">
+              → {{ orderPrefix() }}-2026-0001
+            </span>
+            @if (orderPrefixChanged()) {
+              <span class="prefix-warning">
+                ⚠️ Affects new orders only
+              </span>
+            }
+          </div>
+          <div class="form-group">
+            <label>Payment Prefix</label>
+            <input type="text" maxlength="10"
+              [value]="paymentPrefix()"
+              (input)="paymentPrefix.set(
+                $any($event.target).value.toUpperCase()
+              ); paymentPrefixChanged.set(true)">
+            <span class="hint mono">
+              → {{ paymentPrefix() }}-2026-0001
+            </span>
+            @if (paymentPrefixChanged()) {
+              <span class="prefix-warning">
+                ⚠️ Affects new payments only
+              </span>
+            }
+          </div>
+          <div class="form-group">
+            <label>Return Prefix</label>
+            <input type="text" maxlength="10"
+              [value]="returnPrefix()"
+              (input)="returnPrefix.set(
+                $any($event.target).value.toUpperCase()
+              ); returnPrefixChanged.set(true)">
+            <span class="hint mono">
+              → {{ returnPrefix() }}-2026-0001
+            </span>
+            @if (returnPrefixChanged()) {
+              <span class="prefix-warning">
+                ⚠️ Affects new returns only
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelOrdering()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveOrdering()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Ordering Settings }
+        </button>
+      </div>
+    </div>
+  }
+</div>

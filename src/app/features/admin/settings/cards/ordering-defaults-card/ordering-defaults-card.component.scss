@@ -1,0 +1,17 @@
+.radio-group {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.625rem 0;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--charcoal);
+
+    input { accent-color: var(--navy); }
+  }
+}

@@ -18,12 +18,30 @@ import { DEFAULT_HEALTH_THRESHOLDS } from '../../../shared/utils/shop-health.uti
 import { DEFAULT_STUCK_THRESHOLDS } from '../../../shared/utils/pipeline.utils';
 import { BusinessInfoCardComponent } from './cards/business-info-card/business-info-card.component';
 import { InvoiceSettingsCardComponent } from './cards/invoice-settings-card/invoice-settings-card.component';
+import { OrderingDefaultsCardComponent } from './cards/ordering-defaults-card/ordering-defaults-card.component';
+import { DeliveryOptionsCardComponent } from './cards/delivery-options-card/delivery-options-card.component';
+import { PaymentMethodsCardComponent } from './cards/payment-methods-card/payment-methods-card.component';
+import { StockBackorderCardComponent } from './cards/stock-backorder-card/stock-backorder-card.component';
+import { MinimumOrderCardComponent } from './cards/minimum-order-card/minimum-order-card.component';
+import { ClosureCardComponent } from './cards/closure-card/closure-card.component';
 type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications' | 'system';
 
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageHeaderComponent, BusinessInfoCardComponent, InvoiceSettingsCardComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PageHeaderComponent,
+    BusinessInfoCardComponent,
+    InvoiceSettingsCardComponent,
+    OrderingDefaultsCardComponent,
+    DeliveryOptionsCardComponent,
+    PaymentMethodsCardComponent,
+    StockBackorderCardComponent,
+    MinimumOrderCardComponent,
+    ClosureCardComponent,
+  ],
   templateUrl: './admin-settings.component.html',
   styleUrl: './admin-settings.component.scss',
 })
@@ -46,15 +64,8 @@ export class AdminSettingsComponent {
 
 
 
-  ordering = this.settings.ordering;
   protected readonly Math = Math;
 
-  editingOrdering = signal(false);
-  editingDelivery = signal(false);
-  editingPaymentMethods = signal(false);
-  editingStockBackorder = signal(false);
-  editingMinimumOrder = signal(false);
-  editingClosure = signal(false);
   editingNotifications = signal(false);
   editingReconciliation = signal(false);
   editingShopLink = signal(false);
@@ -175,50 +186,6 @@ export class AdminSettingsComponent {
     );
   });
 
-  // Ordering form fields
-  defaultTaxRatePercent = signal(13);
-  defaultDeliveryType = signal<'delivery' | 'pickup'>('delivery');
-  orderPrefix = signal('TRX');
-  paymentPrefix = signal('PAY');
-  returnPrefix = signal('RET');
-  overdueAfterDays = signal(30);
-
-  // Delivery options
-  deliveryOptions = signal<'delivery_only' | 'pickup_only' | 'both'>('both');
-  pickupAddressMode = signal<'same_as_business' | 'custom'>('same_as_business');
-  pickupStreet = signal('');
-  pickupCity = signal('');
-  pickupProvince = signal('');
-  pickupPostalCode = signal('');
-  deliveryEstimateDays = signal(2);
-  deliveryEstimateText = signal('Delivered within {days} business days');
-
-  // Payment methods
-  paymentCashOnDelivery = signal(true);
-  paymentETransfer = signal(true);
-  paymentCheque = signal(false);
-
-  // Stock & backorder
-  lowStockVisibility = signal<'none' | 'vague' | 'exact'>('vague');
-  lowStockCustomerThreshold = signal(5);
-  outOfStockBehavior = signal<'hide' | 'show_disabled' | 'allow_backorder'>('show_disabled');
-  showBackorderMessage = signal(true);
-  backorderMessage = signal(
-    'This item is currently low in stock. ' +
-    'We may need additional time to fulfill ' +
-    'part of your order.'
-  );
-
-  // Minimum order
-  minimumOrderEnabled = signal(false);
-  minimumOrderScope = signal<'cart' | 'per_product'>('cart');
-  minimumOrderType = signal<'quantity' | 'amount'>('amount');
-  minimumOrderValue = signal(0);
-
-  // Closure
-  closureActive = signal(false);
-  closureMessage = signal('');
-
   // Notification settings form fields
   newOrderAlert = signal(true);
   accessRequestAlert = signal(true);
@@ -233,11 +200,6 @@ export class AdminSettingsComponent {
   customerReturnRejected = signal(true);
   customerPaymentReceipt = signal(true);
 
-  // Prefix warning: show if user changes prefix
-  orderPrefixChanged = signal(false);
-  paymentPrefixChanged = signal(false);
-  returnPrefixChanged = signal(false);
-
   constructor() {
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as SettingsTab | null;
@@ -245,63 +207,6 @@ export class AdminSettingsComponent {
         tab && (this.TABS as readonly string[]).includes(tab) ? tab : 'business'
       );
     });
-
-    effect(() => {
-      const ord = this.settings.ordering();
-      this.defaultTaxRatePercent.set(ord.defaultTaxRatePercent);
-      this.defaultDeliveryType.set(ord.defaultDeliveryType || 'delivery');
-      this.orderPrefix.set(ord.orderPrefix || 'TRX');
-      this.paymentPrefix.set(ord.paymentPrefix || 'PAY');
-      this.returnPrefix.set(ord.returnPrefix || 'RET');
-      this.overdueAfterDays.set(ord.overdueAfterDays || 30);
-
-      this.deliveryOptions.set(ord.deliveryOptions || 'both');
-      this.pickupAddressMode.set(ord.pickupAddressMode || 'same_as_business');
-      this.pickupStreet.set(ord.pickupCustomAddress?.street || '');
-      this.pickupCity.set(ord.pickupCustomAddress?.city || '');
-      this.pickupProvince.set(ord.pickupCustomAddress?.province || '');
-      this.pickupPostalCode.set(ord.pickupCustomAddress?.postalCode || '');
-      this.deliveryEstimateDays.set(ord.deliveryEstimateDays ?? 2);
-      this.deliveryEstimateText.set(
-        ord.deliveryEstimateText ||
-        'Delivered within {days} business days'
-      );
-
-      this.paymentCashOnDelivery.set(
-        ord.paymentMethodsShown?.cashOnDelivery ?? true
-      );
-      this.paymentETransfer.set(
-        ord.paymentMethodsShown?.eTransfer ?? true
-      );
-      this.paymentCheque.set(
-        ord.paymentMethodsShown?.cheque ?? false
-      );
-
-      this.lowStockVisibility.set(ord.lowStockVisibility || 'vague');
-      this.lowStockCustomerThreshold.set(ord.lowStockCustomerThreshold ?? 5);
-      this.outOfStockBehavior.set(ord.outOfStockBehavior || 'show_disabled');
-      this.showBackorderMessage.set(ord.showBackorderMessage ?? true);
-      this.backorderMessage.set(
-        ord.backorderMessage ||
-        'This item is currently low in stock. ' +
-        'We may need additional time to fulfill ' +
-        'part of your order.'
-      );
-
-      this.minimumOrderEnabled.set(ord.minimumOrderEnabled ?? false);
-      this.minimumOrderScope.set(ord.minimumOrderScope || 'cart');
-      this.minimumOrderType.set(ord.minimumOrderType || 'amount');
-      this.minimumOrderValue.set(
-        ord.minimumOrderType === 'amount'
-          ? (ord.minimumOrderValue ?? 0) / 100
-          : (ord.minimumOrderValue ?? 0)
-      );
-
-      this.closureActive.set(ord.closureActive ?? false);
-      this.closureMessage.set(ord.closureMessage || '');
-
-
-    }, { allowSignalWrites: true });
 
     effect(() => {
       const n = this.settings.notifications();
@@ -982,95 +887,6 @@ export class AdminSettingsComponent {
     }
   }
 
-  cancelOrdering() {
-    const ord = this.settings.ordering();
-    this.defaultTaxRatePercent.set(ord.defaultTaxRatePercent);
-    this.defaultDeliveryType.set(ord.defaultDeliveryType || 'delivery');
-    this.orderPrefix.set(ord.orderPrefix || 'TRX');
-    this.paymentPrefix.set(ord.paymentPrefix || 'PAY');
-    this.returnPrefix.set(ord.returnPrefix || 'RET');
-    this.overdueAfterDays.set(ord.overdueAfterDays || 30);
-    this.orderPrefixChanged.set(false);
-    this.paymentPrefixChanged.set(false);
-    this.returnPrefixChanged.set(false);
-    this.editingOrdering.set(false);
-  }
-
-  cancelDelivery() {
-    const ord = this.settings.ordering();
-    this.deliveryOptions.set(
-      ord.deliveryOptions || 'both');
-    this.pickupAddressMode.set(
-      ord.pickupAddressMode || 'same_as_business');
-    this.pickupStreet.set(
-      ord.pickupCustomAddress?.street || '');
-    this.pickupCity.set(
-      ord.pickupCustomAddress?.city || '');
-    this.pickupProvince.set(
-      ord.pickupCustomAddress?.province || '');
-    this.pickupPostalCode.set(
-      ord.pickupCustomAddress?.postalCode || '');
-    this.deliveryEstimateDays.set(
-      ord.deliveryEstimateDays ?? 2);
-    this.deliveryEstimateText.set(
-      ord.deliveryEstimateText ||
-      'Delivered within {days} business days');
-    this.editingDelivery.set(false);
-  }
-
-  cancelPaymentMethods() {
-    const ord = this.settings.ordering();
-    this.paymentCashOnDelivery.set(
-      ord.paymentMethodsShown?.cashOnDelivery ?? true);
-    this.paymentETransfer.set(
-      ord.paymentMethodsShown?.eTransfer ?? true);
-    this.paymentCheque.set(
-      ord.paymentMethodsShown?.cheque ?? false);
-    this.editingPaymentMethods.set(false);
-  }
-
-  cancelStockBackorder() {
-    const ord = this.settings.ordering();
-    this.lowStockVisibility.set(
-      ord.lowStockVisibility || 'vague');
-    this.lowStockCustomerThreshold.set(
-      ord.lowStockCustomerThreshold ?? 5);
-    this.outOfStockBehavior.set(
-      ord.outOfStockBehavior || 'show_disabled');
-    this.showBackorderMessage.set(
-      ord.showBackorderMessage ?? true);
-    this.backorderMessage.set(
-      ord.backorderMessage ||
-      'This item is currently low in stock. ' +
-      'We may need additional time to fulfill ' +
-      'part of your order.');
-    this.editingStockBackorder.set(false);
-  }
-
-  cancelMinimumOrder() {
-    const ord = this.settings.ordering();
-    this.minimumOrderEnabled.set(
-      ord.minimumOrderEnabled ?? false);
-    this.minimumOrderScope.set(
-      ord.minimumOrderScope || 'cart');
-    this.minimumOrderType.set(
-      ord.minimumOrderType || 'amount');
-    this.minimumOrderValue.set(
-      ord.minimumOrderType === 'amount'
-        ? (ord.minimumOrderValue ?? 0) / 100
-        : (ord.minimumOrderValue ?? 0));
-    this.editingMinimumOrder.set(false);
-  }
-
-  cancelClosure() {
-    const ord = this.settings.ordering();
-    this.closureActive.set(
-      ord.closureActive ?? false);
-    this.closureMessage.set(
-      ord.closureMessage || '');
-    this.editingClosure.set(false);
-  }
-
   cancelNotifications() {
     const n = this.settings.notifications();
     this.newOrderAlert.set(n.newOrderAlert);
@@ -1129,180 +945,6 @@ export class AdminSettingsComponent {
     }
   }
 
-
-  async saveOrdering() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument('settings/ordering', {
-        defaultTaxRatePercent: this.defaultTaxRatePercent(),
-        defaultDeliveryType: this.defaultDeliveryType(),
-        orderPrefix: this.orderPrefix(),
-        paymentPrefix: this.paymentPrefix(),
-        returnPrefix: this.returnPrefix(),
-        overdueAfterDays: this.overdueAfterDays(),
-      });
-
-      // Update sequence docs if prefix changed
-      if (this.orderPrefixChanged()) {
-        await this.firestore.updateDocument('settings/orderSequence', {
-          prefix: this.orderPrefix(),
-        });
-        this.orderPrefixChanged.set(false);
-      }
-      if (this.paymentPrefixChanged()) {
-        await this.firestore.updateDocument('settings/paymentSequence', {
-          prefix: this.paymentPrefix(),
-        });
-        this.paymentPrefixChanged.set(false);
-      }
-      if (this.returnPrefixChanged()) {
-        await this.firestore.updateDocument('settings/returnSequence', {
-          prefix: this.returnPrefix(),
-        });
-        this.returnPrefixChanged.set(false);
-      }
-
-      this.toast.success('Ordering settings saved');
-      this.editingOrdering.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error('Failed to save ordering settings');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async saveDelivery() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument(
-        'settings/ordering', {
-        deliveryOptions: this.deliveryOptions(),
-        pickupAddressMode: this.pickupAddressMode(),
-        pickupCustomAddress:
-          this.pickupAddressMode() === 'custom'
-            ? {
-                street: this.pickupStreet(),
-                city: this.pickupCity(),
-                province: this.pickupProvince(),
-                postalCode: this.pickupPostalCode(),
-              }
-            : null,
-        deliveryEstimateDays:
-          this.deliveryEstimateDays(),
-        deliveryEstimateText:
-          this.deliveryEstimateText(),
-      });
-      this.toast.success('Delivery settings saved');
-      this.editingDelivery.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to save delivery settings');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async savePaymentMethods() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument(
-        'settings/ordering', {
-        paymentMethodsShown: {
-          cashOnDelivery:
-            this.paymentCashOnDelivery(),
-          eTransfer: this.paymentETransfer(),
-          cheque: this.paymentCheque(),
-        },
-      });
-      this.toast.success(
-        'Payment methods saved');
-      this.editingPaymentMethods.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to save payment methods');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async saveStockBackorder() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument(
-        'settings/ordering', {
-        lowStockVisibility:
-          this.lowStockVisibility(),
-        lowStockCustomerThreshold:
-          this.lowStockCustomerThreshold(),
-        outOfStockBehavior: this.outOfStockBehavior(),
-        showBackorderMessage:
-          this.showBackorderMessage(),
-        backorderMessage: this.backorderMessage(),
-      });
-      this.toast.success(
-        'Stock settings saved');
-      this.editingStockBackorder.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to save stock settings');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async saveMinimumOrder() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument(
-        'settings/ordering', {
-        minimumOrderEnabled:
-          this.minimumOrderEnabled(),
-        minimumOrderScope:
-          this.minimumOrderScope(),
-        minimumOrderType:
-          this.minimumOrderType(),
-        minimumOrderValue:
-          this.minimumOrderType() === 'amount'
-            ? Math.round(
-                this.minimumOrderValue() * 100)
-            : this.minimumOrderValue(),
-      });
-      this.toast.success(
-        'Minimum order settings saved');
-      this.editingMinimumOrder.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to save minimum order settings');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async saveClosure() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument(
-        'settings/ordering', {
-        closureActive: this.closureActive(),
-        closureMessage:
-          this.closureMessage() || null,
-      });
-      this.toast.success(
-        'Closure settings saved');
-      this.editingClosure.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to save closure settings');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
 
   async saveShopHealth() {
     this.isSaving.set(true);

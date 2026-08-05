@@ -1,0 +1,88 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Temporary Closure</h2>
+      <p>Temporarily disable online ordering on the portal (e.g. holidays or maintenance)</p>
+    </div>
+    @if (!editingClosure()) {
+      <button class="btn-edit" (click)="editingClosure.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+  @if (!editingClosure()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Status</div>
+          <div class="view-value">
+            @if (settings.ordering().closureActive) {
+              <span class="bool-badge no" style="background: rgba(231,34,46,0.1); color: var(--red);">Closed</span>
+            } @else {
+              <span class="bool-badge yes">Open</span>
+            }
+          </div>
+        </div>
+        @if (settings.ordering().closureActive) {
+          <div class="view-item">
+            <div class="view-label">Closure Message</div>
+            <div class="view-value">
+              {{ settings.ordering().closureMessage || "We're not accepting new orders right now. Please check back soon." }}
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Store Closure</h3>
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Closure Active</span>
+              <span class="toggle-desc">When active, customers cannot place new orders on the portal</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="closureActive()"
+                (change)="closureActive.set($any($event.target).checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          @if (closureActive()) {
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Closure Message</label>
+              <textarea rows="2"
+                placeholder="We're closed for Canada Day. Orders will resume July 2nd."
+                [value]="closureMessage()"
+                (input)="closureMessage.set($any($event.target).value)">
+              </textarea>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelClosure()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveClosure()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Closure Settings }
+        </button>
+      </div>
+    </div>
+  }
+</div>

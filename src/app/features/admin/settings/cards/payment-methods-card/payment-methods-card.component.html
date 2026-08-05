@@ -1,0 +1,102 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Payment Methods Shown to Customers</h2>
+      <p>Select which payment options are displayed to customers at checkout</p>
+    </div>
+    @if (!editingPaymentMethods()) {
+      <button class="btn-edit" (click)="editingPaymentMethods.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+  @if (!editingPaymentMethods()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-section">
+        <div class="view-label">Enabled Payment Methods</div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+          @if (settings.ordering().paymentMethodsShown?.cashOnDelivery ?? true) {
+            <span class="bool-badge yes">Cash on Delivery</span>
+          }
+          @if (settings.ordering().paymentMethodsShown?.eTransfer ?? true) {
+            <span class="bool-badge yes">E-Transfer</span>
+          }
+          @if (settings.ordering().paymentMethodsShown?.cheque ?? false) {
+            <span class="bool-badge yes">Cheque</span>
+          }
+          @if (!(settings.ordering().paymentMethodsShown?.cashOnDelivery ?? true) &&
+               !(settings.ordering().paymentMethodsShown?.eTransfer ?? true) &&
+               !(settings.ordering().paymentMethodsShown?.cheque ?? false)) {
+            <span class="bool-badge no">None</span>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Payment Methods</h3>
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Cash on Delivery</span>
+              <span class="toggle-desc">Show cash payment option at checkout</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="paymentCashOnDelivery()"
+                (change)="paymentCashOnDelivery.set($any($event.target).checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">E-Transfer</span>
+              <span class="toggle-desc">Show Interac e-Transfer payment option at checkout</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="paymentETransfer()"
+                (change)="paymentETransfer.set($any($event.target).checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Cheque</span>
+              <span class="toggle-desc">Show cheque payment option at checkout</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="paymentCheque()"
+                (change)="paymentCheque.set($any($event.target).checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelPaymentMethods()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="savePaymentMethods()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Payment Methods }
+        </button>
+      </div>
+    </div>
+  }
+</div>

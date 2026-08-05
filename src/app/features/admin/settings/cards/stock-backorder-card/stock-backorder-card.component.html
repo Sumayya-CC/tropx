@@ -1,0 +1,177 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Out of Stock Handling</h2>
+      <p>Control stock display and backordering rules for the portal</p>
+    </div>
+    @if (!editingStockBackorder()) {
+      <button class="btn-edit" (click)="editingStockBackorder.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+  @if (!editingStockBackorder()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Low Stock Visibility</div>
+          <div class="view-value">
+            @if (settings.ordering().lowStockVisibility === 'none') { Hidden }
+            @else if (settings.ordering().lowStockVisibility === 'exact') { Exact Count }
+            @else { Vague ("Low Stock") }
+          </div>
+        </div>
+        @if (settings.ordering().lowStockVisibility !== 'none') {
+          <div class="view-item">
+            <div class="view-label">Low Stock Threshold</div>
+            <div class="view-value">
+              {{ settings.ordering().lowStockCustomerThreshold ?? 5 }} units
+            </div>
+          </div>
+        }
+        <div class="view-item">
+          <div class="view-label">Out of Stock Behavior</div>
+          <div class="view-value">
+            @switch (settings.ordering().outOfStockBehavior || 'show_disabled') {
+              @case ('hide') {
+                <span>Out-of-stock items are hidden</span>
+              }
+              @case ('show_disabled') {
+                <span>Out-of-stock items shown, ordering disabled</span>
+              }
+              @case ('allow_backorder') {
+                <span>Backorders allowed</span>
+              }
+            }
+          </div>
+        </div>
+        @if ((settings.ordering().outOfStockBehavior === 'allow_backorder') && settings.ordering().showBackorderMessage) {
+          <div class="view-item">
+            <div class="view-label">Backorder Message</div>
+            <div class="view-value">
+              {{ settings.ordering().backorderMessage }}
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Stock & Backorder Settings</h3>
+        <div class="form-group">
+          <label>Low Stock Visibility to Customers</label>
+          <div class="radio-pills">
+            <label class="radio-pill">
+              <input type="radio" name="lowStockVisibility"
+                value="none"
+                [checked]="lowStockVisibility() === 'none'"
+                (change)="lowStockVisibility.set('none')">
+              <span>Don't Show</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="lowStockVisibility"
+                value="vague"
+                [checked]="lowStockVisibility() === 'vague'"
+                (change)="lowStockVisibility.set('vague')">
+              <span>Vague ("Low Stock")</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="lowStockVisibility"
+                value="exact"
+                [checked]="lowStockVisibility() === 'exact'"
+                (change)="lowStockVisibility.set('exact')">
+              <span>Exact Count ("3 left")</span>
+            </label>
+          </div>
+        </div>
+
+        @if (lowStockVisibility() !== 'none') {
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Show Low Stock Indicator When Stock Is At Or Below</label>
+            <input type="number" min="0"
+              [value]="lowStockCustomerThreshold()"
+              (input)="lowStockCustomerThreshold.set(+$any($event.target).value)">
+          </div>
+        }
+
+        <div class="form-group" style="margin-top: 1.25rem;">
+          <label>When a Product Is Out of Stock</label>
+          <div class="radio-pills">
+            <label class="radio-pill">
+              <input type="radio" name="oosBehavior"
+                value="hide"
+                [checked]="outOfStockBehavior() === 'hide'"
+                (change)="outOfStockBehavior.set('hide')">
+              <span>Hide From Catalog</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="oosBehavior"
+                value="show_disabled"
+                [checked]="outOfStockBehavior() === 'show_disabled'"
+                (change)="outOfStockBehavior.set('show_disabled')">
+              <span>Show, Disable Ordering</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="oosBehavior"
+                value="allow_backorder"
+                [checked]="outOfStockBehavior() === 'allow_backorder'"
+                (change)="outOfStockBehavior.set('allow_backorder')">
+              <span>Allow Backorder</span>
+            </label>
+          </div>
+          <span class="field-hint">
+            This is the default for all products. Individual products can override this from their product edit page.
+          </span>
+        </div>
+
+        @if (outOfStockBehavior() === 'allow_backorder') {
+          <div class="toggle-list" style="margin-top: 1.25rem;">
+            <div class="toggle-item">
+              <div class="toggle-info">
+                <span class="toggle-title">Show Backorder Message</span>
+                <span class="toggle-desc">Display custom warning message at checkout when items are backordered</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                  [checked]="showBackorderMessage()"
+                  (change)="showBackorderMessage.set($any($event.target).checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            @if (showBackorderMessage()) {
+              <div class="form-group" style="margin-top: 0.75rem;">
+                <label>Backorder Message</label>
+                <textarea rows="2"
+                  [value]="backorderMessage()"
+                  (input)="backorderMessage.set($any($event.target).value)">
+                </textarea>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelStockBackorder()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveStockBackorder()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Stock Settings }
+        </button>
+      </div>
+    </div>
+  }
+</div>

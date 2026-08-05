@@ -1,0 +1,137 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Minimum Order Requirement</h2>
+      <p>Set minimum quantities or amounts required to place an order</p>
+    </div>
+    @if (!editingMinimumOrder()) {
+      <button class="btn-edit" (click)="editingMinimumOrder.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+  @if (!editingMinimumOrder()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Minimum Order Requirement</div>
+          <div class="view-value">
+            @if (settings.ordering().minimumOrderEnabled) {
+              @if (settings.ordering().minimumOrderType === 'quantity') {
+                Minimum of {{ settings.ordering().minimumOrderValue }} units
+                {{ settings.ordering().minimumOrderScope === 'cart' ? 'total per order' : 'per product' }}
+              } @else {
+                Minimum of ${{ ((settings.ordering().minimumOrderValue ?? 0) / 100).toFixed(2) }}
+                {{ settings.ordering().minimumOrderScope === 'cart' ? 'total per order' : 'per product' }}
+              }
+            } @else {
+              Disabled (No Minimum)
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Minimum Order Settings</h3>
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Enable Minimum Order</span>
+              <span class="toggle-desc">Enforce restrictions on checkout based on quantity or dollar amount</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="minimumOrderEnabled()"
+                (change)="minimumOrderEnabled.set($any($event.target).checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        @if (minimumOrderEnabled()) {
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Applies To</label>
+            <div class="radio-pills">
+              <label class="radio-pill">
+                <input type="radio" name="minScope"
+                  value="cart"
+                  [checked]="minimumOrderScope() === 'cart'"
+                  (change)="minimumOrderScope.set('cart')">
+                <span>Whole Cart</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="minScope"
+                  value="per_product"
+                  [checked]="minimumOrderScope() === 'per_product'"
+                  (change)="minimumOrderScope.set('per_product')">
+                <span>Per Product</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Measured By</label>
+            <div class="radio-pills">
+              <label class="radio-pill">
+                <input type="radio" name="minType"
+                  value="quantity"
+                  [checked]="minimumOrderType() === 'quantity'"
+                  (change)="minimumOrderType.set('quantity')">
+                <span>Quantity (units)</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="minType"
+                  value="amount"
+                  [checked]="minimumOrderType() === 'amount'"
+                  (change)="minimumOrderType.set('amount')">
+                <span>Dollar Amount</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>
+              Minimum
+              {{ minimumOrderType() === 'quantity' ? 'Units' : 'Amount ($)' }}
+              {{ minimumOrderScope() === 'cart' ? '(per order)' : '(per product)' }}
+            </label>
+            <div class="input-container" style="position: relative; display: flex; align-items: center;">
+              @if (minimumOrderType() === 'amount') {
+                <span style="position: absolute; left: 0.75rem; font-weight: 600; color: var(--gray);">$</span>
+              }
+              <input type="number" min="0" [step]="minimumOrderType() === 'amount' ? '0.01' : '1'"
+                [style.padding-left]="minimumOrderType() === 'amount' ? '1.5rem' : '0.75rem'"
+                [value]="minimumOrderValue()"
+                (input)="minimumOrderValue.set(+$any($event.target).value)">
+              @if (minimumOrderType() === 'quantity') {
+                <span style="margin-left: 0.5rem; font-size: 0.8125rem; font-weight: 600; color: var(--gray);">units</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelMinimumOrder()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveMinimumOrder()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Minimum Order Settings }
+        </button>
+      </div>
+    </div>
+  }
+</div>

@@ -393,3 +393,45 @@
     &:disabled { opacity: 0.6; cursor: not-allowed; }
   }
 }
+
+// Added S2 — used by Delivery Options, Stock/Backorder, and Minimum
+// Order cards (3 siblings in the ordering domain).
+.radio-pills {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+
+  .radio-pill {
+    position: relative;
+    cursor: pointer;
+
+    input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    span {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: white;
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--charcoal);
+      transition: all 0.2s;
+    }
+
+    input:checked + span {
+      background: var(--navy-deep);
+      border-color: var(--navy-deep);
+      color: white;
+    }
+
+    &:hover span {
+      border-color: var(--navy);
+    }
+  }
+}

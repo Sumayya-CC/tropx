@@ -1,0 +1,19 @@
+.pickup-address-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: var(--cream);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+
+  .addr-row {
+    display: flex;
+    gap: 0.75rem;
+
+    input {
+      flex: 1;
+    }
+  }
+}

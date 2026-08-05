@@ -1,0 +1,174 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Delivery Options</h2>
+      <p>Configure delivery methods, pickup addresses, and estimate rules</p>
+    </div>
+    @if (!editingDelivery()) {
+      <button class="btn-edit" (click)="editingDelivery.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+  @if (!editingDelivery()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Delivery Options</div>
+          <div class="view-value">
+            @if (settings.ordering().deliveryOptions === 'delivery_only') { Delivery Only }
+            @else if (settings.ordering().deliveryOptions === 'pickup_only') { Pickup Only }
+            @else { Both (Delivery & Pickup) }
+          </div>
+        </div>
+        @if (settings.ordering().deliveryOptions !== 'delivery_only') {
+          <div class="view-item">
+            <div class="view-label">Pickup Address Mode</div>
+            <div class="view-value">
+              @if (settings.ordering().pickupAddressMode === 'custom') {
+                Custom:
+                {{ settings.ordering().pickupCustomAddress?.street }},
+                {{ settings.ordering().pickupCustomAddress?.city }},
+                {{ settings.ordering().pickupCustomAddress?.province }}
+                {{ settings.ordering().pickupCustomAddress?.postalCode }}
+              } @else {
+                Same as Business Address
+              }
+            </div>
+          </div>
+        }
+        <div class="view-item">
+          <div class="view-label">Delivery Estimate Text</div>
+          <div class="view-value">
+            {{
+              (settings.ordering().deliveryEstimateText || 'Delivered within {days} business days')
+                .replace('{days}', (settings.ordering().deliveryEstimateDays ?? 2).toString())
+            }}
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Estimated Delivery Days</div>
+          <div class="view-value">
+            {{ settings.ordering().deliveryEstimateDays ?? 2 }} days
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Delivery Methods & Estimates</h3>
+        <div class="form-group">
+          <label>What delivery options can customers choose?</label>
+          <div class="radio-pills">
+            <label class="radio-pill">
+              <input type="radio" name="deliveryOptions"
+                value="delivery_only"
+                [checked]="deliveryOptions() === 'delivery_only'"
+                (change)="deliveryOptions.set('delivery_only')">
+              <span>Delivery Only</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="deliveryOptions"
+                value="pickup_only"
+                [checked]="deliveryOptions() === 'pickup_only'"
+                (change)="deliveryOptions.set('pickup_only')">
+              <span>Pickup Only</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="deliveryOptions"
+                value="both"
+                [checked]="deliveryOptions() === 'both'"
+                [checked]="deliveryOptions() === 'both'"
+                (change)="deliveryOptions.set('both')">
+              <span>Both</span>
+            </label>
+          </div>
+        </div>
+
+        @if (deliveryOptions() !== 'delivery_only') {
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label>Pickup Address</label>
+            <div class="radio-pills">
+              <label class="radio-pill">
+                <input type="radio" name="pickupAddressMode"
+                  value="same_as_business"
+                  [checked]="pickupAddressMode() === 'same_as_business'"
+                  (change)="pickupAddressMode.set('same_as_business')">
+                <span>Same as Business Address</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="pickupAddressMode"
+                  value="custom"
+                  [checked]="pickupAddressMode() === 'custom'"
+                  (change)="pickupAddressMode.set('custom')">
+                <span>Custom Address</span>
+              </label>
+            </div>
+
+            @if (pickupAddressMode() === 'custom') {
+              <div class="pickup-address-fields">
+                <input type="text"
+                  placeholder="Street"
+                  [value]="pickupStreet()"
+                  (input)="pickupStreet.set($any($event.target).value)">
+                <div class="addr-row">
+                  <input type="text"
+                    placeholder="City"
+                    [value]="pickupCity()"
+                    (input)="pickupCity.set($any($event.target).value)">
+                  <input type="text"
+                    placeholder="Province"
+                    [value]="pickupProvince()"
+                    (input)="pickupProvince.set($any($event.target).value)">
+                  <input type="text"
+                    placeholder="Postal Code"
+                    [value]="pickupPostalCode()"
+                    (input)="pickupPostalCode.set($any($event.target).value)">
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="form-group" style="margin-top: 1.25rem;">
+          <label>Delivery Estimate Text</label>
+          <input type="text"
+            placeholder="Delivered within {days} business days"
+            [value]="deliveryEstimateText()"
+            (input)="deliveryEstimateText.set($any($event.target).value)">
+          <span class="hint">
+            Use {{ '{days}' }} as a placeholder — it will be replaced with the number below.
+          </span>
+        </div>
+
+        <div class="form-group" style="margin-top: 1.25rem;">
+          <label>Estimated Delivery Days</label>
+          <input type="number" min="0"
+            [value]="deliveryEstimateDays()"
+            (input)="deliveryEstimateDays.set(+$any($event.target).value)">
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelDelivery()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveDelivery()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save Delivery Settings }
+        </button>
+      </div>
+    </div>
+  }
+</div>
