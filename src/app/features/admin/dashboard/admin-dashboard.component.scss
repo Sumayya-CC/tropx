@@ -1101,6 +1101,62 @@
   }
 }
 
+// Field Ops tab (not yet extracted — D6). Restored here after being
+// accidentally deleted in D2's bulk removal of the Overview-exclusive
+// SCSS block; this range had been sitting between that block's start/end
+// markers even though it's unrelated content. Caught via user report
+// (Field Ops rendering fully unstyled), not by the per-phase lint/build
+// checks — those don't verify unrelated regions stayed correct, only that
+// nothing broke compilation. Restored verbatim from the pre-D2 commit
+// (7acf5fc), not rewritten.
+.health-tab { padding-top: 1.5rem; }
+.tab-header-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; }
+.tab-header-row h2 { margin:0; font-size:1.35rem; font-weight:700; color:var(--navy-deep); }
+.tab-sub { margin:.25rem 0 0; color:var(--gray); font-size:.875rem; }
+
+.btn-refresh { display:inline-flex; align-items:center; gap:.5rem; padding:.55rem 1.1rem;
+  background:#fff; border:1px solid var(--border-light); border-radius:8px; font-weight:600;
+  font-size:.875rem; color:var(--navy-deep); cursor:pointer; transition:all .15s; }
+.btn-refresh:hover:not(:disabled) { background:#f8fafc; border-color:var(--navy); }
+.btn-refresh:disabled { opacity:.6; cursor:default; }
+.refresh-ico { display:inline-block; font-size:1rem; }
+.refresh-ico.spin { animation:hspin 1s linear infinite; }
+@keyframes hspin { to { transform:rotate(360deg); } }
+
+.health-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.5rem; }
+@media (max-width:720px) { .health-summary-grid { grid-template-columns:1fr; } }
+
+.health-card { background:#fff; border:1px solid var(--border-light); border-radius:12px;
+  padding:1.25rem 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.hc-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--gray);
+  font-weight:700; margin-bottom:1rem; }
+.hc-bands { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; }
+.band-tile { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:1rem .5rem; border-radius:10px; text-align:center; }
+.band-tile .bt-num { font-size:1.75rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+.band-tile .bt-label { font-size:.72rem; font-weight:600; margin-top:.35rem; text-transform:uppercase; letter-spacing:.04em; }
+.band-tile.green { background:rgba(26,124,74,.08); } .band-tile.green .bt-num, .band-tile.green .bt-label { color:var(--green); }
+.band-tile.gold  { background:rgba(201,149,42,.1); } .band-tile.gold .bt-num, .band-tile.gold .bt-label { color:#8a6d1f; }
+.band-tile.red   { background:rgba(231,34,46,.07); } .band-tile.red .bt-num, .band-tile.red .bt-label { color:var(--red); }
+
+.health-lists { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.25rem; align-items:start; }
+@media (max-width:960px) { .health-lists { grid-template-columns:1fr; } }
+.hc-list-head { display:flex; align-items:center; gap:.5rem; margin-bottom:.75rem;
+  padding-bottom:.75rem; border-bottom:1px solid var(--border-light); }
+.hc-list-head h3 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-dark); flex:1; }
+.hc-count { font-size:.8rem; font-weight:700; color:var(--gray); background:#f1f5f9;
+  padding:.1rem .5rem; border-radius:20px; }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dot.red { background:var(--red); } .dot.gold { background:#c9952a; }
+.hc-row { display:flex; justify-content:space-between; align-items:center; gap:.75rem;
+  padding:.6rem 0; border-bottom:1px solid var(--border-light); text-decoration:none; }
+.hc-row:last-child { border-bottom:none; }
+.hc-row:hover .hc-name { color:var(--navy); }
+.hc-name { font-weight:600; color:var(--text-dark); font-size:.875rem; }
+.hc-meta { font-size:.78rem; white-space:nowrap; }
+.red-text { color:var(--red); } .gold-text { color:#8a6d1f; }
+.hc-empty { color:var(--gray); font-size:.85rem; margin:.5rem 0 0; }
+
 .fo-section { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border-light); }
 .fo-section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; }
 .fo-section-head h2 { margin:0; font-size:1.2rem; font-weight:700; color:var(--navy-deep); }
