@@ -1,0 +1,140 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Gallery</h2>
+      <p>Showcase photos shown on the portal home — products, packaging, events, anything you want customers to see.</p>
+    </div>
+    @if (!editingGallery()) {
+      <button class="btn-edit" (click)="editingGallery.set(true)">Edit</button>
+    }
+  </div>
+
+  @if (!editingGallery()) {
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Status</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="galleryEnabled()"
+              [class.no]="!galleryEnabled()">
+              {{ galleryEnabled() ? 'Shown' : 'Hidden' }}
+            </span>
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Images</div>
+          <div class="view-value">
+            {{ galleryImages().length }} uploaded
+          </div>
+        </div>
+      </div>
+
+      @if (galleryImages().length > 0) {
+        <div class="gallery-grid gallery-grid-view" style="margin-top: 1.5rem;">
+          @for (img of galleryImages(); track img.id) {
+            <div class="gallery-item gallery-item-view">
+              <img [src]="img.imageUrl" [alt]="img.caption"
+                (click)="lightboxImageUrl.set(img.imageUrl)"
+                style="cursor: pointer;">
+              @if (img.caption) {
+                <p class="gallery-caption">{{ img.caption }}</p>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Show gallery section on portal home</span>
+              <span class="toggle-desc">Showcase photos shown on the portal home — products, packaging, events, anything you want customers to see.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [ngModel]="galleryEnabled()"
+                (ngModelChange)="galleryEnabled.set($event)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        @if (galleryImages().length > 0) {
+          <div class="gallery-grid" style="margin-top: 1.5rem;">
+            @for (img of galleryImages(); track img.id) {
+              <div class="gallery-item">
+                <img [src]="img.imageUrl" [alt]="img.caption">
+                <p class="gallery-caption">{{ img.caption || '(no caption)' }}</p>
+                <button type="button" class="btn-remove-gallery-item"
+                  (click)="removeGalleryImage(img.id)">
+                  Remove
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="gallery-upload-row">
+          <input type="file" accept="image/*"
+            (change)="onGalleryFileSelected($event)">
+          @if (galleryUploadPreview()) {
+            <img [src]="galleryUploadPreview()" class="gallery-upload-preview" alt="Preview">
+          }
+          <input type="text" class="form-control"
+            placeholder="Caption (e.g. Bell Pepper Chips · QuickStop, Guelph)"
+            [ngModel]="galleryUploadCaption()"
+            (ngModelChange)="galleryUploadCaption.set($event)">
+          <button type="button" class="btn btn-outline"
+            (click)="addGalleryImage()"
+            [disabled]="isUploadingGalleryImage() || !galleryUploadFile()">
+            @if (isUploadingGalleryImage()) {
+              Uploading...
+            } @else {
+              Add image
+            }
+          </button>
+        </div>
+        <span class="hint" style="display: block; margin-top: 0.5rem;">
+          JPG, PNG or WebP. Max 2MB. Add images one at a time, then Save below to publish the gallery.
+        </span>
+      </div>
+    </div>
+
+    <div class="edit-actions">
+      <button class="btn-cancel-edit" (click)="cancelGallery()" [disabled]="isSaving()">
+        Cancel
+      </button>
+      <button class="btn-save-edit" (click)="saveGallery()" [disabled]="isSaving()">
+        @if (isSaving()) { Saving... }
+        @else { Save Gallery Settings }
+      </button>
+    </div>
+  }
+</div>
+
+@if (lightboxImageUrl()) {
+  <div
+    (click)="lightboxImageUrl.set(null)"
+    style="position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; cursor: zoom-out; padding: 2rem;">
+    <img [src]="lightboxImageUrl()"
+      (click)="$event.stopPropagation()"
+      style="max-width: 90vw; max-height: 90vh; object-fit: contain;
+        border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        cursor: default;">
+    <button
+      (click)="lightboxImageUrl.set(null)"
+      style="position: absolute; top: 1.5rem; right: 1.5rem;
+        width: 40px; height: 40px; border-radius: 50%;
+        background: rgba(255,255,255,0.15); border: none;
+        color: white; font-size: 1.25rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;">
+      ✕
+    </button>
+  </div>
+}

@@ -1,0 +1,201 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Popular with Other Shops</h2>
+      <p>Shows customers which products are
+        most ordered across all accounts.
+        Computed nightly from delivered orders;
+        you can also trigger a manual recompute
+        below.</p>
+    </div>
+    @if (!editingPopular()) {
+      <button class="btn-edit"
+        (click)="editingPopular.set(true)">
+        Edit
+      </button>
+    }
+  </div>
+
+  @if (!editingPopular()) {
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Section</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="popularEnabled()"
+              [class.no]="!popularEnabled()">
+              {{ popularEnabled()
+                ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">
+            Lookback window
+          </div>
+          <div class="view-value">
+            {{ settings.storefront()
+              .popularProductsSettings
+              ?.windowDays ?? 90 }} days
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">
+            Max products shown
+          </div>
+          <div class="view-value">
+            {{ settings.storefront()
+              .popularProductsSettings
+              ?.topN ?? 10 }}
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">
+            Min popularity %
+          </div>
+          <div class="view-value">
+            {{ settings.storefront()
+              .popularProductsSettings
+              ?.minPercent ?? 0 }}%
+          </div>
+        </div>
+        @let lastRun = settings.storefront()
+          .popularProductsComputedAt;
+        @if (lastRun) {
+          <div class="view-item">
+            <div class="view-label">
+              Last computed
+            </div>
+            <div class="view-value">
+              {{ lastRun.toDate
+                ? (lastRun.toDate()
+                  | date:'MMM d, y @ h:mm a')
+                : '—' }}
+            </div>
+          </div>
+        }
+        @let entries = settings.storefront()
+          .popularProductEntries;
+        @if (entries && entries.length > 0) {
+          <div class="view-item">
+            <div class="view-label">
+              Products ranked
+            </div>
+            <div class="view-value">
+              {{ entries.length }} products ·
+              {{ settings.storefront()
+                .popularProductsTotalCustomers
+              }} active customers
+            </div>
+          </div>
+        }
+      </div>
+
+      <div style="margin-top:1rem;
+        padding-top:1rem;
+        border-top:1px solid var(--color-border);
+        display:flex; align-items:center;
+        gap:0.75rem;">
+        <button class="btn-edit"
+          (click)="recomputePopularNow()"
+          [disabled]="isRecomputing()">
+          @if (isRecomputing()) {
+            ⏳ Recomputing...
+          } @else {
+            🔄 Recompute Now
+          }
+        </button>
+        <span style="font-size:0.75rem;
+          color:var(--gray);">
+          Runs automatically every night at 2am
+        </span>
+      </div>
+    </div>
+
+  } @else {
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">
+                Show "Popular with other shops"
+                section in portal
+              </span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="popularEnabled()"
+                (change)="popularEnabled.set(
+                  $any($event.target).checked
+                )">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-grid"
+          style="margin-top:1.25rem;">
+          <div class="form-group">
+            <label>Lookback window (days)</label>
+            <input type="number"
+              [value]="popularWindowDays()"
+              min="7" max="365" step="1"
+              (input)="popularWindowDays.set(
+                +$any($event.target).value
+              )">
+            <span class="hint">
+              Only delivered orders within this
+              window count. Default: 90 days.
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label>Max products to show</label>
+            <input type="number"
+              [value]="popularTopN()"
+              min="1" max="20" step="1"
+              (input)="popularTopN.set(
+                +$any($event.target).value
+              )">
+            <span class="hint">
+              Top-ranked products surfaced
+              in the portal. Default: 10.
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label>
+              Minimum popularity % to show
+            </label>
+            <input type="number"
+              [value]="popularMinPercent()"
+              min="0" max="100" step="1"
+              (input)="popularMinPercent.set(
+                +$any($event.target).value
+              )">
+            <span class="hint">
+              Products below this % are hidden.
+              0 = show all. Default: 0.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelPopular()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="savePopular()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save }
+        </button>
+      </div>
+    </div>
+  }
+</div>

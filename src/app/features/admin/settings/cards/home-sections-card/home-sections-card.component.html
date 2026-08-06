@@ -1,0 +1,123 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Home Page Sections</h2>
+      <p>Configure which sections are shown on the portal homepage</p>
+    </div>
+    @if (!editingHomeSections()) {
+      <button class="btn-edit" (click)="editingHomeSections.set(true)">Edit</button>
+    }
+  </div>
+
+  @if (!editingHomeSections()) {
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Order again</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="orderAgainEnabled()"
+              [class.no]="!orderAgainEnabled()">
+              {{ orderAgainEnabled() ? 'Shown' : 'Hidden' }}
+            </span>
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">New arrivals</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="newArrivalsEnabled()"
+              [class.no]="!newArrivalsEnabled()">
+              {{ newArrivalsEnabled() ? 'Shown' : 'Hidden' }}
+            </span>
+            @if (newArrivalsEnabled()) {
+              <span class="view-hint" style="display: inline-block; margin-left: 0.5rem; margin-bottom: 0;">
+                (auto-included for {{ newArrivalsAutoDays() }} days)
+              </span>
+            }
+          </div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Popular with other shops</div>
+          <div class="view-value">
+            <span class="bool-badge"
+              [class.yes]="popularEnabled()"
+              [class.no]="!popularEnabled()">
+              {{ popularEnabled() ? 'Shown' : 'Hidden' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <div class="toggle-list">
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Show "Order again" section</span>
+              <span class="toggle-desc">Show product recommendations based on customer's purchase history</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [ngModel]="orderAgainEnabled()"
+                (ngModelChange)="orderAgainEnabled.set($event)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Show "New arrivals" section</span>
+              <span class="toggle-desc">Show recently added catalog items on portal homepage</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [ngModel]="newArrivalsEnabled()"
+                (ngModelChange)="newArrivalsEnabled.set($event)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          @if (newArrivalsEnabled()) {
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label>Auto-include products as "new" for this many days after creation</label>
+              <input type="number" min="0"
+                [ngModel]="newArrivalsAutoDays()"
+                (ngModelChange)="newArrivalsAutoDays.set($event)">
+              <span class="hint">
+                Products with "Featured as new" enabled on the product itself are always
+                included regardless of this setting.
+              </span>
+            </div>
+          }
+
+          <div class="toggle-item" style="margin-top: 1.25rem;">
+            <div class="toggle-info">
+              <span class="toggle-title">Show "Popular with other shops" section</span>
+              <span class="toggle-desc">Show best-selling wholesale catalog items</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [ngModel]="popularEnabled()"
+                (ngModelChange)="popularEnabled.set($event)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-actions">
+      <button class="btn-cancel-edit" (click)="cancelHomeSections()" [disabled]="isSaving()">
+        Cancel
+      </button>
+      <button class="btn-save-edit" (click)="saveHomeSections()" [disabled]="isSaving()">
+        @if (isSaving()) { Saving... }
+        @else { Save Home Sections }
+      </button>
+    </div>
+  }
+</div>

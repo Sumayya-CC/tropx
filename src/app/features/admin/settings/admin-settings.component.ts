@@ -9,7 +9,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { Storage } from '@angular/fire/storage';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { where } from '@angular/fire/firestore';
-import { StorefrontGalleryImage, StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct, FeaturedBannerOverlay, BannerTextAlign, BannerTextColor, BannerProductPlacement, MAX_BANNER_PRODUCTS, resolveHidePrice, PopularProductsSettings, DEFAULT_POPULAR_PRODUCTS_SETTINGS } from '../../../core/models/storefront-settings.model';
+import { StorefrontSettings, FeaturedBannerSlide, FeaturedBannerProduct, FeaturedBannerOverlay, BannerTextAlign, BannerTextColor, BannerProductPlacement, MAX_BANNER_PRODUCTS, resolveHidePrice } from '../../../core/models/storefront-settings.model';
 import { Product } from '../../../core/models/product.model';
 import { Functions, getFunctions, httpsCallable } from '@angular/fire/functions';
 
@@ -24,6 +24,9 @@ import { PaymentMethodsCardComponent } from './cards/payment-methods-card/paymen
 import { StockBackorderCardComponent } from './cards/stock-backorder-card/stock-backorder-card.component';
 import { MinimumOrderCardComponent } from './cards/minimum-order-card/minimum-order-card.component';
 import { ClosureCardComponent } from './cards/closure-card/closure-card.component';
+import { HomeSectionsCardComponent } from './cards/home-sections-card/home-sections-card.component';
+import { GalleryCardComponent } from './cards/gallery-card/gallery-card.component';
+import { PopularProductsCardComponent } from './cards/popular-products-card/popular-products-card.component';
 type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notifications' | 'system';
 
 @Component({
@@ -41,6 +44,9 @@ type SettingsTab = 'business' | 'ordering' | 'storefront' | 'invoice' | 'notific
     StockBackorderCardComponent,
     MinimumOrderCardComponent,
     ClosureCardComponent,
+    HomeSectionsCardComponent,
+    GalleryCardComponent,
+    PopularProductsCardComponent,
   ],
   templateUrl: './admin-settings.component.html',
   styleUrl: './admin-settings.component.scss',
@@ -52,9 +58,6 @@ export class AdminSettingsComponent {
   private readonly storage = inject(Storage);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly functions = getFunctions(
-    inject(FirebaseApp), 'northamerica-northeast1'
-  );
   private readonly functions2 = getFunctions(
     inject(FirebaseApp), 'northamerica-northeast2'
   );
@@ -142,28 +145,6 @@ export class AdminSettingsComponent {
 
   readonly MAX_BANNER_PRODUCTS = MAX_BANNER_PRODUCTS;
   isUploadingSlideImage = signal(false);
-
-  // Storefront — Home sections toggles
-  editingHomeSections = signal(false);
-  orderAgainEnabled = signal(true);
-  newArrivalsEnabled = signal(true);
-  newArrivalsAutoDays = signal(14);
-  popularEnabled = signal(true);
-
-  // Storefront — Gallery
-  editingGallery = signal(false);
-  // Popular Products settings
-  editingPopular = signal(false);
-  popularWindowDays = signal(90);
-  popularTopN = signal(10);
-  popularMinPercent = signal(0);
-  isRecomputing = signal(false);
-  galleryEnabled = signal(false);
-  galleryImages = signal<StorefrontGalleryImage[]>([]);
-  galleryUploadFile = signal<File | null>(null);
-  galleryUploadPreview = signal<string>('');
-  galleryUploadCaption = signal('');
-  isUploadingGalleryImage = signal(false);
 
   private products$ = this.firestore.getCollection<Product>(
     'products',
@@ -263,31 +244,6 @@ export class AdminSettingsComponent {
         this.featuredBannerIntervalSeconds.set(sf.featuredBannerIntervalSeconds ?? 5);
         this.featuredBannerSlides.set(sf.featuredBannerSlides || []);
       }
-      
-      this.orderAgainEnabled.set(sf.orderAgainEnabled);
-      this.newArrivalsEnabled.set(sf.newArrivalsEnabled);
-      this.newArrivalsAutoDays.set(sf.newArrivalsAutoDays ?? 14);
-      this.popularEnabled.set(sf.popularEnabled);
-      
-      if (!untracked(() => this.editingGallery())) {
-        this.galleryEnabled.set(sf.galleryEnabled);
-        this.galleryImages.set(sf.galleryImages || []);
-      }
-      
-      if (!untracked(() => this.editingPopular())) {
-        this.popularEnabled.set(
-          sf.popularEnabled ?? true
-        );
-        const cfg = sf.popularProductsSettings ??
-          DEFAULT_POPULAR_PRODUCTS_SETTINGS;
-        this.popularWindowDays.set(
-          cfg.windowDays ?? 90
-        );
-        this.popularTopN.set(cfg.topN ?? 10);
-        this.popularMinPercent.set(
-          cfg.minPercent ?? 0
-        );
-      }
     }, { allowSignalWrites: true });
 
     effect(() => {
@@ -340,25 +296,6 @@ export class AdminSettingsComponent {
   }
 
   protected readonly resolveHidePrice = resolveHidePrice;
-
-  cancelHomeSections() {
-    const sf = this.settings.storefront();
-    this.orderAgainEnabled.set(sf.orderAgainEnabled);
-    this.newArrivalsEnabled.set(sf.newArrivalsEnabled);
-    this.newArrivalsAutoDays.set(sf.newArrivalsAutoDays ?? 14);
-    this.popularEnabled.set(sf.popularEnabled);
-    this.editingHomeSections.set(false);
-  }
-
-  cancelGallery() {
-    const sf = this.settings.storefront();
-    this.galleryEnabled.set(sf.galleryEnabled);
-    this.galleryImages.set(sf.galleryImages || []);
-    this.galleryUploadFile.set(null);
-    this.galleryUploadPreview.set('');
-    this.galleryUploadCaption.set('');
-    this.editingGallery.set(false);
-  }
 
   async saveFeaturedBanner() {
     // Warn if there's a pending unsaved slide
@@ -728,163 +665,6 @@ export class AdminSettingsComponent {
     const p = this.slideSelectedProducts()
       .find(sp => sp.productId === productId);
     return p ? resolveHidePrice(p) : false;
-  }
-
-  async saveHomeSections() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.setDocument('settings/storefront', {
-        ...this.settings.storefront(),
-        orderAgainEnabled: this.orderAgainEnabled(),
-        newArrivalsEnabled: this.newArrivalsEnabled(),
-        newArrivalsAutoDays: this.newArrivalsAutoDays(),
-        popularEnabled: this.popularEnabled(),
-      });
-      this.toast.success('Home section settings saved');
-      this.editingHomeSections.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error('Failed to save home section settings');
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  onGalleryFileSelected(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      this.toast.error('Please select an image file');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      this.toast.error('Image must be under 2MB');
-      return;
-    }
-    this.galleryUploadFile.set(file);
-    const reader = new FileReader();
-    reader.onload = (e) => this.galleryUploadPreview.set(e.target?.result as string);
-    reader.readAsDataURL(file);
-  }
-
-  async addGalleryImage() {
-    const file = this.galleryUploadFile();
-    if (!file) {
-      this.toast.error('Please select an image first');
-      return;
-    }
-    this.isUploadingGalleryImage.set(true);
-    try {
-      const { ref, uploadBytes, getDownloadURL } = await import('@angular/fire/storage');
-      const path = `storefront/gallery/${Date.now()}_${file.name}`;
-      const storageRef = ref(this.storage, path);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-
-      const newImage: StorefrontGalleryImage = {
-        id: crypto.randomUUID(),
-        imageUrl: url,
-        caption: this.galleryUploadCaption().trim(),
-        createdAt: Date.now(),
-      };
-
-      this.galleryImages.update(list => [...list, newImage]);
-      this.galleryUploadFile.set(null);
-      this.galleryUploadPreview.set('');
-      this.galleryUploadCaption.set('');
-      this.toast.success('Image added — remember to save');
-    } catch (err) {
-      console.error(err);
-      this.toast.error('Failed to upload image');
-    } finally {
-      this.isUploadingGalleryImage.set(false);
-    }
-  }
-
-  removeGalleryImage(id: string) {
-    this.galleryImages.update(list => list.filter(img => img.id !== id));
-  }
-
-  cancelPopular() {
-    const sf = this.settings.storefront();
-    this.popularEnabled.set(
-      sf.popularEnabled ?? true
-    );
-    const cfg = sf.popularProductsSettings ??
-      DEFAULT_POPULAR_PRODUCTS_SETTINGS;
-    this.popularWindowDays.set(
-      cfg.windowDays ?? 90
-    );
-    this.popularTopN.set(cfg.topN ?? 10);
-    this.popularMinPercent.set(
-      cfg.minPercent ?? 0
-    );
-    this.editingPopular.set(false);
-  }
-
-  async savePopular() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.updateDocument(
-        'settings/storefront', {
-          popularEnabled: this.popularEnabled(),
-          popularProductsSettings: {
-            windowDays: this.popularWindowDays(),
-            topN: this.popularTopN(),
-            minPercent: this.popularMinPercent(),
-          },
-        }
-      );
-      this.toast.success('Popular products settings saved');
-      this.editingPopular.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to save popular products settings'
-      );
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
-  async recomputePopularNow() {
-    this.isRecomputing.set(true);
-    try {
-      const fn = httpsCallable(
-        this.functions,
-        'computePopularProductsNow',
-        { limitedUseAppCheckTokens: false }
-      );
-      await fn({});
-      this.toast.success(
-        'Popular products recomputed successfully'
-      );
-    } catch (err) {
-      console.error(err);
-      this.toast.error(
-        'Failed to recompute — check console'
-      );
-    } finally {
-      this.isRecomputing.set(false);
-    }
-  }
-
-  async saveGallery() {
-    this.isSaving.set(true);
-    try {
-      await this.firestore.setDocument('settings/storefront', {
-        ...this.settings.storefront(),
-        galleryEnabled: this.galleryEnabled(),
-        galleryImages: this.galleryImages(),
-      });
-      this.toast.success('Gallery saved');
-      this.editingGallery.set(false);
-    } catch (err) {
-      console.error(err);
-      this.toast.error('Failed to save gallery');
-    } finally {
-      this.isSaving.set(false);
-    }
   }
 
   cancelNotifications() {
