@@ -1,0 +1,116 @@
+// Shared chrome for admin-dashboard's per-widget components (Prompt 5.12
+// split), mirroring settings-cards-shared.scss's own rationale exactly:
+// registered as a GLOBAL stylesheet in angular.json (not a component
+// styleUrl) because Angular's default view encapsulation scopes each
+// component's own compiled SCSS to that component's elements only — a
+// class like .dash-card defined in one widget's own .scss would not style
+// another widget's markup even via @use/@import (that only shares the
+// *source*, the compiled CSS still gets duplicated into every component's
+// bundle). Global registration is the only way these classes are compiled
+// once and applied across every sibling widget, which is the actual goal —
+// this file exists specifically because admin-dashboard.component.scss
+// was already at 95.7% of the anyComponentStyle warning budget before any
+// splitting started; per-widget budget relief only works if this is
+// genuinely deduplicated, not copy-pasted into each new widget file.
+//
+// Grown incrementally as each dashboard-split phase (D2-D6) needs more of
+// what used to be in admin-dashboard.component.scss — not the whole
+// original file dumped in at once, so it's easy to see exactly what each
+// phase actually needed shared.
+
+.dash-card {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  &.wide {
+    @media (min-width: 1025px) {
+      grid-column: span 1;
+    }
+  }
+
+  &.full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+.dash-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  h3 {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+    margin: 0;
+  }
+
+  .header-sub {
+    font-size: 0.8125rem;
+    color: var(--gray);
+  }
+
+  .header-link {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--navy);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.dash-card-body {
+  padding: 1.5rem;
+  flex: 1;
+
+  &.no-pad {
+    padding: 0;
+  }
+}
+
+.empty-chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  color: var(--gray);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.empty-state-sm {
+  padding: 2rem;
+  text-align: center;
+  color: var(--gray);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.mono-num {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--navy-deep);
+}
+
+.amount-text {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+
+  &.green {
+    color: var(--green);
+  }
+}

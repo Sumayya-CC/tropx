@@ -6,17 +6,19 @@ import { Functions, httpsCallable } from '@angular/fire/functions';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { SettingsService } from '../../../core/services/settings.service';
-import { NotificationService } from '../../../core/services/notification.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
-import { OrderStatus, ORDER_STATUS_LABELS } from '../../../core/models/order.model';
 import { Shop } from '../../../core/models/shop.model';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { LogFuelButtonComponent } from './log-fuel-button/log-fuel-button.component';
 import { AdminDashboardDataService, DatePreset } from './admin-dashboard-data.service';
+import { LiveKpiRowComponent } from './widgets/live-kpi-row/live-kpi-row.component';
+import { NeedsAttentionCardComponent } from './widgets/needs-attention-card/needs-attention-card.component';
+import { OverviewChartsRowComponent } from './widgets/overview-charts-row/overview-charts-row.component';
+import { OrdersToFulfillCardComponent } from './widgets/orders-to-fulfill-card/orders-to-fulfill-card.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -27,7 +29,11 @@ import { AdminDashboardDataService, DatePreset } from './admin-dashboard-data.se
     RouterModule,
     StatusBadgeComponent,
     LoadingSpinnerComponent,
-    LogFuelButtonComponent
+    LogFuelButtonComponent,
+    LiveKpiRowComponent,
+    NeedsAttentionCardComponent,
+    OverviewChartsRowComponent,
+    OrdersToFulfillCardComponent,
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'
@@ -36,7 +42,6 @@ export class AdminDashboardComponent {
   protected readonly data = inject(AdminDashboardDataService);
   private readonly authService = inject(AuthService);
   protected readonly settingsService = inject(SettingsService);
-  private readonly notificationService = inject(NotificationService);
   protected readonly router = inject(Router);
   private readonly functions2 = inject(Functions);
   private readonly toast = inject(ToastService);
@@ -121,153 +126,6 @@ export class AdminDashboardComponent {
     }
   }
 
-  // ── LIVE KPIs (always current) ──────────────────────
-  liveKpis = computed(() => {
-    const customers = this.data.allCustomers()
-      .filter(c => !c.isDeleted);
-    const activeCustomers = customers
-      .filter(c => c.status === 'active').length;
-
-    // Compute outstanding from live order balanceCents
-    // (source of truth) not the denormalized counter
-    // which can drift. Mirrors the aging report exactly.
-    const outstandingBalance = this.data.allOrders()
-      .filter(o =>
-        !o.isDeleted &&
-        o.status !== 'cancelled' &&
-        (o.balanceCents || 0) > 0
-      )
-      .reduce((sum, o) => sum + (o.balanceCents || 0), 0);
-
-    const pendingReturns = this.notificationService
-      .pendingReturnsCount();
-    const lowStockItems = this.notificationService
-      .lowStockCount();
-
-    return {
-      outstandingBalance,
-      activeCustomers,
-      pendingReturns,
-      lowStockItems
-    };
-  });
-
-  // ── ACTION REQUIRED ──────────────────────────────────
-  // Reconciliation discrepancies frozen for manual review —
-  // highest-priority integrity alert.
-  reconciliationAlert = computed(() => {
-    const items = this.data.needsReviewDiscrepancies();
-    const count = items.length;
-    const totalAbsDelta = items.reduce(
-      (sum, r) => sum + Math.abs(r.maxAbsDelta || 0), 0
-    );
-    return { count, totalAbsDelta, hasItems: count > 0 };
-  });
-
-  actionItems = computed(() => {
-    const overdueDays = this.settingsService
-      .ordering().overdueAfterDays || 30;
-    const threshold = new Date();
-    threshold.setDate(threshold.getDate() - overdueDays);
-
-    // New orders = customer-placed orders still sitting in
-    // 'confirmed' (not yet actioned into preparing/delivery).
-    // Admin-created orders are excluded — you already know
-    // about orders you keyed in yourself.
-    const newOrders = this.data.allOrders()
-      .filter(o =>
-        !o.isDeleted &&
-        o.status === 'confirmed' &&
-        o.source === 'customer_portal'
-      )
-      .sort((a, b) =>
-        this.data.toDate(b.confirmedAt).getTime() -
-        this.data.toDate(a.confirmedAt).getTime()
-      );
-
-    const newOrdersTotal = newOrders.reduce(
-      (sum, o) => sum + (o.totalCents || 0), 0
-    );
-
-    const overdueOrders = this.data.allOrders().filter(o =>
-      !o.isDeleted &&
-      o.status !== 'cancelled' &&
-      o.status !== 'delivered' &&
-      (o.balanceCents || 0) > 0 &&
-      this.data.toDate(o.confirmedAt) < threshold
-    );
-    // Note: 'preparing' is intentionally included in overdue
-    // since it still has an outstanding balance.
-
-    const pendingReturns = this.data.allReturns()
-      .filter(r => !r.isDeleted && r.status === 'pending');
-
-    const lowStockProducts = this.data.allProducts()
-      .filter(p =>
-        !p.isDeleted &&
-        p.active &&
-        p.stock <= (p.lowStockThreshold || 5)
-      )
-      .sort((a, b) => a.stock - b.stock);
-
-    const pendingAccessRequests = this.data.allAccessRequests()
-      .filter(r => r.status === 'pending')
-      .sort((a: any, b: any) => {
-        const at = a.submittedAt?.toDate?.() ??
-          new Date(a.submittedAt ?? 0);
-        const bt = b.submittedAt?.toDate?.() ??
-          new Date(b.submittedAt ?? 0);
-        return bt.getTime() - at.getTime();
-      });
-
-    const overdueTotalBalance = overdueOrders.reduce(
-      (sum, o) => sum + (o.balanceCents || 0), 0
-    );
-
-    return {
-      newOrders,
-      newOrdersTotal,
-      overdueOrders,
-      overdueTotalBalance,
-      pendingReturns,
-      lowStockProducts,
-      pendingAccessRequests,
-      hasItems:
-        newOrders.length > 0 ||
-        overdueOrders.length > 0 ||
-        pendingReturns.length > 0 ||
-        lowStockProducts.length > 0 ||
-        pendingAccessRequests.length > 0,
-      totalCount:
-        newOrders.length +
-        overdueOrders.length +
-        pendingReturns.length +
-        lowStockProducts.length +
-        pendingAccessRequests.length,
-    };
-  });
-
-  // ── SHOP HEALTH SUMMARY ────────────────────────────
-  shopHealthSummary = computed(() => {
-    const shops = this.data.allShops().filter(s => !s.isDeleted);
-    const bands: Record<string, number> = { healthy:0, watch:0, at_risk:0, warm:0, cooling:0, cold:0, unknown:0 };
-    const attention: { shop: Shop; days: number | null; kind: string }[] = [];
-    for (const s of shops) {
-      const band = s.healthBand || 'unknown';
-      bands[band] = (bands[band] || 0) + 1;
-      if (band === 'at_risk' || band === 'cold') {
-        attention.push({ shop: s, days: s.healthDays ?? null, kind: s.healthKind || 'prospect' });
-      }
-    }
-    attention.sort((a,b) => (b.days ?? 0) - (a.days ?? 0));
-    return {
-      customers: { healthy: bands['healthy'], watch: bands['watch'], at_risk: bands['at_risk'] },
-      prospects: { warm: bands['warm'], cooling: bands['cooling'], cold: bands['cold'] },
-      needsAttention: attention.slice(0, 8),
-      needsAttentionCount: attention.length,
-    };
-  });
-
   healthTabData = computed(() => {
     const shops = this.data.allShops().filter(s => !s.isDeleted);
     const customers = shops.filter(s => s.healthKind === 'customer');
@@ -281,91 +139,6 @@ export class AdminDashboardComponent {
       cooling: byBand(prospects, 'cooling'),
     };
   });
-
-  // ── PIPELINE SUMMARY ───────────────────────────────
-  private pipelineShops = computed(() => this.data.allShops().filter(s => !s.isDeleted && s.status === 'prospect'));
-  pipelineSummary = computed(() => {
-    const ps = this.pipelineShops();
-    const stuck = ps.filter(s => s.pipelineStuck).length;
-    const ready = ps.filter(s => s.pipelineStage === 'opened').length;
-    const overdueFollowUps = ps.filter(s => {
-      const v: any = s.nextActionDate; if (!v) return false;
-      const d = v?.toDate ? v.toDate() : new Date(v);
-      const today = new Date(); today.setHours(0,0,0,0);
-      const t = new Date(d); t.setHours(0,0,0,0);
-      return t <= today;
-    });
-    const stuckList = ps.filter(s => s.pipelineStuck)
-      .sort((a,b) => (b.daysInStage ?? 0) - (a.daysInStage ?? 0)).slice(0, 8);
-    return { active: ps.length, stuck, ready, overdueCount: overdueFollowUps.length, stuckList, overdueList: overdueFollowUps.slice(0,8) };
-  });
-
-  // ── DELIVERY SCHEDULE ────────────────────────────────
-  ordersToFulfill = computed(() => {
-    const now = new Date();
-    const today = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate()
-    );
-
-    return this.data.allOrders()
-      .filter(o =>
-        !o.isDeleted &&
-        (o.status === 'confirmed' ||
-          o.status === 'preparing')
-      )
-      .map(o => ({
-        ...o,
-        deliveryDate: o.expectedDeliveryDate
-          ? this.data.toDate(o.expectedDeliveryDate)
-          : null,
-        isDelayed: o.expectedDeliveryDate
-          ? this.data.toDate(o.expectedDeliveryDate) < today
-          : false,
-        isPortal: o.source === 'customer_portal',
-      }))
-      .sort((a, b) => {
-        // Delayed first, then by delivery date,
-        // then unscheduled by confirmed date.
-        if (a.isDelayed && !b.isDelayed) return -1;
-        if (!a.isDelayed && b.isDelayed) return 1;
-        if (a.deliveryDate && b.deliveryDate) {
-          return a.deliveryDate.getTime() -
-            b.deliveryDate.getTime();
-        }
-        if (a.deliveryDate) return -1;
-        if (b.deliveryDate) return 1;
-        return this.data.toDate(b.confirmedAt).getTime() -
-          this.data.toDate(a.confirmedAt).getTime();
-      });
-  });
-
-  // ── BACKORDERS SUMMARY ───────────────────────────────
-  backorderSummary = computed(() => {
-    const orders = this.data.allOrders().filter(o =>
-      !o.isDeleted && o.hasBackorder &&
-      o.status !== 'cancelled' && o.status !== 'delivered');
-    const byProduct = new Map<string, { productName: string; units: number; orders: Set<string> }>();
-    let totalUnits = 0;
-    for (const o of orders) {
-      for (const it of (o.items || []) as any[]) {
-        const bq = it.backorderedQty || 0;
-        if (bq <= 0) continue;
-        totalUnits += bq;
-        const cur = byProduct.get(it.productId) || { productName: it.productName, units: 0, orders: new Set<string>() };
-        cur.units += bq; cur.orders.add(o.id);
-        byProduct.set(it.productId, cur);
-      }
-    }
-    const products = Array.from(byProduct.entries())
-      .map(([productId, v]) => ({ productId, productName: v.productName, units: v.units, orderCount: v.orders.size }))
-      .sort((a, b) => b.units - a.units);
-    return { totalUnits, orderCount: orders.length, products };
-  });
-
-  delayedOrdersCount = computed(() =>
-    this.ordersToFulfill().filter(o => o.isDelayed).length
-  );
-
 
   returnsSummary = computed(() => {
     const returns = this.data.periodReturns();
@@ -402,7 +175,7 @@ export class AdminDashboardComponent {
   });
 
   sortedOverdueOrders = computed(() => {
-    return [...this.actionItems().overdueOrders].sort((a, b) => {
+    return [...this.data.actionItems().overdueOrders].sort((a, b) => {
       const at = a.confirmedAt?.seconds ?? 0;
       const bt = b.confirmedAt?.seconds ?? 0;
       return at - bt;
@@ -436,111 +209,6 @@ export class AdminDashboardComponent {
       )
       .slice(0, 5)
   );
-
-  // Weekly revenue buckets for the Overview trend line.
-  // Uses all orders regardless of the date-range picker —
-  // always shows the last 8 weeks for context.
-  weeklyRevenueBuckets = computed(() => {
-    const now = new Date();
-    const buckets: {
-      label: string;
-      revenueCents: number;
-    }[] = [];
-
-    for (let w = 7; w >= 0; w--) {
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - (w * 7) - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-
-      const label = weekStart.toLocaleDateString('en-CA', {
-        month: 'short', day: 'numeric'
-      });
-
-      const revenueCents = this.data.allOrders()
-        .filter(o => {
-          if (o.isDeleted || o.status === 'cancelled') {
-            return false;
-          }
-          const d = this.data.toDate(o.confirmedAt);
-          return d >= weekStart && d <= weekEnd;
-        })
-        .reduce((sum, o) => sum + o.totalCents, 0);
-
-      buckets.push({ label, revenueCents });
-    }
-    return buckets;
-  });
-
-  weeklyChartMax = computed(() => {
-    const b = this.weeklyRevenueBuckets();
-    return Math.max(...b.map(x => x.revenueCents), 1);
-  });
-
-  weeklyChartPolygonPoints = computed(() => {
-    const buckets = this.weeklyRevenueBuckets();
-    const max = this.weeklyChartMax();
-    if (buckets.length === 0) return '';
-    const pts = buckets.map((b, i) =>
-      `${i * (700 / (buckets.length - 1))},${140 - (b.revenueCents / max) * 140}`
-    ).join(' ');
-    return `${pts} 700,140 0,140`;
-  });
-
-  weeklyChartPolylinePoints = computed(() => {
-    const buckets = this.weeklyRevenueBuckets();
-    const max = this.weeklyChartMax();
-    if (buckets.length === 0) return '';
-    return buckets.map((b, i) =>
-      `${i * (700 / (buckets.length - 1))},${140 - (b.revenueCents / max) * 140}`
-    ).join(' ');
-  });
-
-  // ── FINANCIALS ───────────────────────────────────────
-  periodAnalytics = computed(() => {
-    const orders = this.data.periodOrders();
-    const prev = this.data.prevPeriodOrders();
-    const payments = this.data.periodPayments();
-    const prevPayments = this.data.prevPeriodPayments();
-
-    const revenue = orders.reduce(
-      (s, o) => s + o.totalCents, 0
-    );
-    const prevRevenue = prev.reduce(
-      (s, o) => s + o.totalCents, 0
-    );
-    const collected = payments.reduce(
-      (s, p) => s + p.amountCents, 0
-    );
-    const prevCollected = prevPayments.reduce(
-      (s, p) => s + p.amountCents, 0
-    );
-    const marginCents = orders.reduce(
-      (s, o) => s + (o.marginCents || 0), 0
-    );
-    const marginPct = revenue > 0
-      ? Math.round((marginCents / revenue) * 100) : 0;
-    const prevMarginCents = prev.reduce(
-      (s, o) => s + (o.marginCents || 0), 0
-    );
-    const prevMarginPct = prevRevenue > 0
-      ? Math.round((prevMarginCents / prevRevenue) * 100)
-      : 0;
-    const taxCollected = orders.reduce(
-      (s, o) => s + (o.taxCents || 0), 0
-    );
-
-    return {
-      ordersCount: orders.length,
-      prevOrdersCount: prev.length,
-      revenue, prevRevenue,
-      collected, prevCollected,
-      marginPct, prevMarginPct,
-      taxCollected
-    };
-  });
 
   agingReport = computed(() => {
     const days = this.settingsService
@@ -658,16 +326,6 @@ export class AdminDashboardComponent {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
   });
-
-  lowStockProducts = computed(() =>
-    this.data.allProducts()
-      .filter(p =>
-        !p.isDeleted &&
-        p.active &&
-        p.stock <= (p.lowStockThreshold || 5)
-      )
-      .sort((a, b) => a.stock - b.stock)
-  );
 
   // ── CHARTS ───────────────────────────────────────────
   chartBuckets = computed(() => {
@@ -877,10 +535,6 @@ export class AdminDashboardComponent {
       cancelled: 'danger'
     };
     return map[status] || 'info';
-  }
-
-  getStatusLabel(status: string): string {
-    return ORDER_STATUS_LABELS[status as OrderStatus] || status;
   }
 
   getMethodLabel(method: string): string {

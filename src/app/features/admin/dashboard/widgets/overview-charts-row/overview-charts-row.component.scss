@@ -1,0 +1,130 @@
+.ov-charts-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.25rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ov-chart-card {
+  min-width: 0;
+}
+
+.ov-chart-body {
+  padding: 1rem 1.25rem 0.75rem;
+}
+
+.ov-line-chart {
+  display: flex;
+  gap: 8px;
+}
+
+.ov-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 20px;
+  flex-shrink: 0;
+
+  span {
+    font-size: 0.6875rem;
+    color: var(--gray);
+    line-height: 1;
+  }
+}
+
+.ov-chart-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ov-line-svg {
+  width: 100%;
+  height: 140px;
+  display: block;
+  overflow: visible;
+}
+
+.ov-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 6px;
+
+  span {
+    font-size: 0.6875rem;
+    color: var(--gray);
+    text-align: center;
+    flex: 1;
+
+    &:first-child { text-align: left; }
+    &:last-child  { text-align: right; }
+  }
+}
+
+.ov-status-card {
+  min-width: 0;
+}
+
+// ── Status bar + list ────────────────────────────────────
+.ov-status-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+  background: var(--color-border);
+}
+
+.ov-status-seg {
+  height: 100%;
+  transition: width 0.4s ease;
+
+  &.ov-seg--confirmed  { background: var(--navy); }
+  &.ov-seg--preparing  { background: #7c3aed; }
+  &.ov-seg--delivery   { background: var(--gold); }
+  &.ov-seg--delivered  { background: var(--green); }
+  &.ov-seg--cancelled  { background: var(--red); }
+}
+
+.ov-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ov-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.ov-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+
+  &.ov-status-dot--confirmed  { background: var(--navy); }
+  &.ov-status-dot--preparing  { background: #7c3aed; }
+  &.ov-status-dot--delivery   { background: var(--gold); }
+  &.ov-status-dot--delivered  { background: var(--green); }
+  &.ov-status-dot--cancelled  { background: var(--red); }
+}
+
+.ov-status-label {
+  flex: 1;
+  color: var(--charcoal);
+}
+
+.ov-status-val {
+  font-weight: 700;
+  color: var(--navy-deep);
+  min-width: 24px;
+  text-align: right;
+}

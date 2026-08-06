@@ -1,0 +1,58 @@
+.ov-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ov-kpi-card {
+  background: var(--surface-1, #f9f9f8);
+  border-radius: var(--radius, 8px);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &.ov-kpi-card--danger {
+    background: rgba(231, 34, 46, 0.04);
+  }
+
+  &.ov-kpi-card--warn {
+    background: rgba(201, 149, 42, 0.04);
+  }
+}
+
+.ov-kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray);
+}
+
+.ov-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+  line-height: 1.15;
+  margin: 2px 0;
+}
+
+.ov-val--danger { color: var(--red); }
+.ov-val--warn   { color: #b45309; }
+.ov-val--navy   { color: var(--navy-deep); }
+
+.ov-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.ov-sub--danger { color: var(--red); font-weight: 600; }
+.ov-sub--warn   { color: #b45309; font-weight: 600; }
+.ov-sub--accent { color: var(--navy); font-weight: 600; }

@@ -117,9 +117,9 @@
       [class.active]="activeTab() === 'overview'"
       (click)="activeTab.set('overview')">
       Overview
-      @if (actionItems().totalCount > 0) {
+      @if (data.actionItems().totalCount > 0) {
         <span class="tab-badge red">
-          {{ actionItems().totalCount }}
+          {{ data.actionItems().totalCount }}
         </span>
       }
     </button>
@@ -132,9 +132,9 @@
       [class.active]="activeTab() === 'orders'"
       (click)="activeTab.set('orders')">
       Orders
-      @if (actionItems().newOrders.length > 0) {
+      @if (data.actionItems().newOrders.length > 0) {
         <span class="tab-badge teal">
-          {{ actionItems().newOrders.length }}
+          {{ data.actionItems().newOrders.length }}
         </span>
       }
     </button>
@@ -142,9 +142,9 @@
       [class.active]="activeTab() === 'products'"
       (click)="activeTab.set('products')">
       Products
-      @if (lowStockProducts().length > 0) {
+      @if (data.lowStockProducts().length > 0) {
         <span class="tab-badge">
-          {{ lowStockProducts().length }}
+          {{ data.lowStockProducts().length }}
         </span>
       }
     </button>
@@ -152,603 +152,18 @@
       [class.active]="activeTab() === 'field_ops'"
       (click)="activeTab.set('field_ops')">
       Field Ops
-      @if (shopHealthSummary().needsAttentionCount + pipelineSummary().stuck + pipelineSummary().overdueCount > 0) {
-        <span class="tab-badge">{{ shopHealthSummary().needsAttentionCount + pipelineSummary().stuck + pipelineSummary().overdueCount }}</span>
+      @if (data.shopHealthSummary().needsAttentionCount + data.pipelineSummary().stuck + data.pipelineSummary().overdueCount > 0) {
+        <span class="tab-badge">{{ data.shopHealthSummary().needsAttentionCount + data.pipelineSummary().stuck + data.pipelineSummary().overdueCount }}</span>
       }
     </button>
   </div>
 
   <!-- ══ TAB 1: OVERVIEW ══════════════════════════════ -->
   @if (activeTab() === 'overview') {
-
-    <!-- KPI row — live numbers, no period filter -->
-    <div class="ov-kpi-row">
-
-      <div class="ov-kpi-card">
-        <span class="ov-kpi-label">Revenue</span>
-        <span class="ov-kpi-value">
-          {{ formatCurrency(periodAnalytics().revenue) }}
-        </span>
-        <span class="ov-kpi-sub">
-          {{ periodAnalytics().ordersCount }}
-          order{{ periodAnalytics().ordersCount === 1
-            ? '' : 's' }} this period
-        </span>
-      </div>
-
-      <div class="ov-kpi-card ov-kpi-card--alert"
-        [class.ov-kpi-card--danger]="
-          liveKpis().outstandingBalance > 0">
-        <span class="ov-kpi-label">Outstanding</span>
-        <span class="ov-kpi-value"
-          [class.ov-val--danger]="
-            liveKpis().outstandingBalance > 0">
-          {{ formatCurrency(liveKpis().outstandingBalance) }}
-        </span>
-        <span class="ov-kpi-sub"
-          [class.ov-sub--danger]="
-            actionItems().overdueOrders.length > 0">
-          @if (actionItems().overdueOrders.length > 0) {
-            {{ actionItems().overdueOrders.length }}
-            invoice{{
-              actionItems().overdueOrders.length === 1
-                ? '' : 's'
-            }} overdue
-          } @else {
-            across all customers
-          }
-        </span>
-      </div>
-
-      <div class="ov-kpi-card">
-        <span class="ov-kpi-label">Active customers</span>
-        <span class="ov-kpi-value ov-val--navy">
-          {{ liveKpis().activeCustomers }}
-        </span>
-        <span class="ov-kpi-sub"
-          [class.ov-sub--accent]="
-            actionItems().pendingAccessRequests.length > 0">
-          @if (actionItems().pendingAccessRequests.length > 0) {
-            {{ actionItems().pendingAccessRequests.length }}
-            new request{{
-              actionItems().pendingAccessRequests.length === 1
-                ? '' : 's'
-            }}
-          } @else {
-            wholesale accounts
-          }
-        </span>
-      </div>
-
-      <div class="ov-kpi-card"
-        [class.ov-kpi-card--warn]="
-          liveKpis().lowStockItems > 0">
-        <span class="ov-kpi-label">Low stock</span>
-        <span class="ov-kpi-value"
-          [class.ov-val--warn]="liveKpis().lowStockItems > 0"
-          [class.ov-val--navy]="liveKpis().lowStockItems === 0">
-          {{ liveKpis().lowStockItems }}
-        </span>
-        <span class="ov-kpi-sub"
-          [class.ov-sub--warn]="liveKpis().lowStockItems > 0">
-          @if (liveKpis().lowStockItems > 0) {
-            {{ lowStockProducts()[0]?.stock === 0
-              ? 'including 1 out of stock'
-              : 'below threshold' }}
-          } @else {
-            all products stocked
-          }
-        </span>
-      </div>
-
-    </div>
-
-    <!-- Needs attention — consolidated, ranked by severity -->
-    @if (actionItems().hasItems ||
-         reconciliationAlert().hasItems) {
-      <div class="ov-attention">
-
-        <div class="ov-attention-header">
-          <span class="ov-attention-title">
-            Needs attention
-          </span>
-          <span class="ov-attention-count">
-            {{
-              actionItems().totalCount +
-              reconciliationAlert().count
-            }}
-          </span>
-        </div>
-
-        <div class="ov-attention-list">
-
-          <!-- 0. New orders (highest priority — fresh revenue) -->
-          @if (actionItems().newOrders.length > 0) {
-            <a routerLink="/admin/orders"
-              [queryParams]="{ status: 'confirmed', source: 'customer_portal' }"
-              class="ov-attn-row ov-attn-row--new">
-              <div class="ov-attn-left">
-                <span class="ov-attn-dot ov-attn-dot--new">
-                </span>
-                <div class="ov-attn-text">
-                  <span class="ov-attn-main">
-                    {{ actionItems().newOrders.length }}
-                    new order{{
-                      actionItems().newOrders.length === 1
-                        ? '' : 's'
-                    }} to fulfill
-                  </span>
-                  <span class="ov-attn-sub">
-                    {{ formatCurrency(
-                        actionItems().newOrdersTotal
-                       ) }}
-                    · placed online, not yet started
-                  </span>
-                </div>
-              </div>
-              <span class="ov-attn-arrow">→</span>
-            </a>
-          }
-
-          <!-- 1. Balance discrepancies (data integrity) -->
-          @if (reconciliationAlert().hasItems) {
-            <a routerLink="/admin/reconciliation"
-              class="ov-attn-row ov-attn-row--danger">
-              <div class="ov-attn-left">
-                <span class="ov-attn-dot ov-attn-dot--danger">
-                </span>
-                <div class="ov-attn-text">
-                  <span class="ov-attn-main">
-                    {{ reconciliationAlert().count }}
-                    balance discrepanc{{
-                      reconciliationAlert().count === 1
-                        ? 'y' : 'ies'
-                    }} need review
-                  </span>
-                  <span class="ov-attn-sub">
-                    {{ formatCurrency(
-                        reconciliationAlert().totalAbsDelta
-                       ) }}
-                    flagged · auto-correction withheld
-                  </span>
-                </div>
-              </div>
-              <span class="ov-attn-arrow">→</span>
-            </a>
-          }
-
-          <!-- 2. Overdue invoices (money) -->
-          @if (actionItems().overdueOrders.length > 0) {
-            <a routerLink="/admin/orders"
-              class="ov-attn-row ov-attn-row--danger">
-              <div class="ov-attn-left">
-                <span class="ov-attn-dot ov-attn-dot--danger">
-                </span>
-                <div class="ov-attn-text">
-                  <span class="ov-attn-main">
-                    {{ actionItems().overdueOrders.length }}
-                    overdue invoice{{
-                      actionItems().overdueOrders.length === 1
-                        ? '' : 's'
-                    }}
-                  </span>
-                  <span class="ov-attn-sub">
-                    {{ formatCurrency(
-                        actionItems().overdueTotalBalance
-                       ) }}
-                    outstanding
-                  </span>
-                </div>
-              </div>
-              <span class="ov-attn-arrow">→</span>
-            </a>
-          }
-
-          <!-- 3. Low stock (operational) -->
-          @if (actionItems().lowStockProducts.length > 0) {
-            <a routerLink="/admin/products"
-              class="ov-attn-row ov-attn-row--warn">
-              <div class="ov-attn-left">
-                <span class="ov-attn-dot ov-attn-dot--warn">
-                </span>
-                <div class="ov-attn-text">
-                  <span class="ov-attn-main">
-                    {{ actionItems().lowStockProducts.length }}
-                    product{{
-                      actionItems().lowStockProducts.length === 1
-                        ? '' : 's'
-                    }} low on stock
-                  </span>
-                  <span class="ov-attn-sub">
-                    @if (
-                      actionItems().lowStockProducts[0]
-                        ?.stock === 0
-                    ) {
-                      1 out of stock · needs restocking
-                    } @else {
-                      needs restocking
-                    }
-                  </span>
-                </div>
-              </div>
-              <span class="ov-attn-arrow">→</span>
-            </a>
-          }
-
-          <!-- 4. Pending returns (operational) -->
-          @if (actionItems().pendingReturns.length > 0) {
-            <a routerLink="/admin/returns"
-              class="ov-attn-row ov-attn-row--warn">
-              <div class="ov-attn-left">
-                <span class="ov-attn-dot ov-attn-dot--warn">
-                </span>
-                <div class="ov-attn-text">
-                  <span class="ov-attn-main">
-                    {{ actionItems().pendingReturns.length }}
-                    return{{
-                      actionItems().pendingReturns.length === 1
-                        ? '' : 's'
-                    }} pending review
-                  </span>
-                  <span class="ov-attn-sub">
-                    Awaiting approval
-                  </span>
-                </div>
-              </div>
-              <span class="ov-attn-arrow">→</span>
-            </a>
-          }
-
-          <!-- 5. Access requests (growth) -->
-          @if (actionItems().pendingAccessRequests.length > 0) {
-            <a routerLink="/admin/access-requests"
-              class="ov-attn-row ov-attn-row--accent">
-              <div class="ov-attn-left">
-                <span class="ov-attn-dot ov-attn-dot--accent">
-                </span>
-                <div class="ov-attn-text">
-                  <span class="ov-attn-main">
-                    {{ actionItems()
-                        .pendingAccessRequests.length }}
-                    new access request{{
-                      actionItems()
-                        .pendingAccessRequests.length === 1
-                        ? '' : 's'
-                    }}
-                  </span>
-                  <span class="ov-attn-sub">
-                    New businesses requesting an account
-                  </span>
-                </div>
-              </div>
-              <span class="ov-attn-arrow">→</span>
-            </a>
-          }
-
-        </div>
-      </div>
-    }
-
-    @if (backorderSummary().totalUnits > 0) {
-      <div class="dash-card backorder-card full-width" style="margin-bottom:1.5rem">
-        <div class="dash-card-header">
-          <h3>Backorders</h3>
-          <a routerLink="/admin/orders" [queryParams]="{ filter: 'backordered' }" class="header-link">View orders →</a>
-        </div>
-        <div class="dash-card-body">
-          <div class="bo-summary">
-            <span class="bo-total">{{ backorderSummary().totalUnits }}</span>
-            <span class="bo-total-lbl">units owed across {{ backorderSummary().orderCount }} order{{ backorderSummary().orderCount === 1 ? '' : 's' }}</span>
-          </div>
-          <div class="bo-list">
-            @for (p of backorderSummary().products; track p.productId) {
-              <a class="bo-row" [routerLink]="['/admin/products', p.productId]">
-                <span class="bo-name">{{ p.productName }}</span>
-                <span class="bo-units">{{ p.units }} owed <small>· {{ p.orderCount }} order{{ p.orderCount === 1 ? '' : 's' }}</small></span>
-              </a>
-            }
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- Charts row -->
-    <div class="ov-charts-row">
-
-      <!-- Revenue trend — weekly line chart -->
-      <div class="dash-card ov-chart-card">
-        <div class="dash-card-header">
-          <h3>Revenue trend</h3>
-          <span class="header-sub">Last 8 weeks</span>
-        </div>
-        <div class="dash-card-body ov-chart-body">
-          @let buckets = weeklyRevenueBuckets();
-
-          @if (weeklyChartMax() <= 0) {
-            <div class="empty-chart">
-              No revenue data yet
-            </div>
-          } @else {
-            <div class="ov-line-chart">
-              <!-- Y axis labels -->
-              <div class="ov-y-axis">
-                <span>${{
-                  (weeklyChartMax() / 100 / 1000).toFixed(0)
-                }}k</span>
-                <span>${{
-                  (weeklyChartMax() / 100 / 2000).toFixed(0)
-                }}k</span>
-                <span>$0</span>
-              </div>
-              <!-- SVG line -->
-              <div class="ov-chart-area">
-                <svg viewBox="0 0 700 140"
-                  preserveAspectRatio="none"
-                  class="ov-line-svg">
-                  <!-- Gridlines -->
-                  <line x1="0" y1="0"
-                    x2="700" y2="0"
-                    stroke="var(--color-border)"
-                    stroke-width="1"/>
-                  <line x1="0" y1="70"
-                    x2="700" y2="70"
-                    stroke="var(--color-border)"
-                    stroke-width="1"
-                    stroke-dasharray="4 4"/>
-                  <line x1="0" y1="140"
-                    x2="700" y2="140"
-                    stroke="var(--color-border)"
-                    stroke-width="1"/>
-
-                  <!-- Area fill -->
-                  <polygon
-                    [attr.points]="weeklyChartPolygonPoints()"
-                    fill="rgba(10,45,74,0.06)"/>
-
-                  <!-- Line -->
-                  <polyline
-                    [attr.points]="weeklyChartPolylinePoints()"
-                    fill="none"
-                    stroke="var(--navy-deep)"
-                    stroke-width="2.5"
-                    stroke-linejoin="round"
-                    stroke-linecap="round"/>
-
-                  <!-- Dots -->
-                  @for (b of buckets; track b.label;
-                    let i = $index) {
-                    <circle
-                      [attr.cx]="
-                        i * (700 / (buckets.length - 1))
-                      "
-                      [attr.cy]="
-                        140 - (b.revenueCents / weeklyChartMax()) * 140
-                      "
-                      r="4"
-                      fill="white"
-                      stroke="var(--navy-deep)"
-                      stroke-width="2"/>
-                  }
-                </svg>
-
-                <!-- X axis labels -->
-                <div class="ov-x-axis">
-                  @for (b of buckets; track b.label) {
-                    <span>{{ b.label }}</span>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- Order status breakdown -->
-      <div class="dash-card ov-status-card">
-        <div class="dash-card-header">
-          <h3>Order status</h3>
-        </div>
-        <div class="dash-card-body">
-
-          @let total =
-            data.orderStatusBreakdown().confirmed +
-            data.orderStatusBreakdown().preparing +
-            data.orderStatusBreakdown().outForDelivery +
-            data.orderStatusBreakdown().delivered +
-            data.orderStatusBreakdown().cancelled;
-
-          @if (total === 0) {
-            <div class="empty-chart">No orders</div>
-          } @else {
-            <!-- Progress bar -->
-            <div class="ov-status-bar">
-              @if (data.orderStatusBreakdown().confirmed > 0) {
-                <div class="ov-status-seg ov-seg--confirmed"
-                  [style.width.%]="
-                    (data.orderStatusBreakdown().confirmed
-                      / total) * 100
-                  ">
-                </div>
-              }
-              @if (data.orderStatusBreakdown().preparing > 0) {
-                <div class="ov-status-seg ov-seg--preparing"
-                  [style.width.%]="
-                    (data.orderStatusBreakdown().preparing
-                      / total) * 100
-                  ">
-                </div>
-              }
-              @if (data.orderStatusBreakdown().outForDelivery > 0) {
-                <div class="ov-status-seg ov-seg--delivery"
-                  [style.width.%]="
-                    (data.orderStatusBreakdown().outForDelivery
-                      / total) * 100
-                  ">
-                </div>
-              }
-              @if (data.orderStatusBreakdown().delivered > 0) {
-                <div class="ov-status-seg ov-seg--delivered"
-                  [style.width.%]="
-                    (data.orderStatusBreakdown().delivered
-                      / total) * 100
-                  ">
-                </div>
-              }
-              @if (data.orderStatusBreakdown().cancelled > 0) {
-                <div class="ov-status-seg ov-seg--cancelled"
-                  [style.width.%]="
-                    (data.orderStatusBreakdown().cancelled
-                      / total) * 100
-                  ">
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Status list -->
-          <div class="ov-status-list">
-            <div class="ov-status-row">
-              <span class="ov-status-dot
-                ov-status-dot--confirmed"></span>
-              <span class="ov-status-label">Confirmed</span>
-              <span class="ov-status-val">
-                {{ data.orderStatusBreakdown().confirmed }}
-              </span>
-            </div>
-            <div class="ov-status-row">
-              <span class="ov-status-dot
-                ov-status-dot--preparing"></span>
-              <span class="ov-status-label">Preparing</span>
-              <span class="ov-status-val">
-                {{ data.orderStatusBreakdown().preparing }}
-              </span>
-            </div>
-            <div class="ov-status-row">
-              <span class="ov-status-dot
-                ov-status-dot--delivery"></span>
-              <span class="ov-status-label">
-                Out for delivery
-              </span>
-              <span class="ov-status-val">
-                {{ data.orderStatusBreakdown().outForDelivery }}
-              </span>
-            </div>
-            <div class="ov-status-row">
-              <span class="ov-status-dot
-                ov-status-dot--delivered"></span>
-              <span class="ov-status-label">Delivered</span>
-              <span class="ov-status-val">
-                {{ data.orderStatusBreakdown().delivered }}
-              </span>
-            </div>
-            <div class="ov-status-row">
-              <span class="ov-status-dot
-                ov-status-dot--cancelled"></span>
-              <span class="ov-status-label">Cancelled</span>
-              <span class="ov-status-val">
-                {{ data.orderStatusBreakdown().cancelled }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-
-
-    <!-- Orders to fulfill -->
-    <div class="dash-card full-width">
-      <div class="dash-card-header">
-        <h3>Orders to fulfill</h3>
-        <div style="display:flex; align-items:center; gap:1rem;">
-          @if (ordersToFulfill().length > 0) {
-            <span class="header-sub">
-              {{ ordersToFulfill().length }} active
-              @if (delayedOrdersCount() > 0) {
-                · <span style="color:var(--red); font-weight:700;">
-                  {{ delayedOrdersCount() }}
-                  delayed
-                </span>
-              }
-            </span>
-          }
-          <a routerLink="/admin/orders"
-            class="header-link">View all →</a>
-        </div>
-      </div>
-      <div class="dash-card-body no-pad">
-        @if (ordersToFulfill().length === 0) {
-          <div class="empty-state-sm">
-            🎉 No orders waiting to be fulfilled
-          </div>
-        } @else {
-          @for (o of ordersToFulfill(); track o.id) {
-            <a [routerLink]="['/admin/orders', o.id]"
-              class="fulfill-row"
-              [class.fulfill-row--delayed]="o.isDelayed"
-              [class.fulfill-row--preparing]="
-                o.status === 'preparing'">
-
-              <!-- Left: order info -->
-              <div class="fulfill-left">
-                <div class="fulfill-top">
-                  <span class="mono-num">
-                    {{ o.orderNumber }}
-                  </span>
-                  @if (o.isPortal) {
-                    <span class="fulfill-portal-tag">
-                      Online
-                    </span>
-                  }
-                  @if (o.isDelayed) {
-                    <span class="fulfill-delayed-tag">
-                      ⚠ Delayed
-                    </span>
-                  }
-                </div>
-                <span class="fulfill-customer">
-                  {{ o.customerName }}
-                </span>
-              </div>
-
-              <!-- Center: delivery date -->
-              <div class="fulfill-date">
-                @if (o.deliveryDate) {
-                  <span class="fulfill-date-label">
-                    Expected
-                  </span>
-                  <span class="fulfill-date-val"
-                    [class.fulfill-date--delayed]="
-                      o.isDelayed">
-                    {{ formatShortDate(
-                        o.expectedDeliveryDate) }}
-                  </span>
-                } @else {
-                  <span class="fulfill-date-label">
-                    No date set
-                  </span>
-                }
-              </div>
-
-              <!-- Right: status + amount -->
-              <div class="fulfill-right">
-                <app-status-badge
-                  [status]="o.status"
-                  [color]="getOrderStatusColor(o.status)"
-                  [label]="getStatusLabel(o.status)">
-                </app-status-badge>
-                <span class="amount-text">
-                  {{ formatCurrency(o.totalCents) }}
-                </span>
-              </div>
-
-            </a>
-          }
-        }
-      </div>
-    </div>
-
+    <app-live-kpi-row />
+    <app-needs-attention-card />
+    <app-overview-charts-row />
+    <app-orders-to-fulfill-card />
   }
 
   <!-- ══ TAB 2: FINANCIALS ════════════════════════════ -->
@@ -772,24 +187,24 @@
         <div class="analytics-body">
           <span class="analytics-label">Orders</span>
           <span class="analytics-value">
-            {{ periodAnalytics().ordersCount }}
+            {{ data.periodAnalytics().ordersCount }}
           </span>
           <span class="analytics-change"
             [class.up]="changePct(
-              periodAnalytics().ordersCount,
-              periodAnalytics().prevOrdersCount
+              data.periodAnalytics().ordersCount,
+              data.periodAnalytics().prevOrdersCount
             ) >= 0"
             [class.down]="changePct(
-              periodAnalytics().ordersCount,
-              periodAnalytics().prevOrdersCount
+              data.periodAnalytics().ordersCount,
+              data.periodAnalytics().prevOrdersCount
             ) < 0">
             {{ changePct(
-              periodAnalytics().ordersCount,
-              periodAnalytics().prevOrdersCount
+              data.periodAnalytics().ordersCount,
+              data.periodAnalytics().prevOrdersCount
             ) >= 0 ? '↑' : '↓' }}
             {{ changePct(
-              periodAnalytics().ordersCount,
-              periodAnalytics().prevOrdersCount
+              data.periodAnalytics().ordersCount,
+              data.periodAnalytics().prevOrdersCount
             ) | number:'1.0-0' }}%
           </span>
         </div>
@@ -809,24 +224,24 @@
         <div class="analytics-body">
           <span class="analytics-label">Revenue</span>
           <span class="analytics-value">
-            {{ formatCurrency(periodAnalytics().revenue) }}
+            {{ formatCurrency(data.periodAnalytics().revenue) }}
           </span>
           <span class="analytics-change"
             [class.up]="changePct(
-              periodAnalytics().revenue,
-              periodAnalytics().prevRevenue
+              data.periodAnalytics().revenue,
+              data.periodAnalytics().prevRevenue
             ) >= 0"
             [class.down]="changePct(
-              periodAnalytics().revenue,
-              periodAnalytics().prevRevenue
+              data.periodAnalytics().revenue,
+              data.periodAnalytics().prevRevenue
             ) < 0">
             {{ changePct(
-              periodAnalytics().revenue,
-              periodAnalytics().prevRevenue
+              data.periodAnalytics().revenue,
+              data.periodAnalytics().prevRevenue
             ) >= 0 ? '↑' : '↓' }}
             {{ changePct(
-              periodAnalytics().revenue,
-              periodAnalytics().prevRevenue
+              data.periodAnalytics().revenue,
+              data.periodAnalytics().prevRevenue
             ) | number:'1.0-0' }}%
           </span>
         </div>
@@ -845,25 +260,25 @@
           <span class="analytics-label">Collected</span>
           <span class="analytics-value">
             {{ formatCurrency(
-              periodAnalytics().collected
+              data.periodAnalytics().collected
             ) }}
           </span>
           <span class="analytics-change"
             [class.up]="changePct(
-              periodAnalytics().collected,
-              periodAnalytics().prevCollected
+              data.periodAnalytics().collected,
+              data.periodAnalytics().prevCollected
             ) >= 0"
             [class.down]="changePct(
-              periodAnalytics().collected,
-              periodAnalytics().prevCollected
+              data.periodAnalytics().collected,
+              data.periodAnalytics().prevCollected
             ) < 0">
             {{ changePct(
-              periodAnalytics().collected,
-              periodAnalytics().prevCollected
+              data.periodAnalytics().collected,
+              data.periodAnalytics().prevCollected
             ) >= 0 ? '↑' : '↓' }}
             {{ changePct(
-              periodAnalytics().collected,
-              periodAnalytics().prevCollected
+              data.periodAnalytics().collected,
+              data.periodAnalytics().prevCollected
             ) | number:'1.0-0' }}%
           </span>
         </div>
@@ -884,24 +299,24 @@
           <div class="analytics-body">
             <span class="analytics-label">Margin</span>
             <span class="analytics-value">
-              {{ periodAnalytics().marginPct }}%
+              {{ data.periodAnalytics().marginPct }}%
             </span>
             <span class="analytics-change"
               [class.up]="changePct(
-                periodAnalytics().marginPct,
-                periodAnalytics().prevMarginPct
+                data.periodAnalytics().marginPct,
+                data.periodAnalytics().prevMarginPct
               ) >= 0"
               [class.down]="changePct(
-                periodAnalytics().marginPct,
-                periodAnalytics().prevMarginPct
+                data.periodAnalytics().marginPct,
+                data.periodAnalytics().prevMarginPct
               ) < 0">
               {{ changePct(
-                periodAnalytics().marginPct,
-                periodAnalytics().prevMarginPct
+                data.periodAnalytics().marginPct,
+                data.periodAnalytics().prevMarginPct
               ) >= 0 ? '↑' : '↓' }}
               {{ changePct(
-                periodAnalytics().marginPct,
-                periodAnalytics().prevMarginPct
+                data.periodAnalytics().marginPct,
+                data.periodAnalytics().prevMarginPct
               ) | number:'1.0-0' }}%
             </span>
           </div>
@@ -925,7 +340,7 @@
           <span class="analytics-label">HST Collected</span>
           <span class="analytics-value">
             {{ formatCurrency(
-              periodAnalytics().taxCollected
+              data.periodAnalytics().taxCollected
             ) }}
           </span>
           <span class="analytics-sub">CRA remittance</span>
@@ -1170,14 +585,14 @@
   <!-- ══ TAB 3: ORDERS ════════════════════════════════ -->
   @if (activeTab() === 'orders') {
 
-    @if (actionItems().overdueOrders.length > 0) {
+    @if (data.actionItems().overdueOrders.length > 0) {
       <div class="dash-card full-width overdue-card">
         <div class="dash-card-header">
           <div class="overdue-header-left">
             <span class="overdue-icon">⚠️</span>
             <h3>Overdue Invoices</h3>
             <span class="tab-badge red">
-              {{ actionItems().overdueOrders.length }}
+              {{ data.actionItems().overdueOrders.length }}
             </span>
           </div>
           <span class="header-sub">
@@ -1216,7 +631,7 @@
           <div class="overdue-total-row">
             <span>Total Overdue</span>
             <span class="overdue-total-val">
-              {{ formatCurrency(actionItems().overdueTotalBalance) }}
+              {{ formatCurrency(data.actionItems().overdueTotalBalance) }}
             </span>
           </div>
         </div>
@@ -1502,7 +917,7 @@
   @if (activeTab() === 'products') {
 
     <!-- Low Stock Alert -->
-    @if (lowStockProducts().length > 0) {
+    @if (data.lowStockProducts().length > 0) {
       <div class="low-stock-banner">
         <div class="low-stock-banner-left">
           <svg xmlns="http://www.w3.org/2000/svg"
@@ -1516,8 +931,8 @@
             <line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           <strong>
-            {{ lowStockProducts().length }} product{{
-              lowStockProducts().length > 1 ? 's' : ''
+            {{ data.lowStockProducts().length }} product{{
+              data.lowStockProducts().length > 1 ? 's' : ''
             }} low on stock
           </strong>
         </div>
@@ -1575,12 +990,12 @@
           <span class="header-sub">needs restocking</span>
         </div>
         <div class="dash-card-body no-pad">
-          @if (lowStockProducts().length === 0) {
+          @if (data.lowStockProducts().length === 0) {
             <div class="empty-state-sm">
               ✅ All products are well stocked
             </div>
           } @else {
-            @for (p of lowStockProducts(); track p.id) {
+            @for (p of data.lowStockProducts(); track p.id) {
               <a [routerLink]="['/admin/products', p.id]"
                 class="list-row"
                 [class.critical-row]="p.stock === 0">
@@ -1632,15 +1047,15 @@
           <div class="hc-title">Customers</div>
           <div class="hc-bands">
             <div class="band-tile green">
-              <span class="bt-num">{{ shopHealthSummary().customers.healthy }}</span>
+              <span class="bt-num">{{ data.shopHealthSummary().customers.healthy }}</span>
               <span class="bt-label">Healthy</span>
             </div>
             <div class="band-tile gold">
-              <span class="bt-num">{{ shopHealthSummary().customers.watch }}</span>
+              <span class="bt-num">{{ data.shopHealthSummary().customers.watch }}</span>
               <span class="bt-label">Watch</span>
             </div>
             <div class="band-tile red">
-              <span class="bt-num">{{ shopHealthSummary().customers.at_risk }}</span>
+              <span class="bt-num">{{ data.shopHealthSummary().customers.at_risk }}</span>
               <span class="bt-label">At Risk</span>
             </div>
           </div>
@@ -1649,15 +1064,15 @@
           <div class="hc-title">Prospects</div>
           <div class="hc-bands">
             <div class="band-tile green">
-              <span class="bt-num">{{ shopHealthSummary().prospects.warm }}</span>
+              <span class="bt-num">{{ data.shopHealthSummary().prospects.warm }}</span>
               <span class="bt-label">Warm</span>
             </div>
             <div class="band-tile gold">
-              <span class="bt-num">{{ shopHealthSummary().prospects.cooling }}</span>
+              <span class="bt-num">{{ data.shopHealthSummary().prospects.cooling }}</span>
               <span class="bt-label">Cooling</span>
             </div>
             <div class="band-tile red">
-              <span class="bt-num">{{ shopHealthSummary().prospects.cold }}</span>
+              <span class="bt-num">{{ data.shopHealthSummary().prospects.cold }}</span>
               <span class="bt-label">Cold</span>
             </div>
           </div>
@@ -1741,15 +1156,15 @@
           <div class="health-card">
             <div class="hc-title">Prospects</div>
             <div class="hc-bands">
-              <div class="band-tile green"><span class="bt-num">{{ pipelineSummary().active }}</span><span class="bt-label">Active</span></div>
-              <div class="band-tile red"><span class="bt-num">{{ pipelineSummary().stuck }}</span><span class="bt-label">Stuck</span></div>
-              <div class="band-tile gold"><span class="bt-num">{{ pipelineSummary().ready }}</span><span class="bt-label">Ready</span></div>
+              <div class="band-tile green"><span class="bt-num">{{ data.pipelineSummary().active }}</span><span class="bt-label">Active</span></div>
+              <div class="band-tile red"><span class="bt-num">{{ data.pipelineSummary().stuck }}</span><span class="bt-label">Stuck</span></div>
+              <div class="band-tile gold"><span class="bt-num">{{ data.pipelineSummary().ready }}</span><span class="bt-label">Ready</span></div>
             </div>
           </div>
           <div class="health-card">
-            <div class="hc-list-head"><span class="dot red"></span><h3>Stuck Prospects</h3><span class="hc-count">{{ pipelineSummary().stuck }}</span></div>
-            @if (pipelineSummary().stuckList.length === 0) { <p class="hc-empty">Nothing stuck.</p> }
-            @for (s of pipelineSummary().stuckList; track s.id) {
+            <div class="hc-list-head"><span class="dot red"></span><h3>Stuck Prospects</h3><span class="hc-count">{{ data.pipelineSummary().stuck }}</span></div>
+            @if (data.pipelineSummary().stuckList.length === 0) { <p class="hc-empty">Nothing stuck.</p> }
+            @for (s of data.pipelineSummary().stuckList; track s.id) {
               <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
                 <span class="hc-name">{{ s.name }}</span>
                 <span class="hc-meta red-text">{{ s.daysInStage ?? 0 }}d in stage</span>
@@ -1757,10 +1172,10 @@
             }
           </div>
         </div>
-        @if (pipelineSummary().overdueList.length) {
+        @if (data.pipelineSummary().overdueList.length) {
           <div class="health-card" style="margin-top:1.25rem;">
-            <div class="hc-list-head"><span class="dot gold"></span><h3>Overdue Follow-ups</h3><span class="hc-count">{{ pipelineSummary().overdueCount }}</span></div>
-            @for (s of pipelineSummary().overdueList; track s.id) {
+            <div class="hc-list-head"><span class="dot gold"></span><h3>Overdue Follow-ups</h3><span class="hc-count">{{ data.pipelineSummary().overdueCount }}</span></div>
+            @for (s of data.pipelineSummary().overdueList; track s.id) {
               <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
                 <span class="hc-name">{{ s.name }}</span>
                 <span class="hc-meta gold-text">{{ s.nextActionNote || 'follow-up due' }}</span>

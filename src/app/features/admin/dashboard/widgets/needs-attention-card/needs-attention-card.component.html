@@ -1,0 +1,208 @@
+<!-- Needs attention — consolidated, ranked by severity -->
+@if (data.actionItems().hasItems ||
+     reconciliationAlert().hasItems) {
+  <div class="ov-attention">
+
+    <div class="ov-attention-header">
+      <span class="ov-attention-title">
+        Needs attention
+      </span>
+      <span class="ov-attention-count">
+        {{
+          data.actionItems().totalCount +
+          reconciliationAlert().count
+        }}
+      </span>
+    </div>
+
+    <div class="ov-attention-list">
+
+      <!-- 0. New orders (highest priority — fresh revenue) -->
+      @if (data.actionItems().newOrders.length > 0) {
+        <a routerLink="/admin/orders"
+          [queryParams]="{ status: 'confirmed', source: 'customer_portal' }"
+          class="ov-attn-row ov-attn-row--new">
+          <div class="ov-attn-left">
+            <span class="ov-attn-dot ov-attn-dot--new">
+            </span>
+            <div class="ov-attn-text">
+              <span class="ov-attn-main">
+                {{ data.actionItems().newOrders.length }}
+                new order{{
+                  data.actionItems().newOrders.length === 1
+                    ? '' : 's'
+                }} to fulfill
+              </span>
+              <span class="ov-attn-sub">
+                {{ formatCurrency(
+                    data.actionItems().newOrdersTotal
+                   ) }}
+                · placed online, not yet started
+              </span>
+            </div>
+          </div>
+          <span class="ov-attn-arrow">→</span>
+        </a>
+      }
+
+      <!-- 1. Balance discrepancies (data integrity) -->
+      @if (reconciliationAlert().hasItems) {
+        <a routerLink="/admin/reconciliation"
+          class="ov-attn-row ov-attn-row--danger">
+          <div class="ov-attn-left">
+            <span class="ov-attn-dot ov-attn-dot--danger">
+            </span>
+            <div class="ov-attn-text">
+              <span class="ov-attn-main">
+                {{ reconciliationAlert().count }}
+                balance discrepanc{{
+                  reconciliationAlert().count === 1
+                    ? 'y' : 'ies'
+                }} need review
+              </span>
+              <span class="ov-attn-sub">
+                {{ formatCurrency(
+                    reconciliationAlert().totalAbsDelta
+                   ) }}
+                flagged · auto-correction withheld
+              </span>
+            </div>
+          </div>
+          <span class="ov-attn-arrow">→</span>
+        </a>
+      }
+
+      <!-- 2. Overdue invoices (money) -->
+      @if (data.actionItems().overdueOrders.length > 0) {
+        <a routerLink="/admin/orders"
+          class="ov-attn-row ov-attn-row--danger">
+          <div class="ov-attn-left">
+            <span class="ov-attn-dot ov-attn-dot--danger">
+            </span>
+            <div class="ov-attn-text">
+              <span class="ov-attn-main">
+                {{ data.actionItems().overdueOrders.length }}
+                overdue invoice{{
+                  data.actionItems().overdueOrders.length === 1
+                    ? '' : 's'
+                }}
+              </span>
+              <span class="ov-attn-sub">
+                {{ formatCurrency(
+                    data.actionItems().overdueTotalBalance
+                   ) }}
+                outstanding
+              </span>
+            </div>
+          </div>
+          <span class="ov-attn-arrow">→</span>
+        </a>
+      }
+
+      <!-- 3. Low stock (operational) -->
+      @if (data.actionItems().lowStockProducts.length > 0) {
+        <a routerLink="/admin/products"
+          class="ov-attn-row ov-attn-row--warn">
+          <div class="ov-attn-left">
+            <span class="ov-attn-dot ov-attn-dot--warn">
+            </span>
+            <div class="ov-attn-text">
+              <span class="ov-attn-main">
+                {{ data.actionItems().lowStockProducts.length }}
+                product{{
+                  data.actionItems().lowStockProducts.length === 1
+                    ? '' : 's'
+                }} low on stock
+              </span>
+              <span class="ov-attn-sub">
+                @if (
+                  data.actionItems().lowStockProducts[0]
+                    ?.stock === 0
+                ) {
+                  1 out of stock · needs restocking
+                } @else {
+                  needs restocking
+                }
+              </span>
+            </div>
+          </div>
+          <span class="ov-attn-arrow">→</span>
+        </a>
+      }
+
+      <!-- 4. Pending returns (operational) -->
+      @if (data.actionItems().pendingReturns.length > 0) {
+        <a routerLink="/admin/returns"
+          class="ov-attn-row ov-attn-row--warn">
+          <div class="ov-attn-left">
+            <span class="ov-attn-dot ov-attn-dot--warn">
+            </span>
+            <div class="ov-attn-text">
+              <span class="ov-attn-main">
+                {{ data.actionItems().pendingReturns.length }}
+                return{{
+                  data.actionItems().pendingReturns.length === 1
+                    ? '' : 's'
+                }} pending review
+              </span>
+              <span class="ov-attn-sub">
+                Awaiting approval
+              </span>
+            </div>
+          </div>
+          <span class="ov-attn-arrow">→</span>
+        </a>
+      }
+
+      <!-- 5. Access requests (growth) -->
+      @if (data.actionItems().pendingAccessRequests.length > 0) {
+        <a routerLink="/admin/access-requests"
+          class="ov-attn-row ov-attn-row--accent">
+          <div class="ov-attn-left">
+            <span class="ov-attn-dot ov-attn-dot--accent">
+            </span>
+            <div class="ov-attn-text">
+              <span class="ov-attn-main">
+                {{ data.actionItems()
+                    .pendingAccessRequests.length }}
+                new access request{{
+                  data.actionItems()
+                    .pendingAccessRequests.length === 1
+                    ? '' : 's'
+                }}
+              </span>
+              <span class="ov-attn-sub">
+                New businesses requesting an account
+              </span>
+            </div>
+          </div>
+          <span class="ov-attn-arrow">→</span>
+        </a>
+      }
+
+    </div>
+  </div>
+}
+
+@if (backorderSummary().totalUnits > 0) {
+  <div class="dash-card backorder-card full-width" style="margin-bottom:1.5rem">
+    <div class="dash-card-header">
+      <h3>Backorders</h3>
+      <a routerLink="/admin/orders" [queryParams]="{ filter: 'backordered' }" class="header-link">View orders →</a>
+    </div>
+    <div class="dash-card-body">
+      <div class="bo-summary">
+        <span class="bo-total">{{ backorderSummary().totalUnits }}</span>
+        <span class="bo-total-lbl">units owed across {{ backorderSummary().orderCount }} order{{ backorderSummary().orderCount === 1 ? '' : 's' }}</span>
+      </div>
+      <div class="bo-list">
+        @for (p of backorderSummary().products; track p.productId) {
+          <a class="bo-row" [routerLink]="['/admin/products', p.productId]">
+            <span class="bo-name">{{ p.productName }}</span>
+            <span class="bo-units">{{ p.units }} owed <small>· {{ p.orderCount }} order{{ p.orderCount === 1 ? '' : 's' }}</small></span>
+          </a>
+        }
+      </div>
+    </div>
+  </div>
+}

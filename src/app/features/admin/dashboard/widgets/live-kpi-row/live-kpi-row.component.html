@@ -1,0 +1,81 @@
+<!-- KPI row — live numbers, no period filter -->
+<div class="ov-kpi-row">
+
+  <div class="ov-kpi-card">
+    <span class="ov-kpi-label">Revenue</span>
+    <span class="ov-kpi-value">
+      {{ formatCurrency(data.periodAnalytics().revenue) }}
+    </span>
+    <span class="ov-kpi-sub">
+      {{ data.periodAnalytics().ordersCount }}
+      order{{ data.periodAnalytics().ordersCount === 1
+        ? '' : 's' }} this period
+    </span>
+  </div>
+
+  <div class="ov-kpi-card ov-kpi-card--alert"
+    [class.ov-kpi-card--danger]="
+      liveKpis().outstandingBalance > 0">
+    <span class="ov-kpi-label">Outstanding</span>
+    <span class="ov-kpi-value"
+      [class.ov-val--danger]="
+        liveKpis().outstandingBalance > 0">
+      {{ formatCurrency(liveKpis().outstandingBalance) }}
+    </span>
+    <span class="ov-kpi-sub"
+      [class.ov-sub--danger]="
+        data.actionItems().overdueOrders.length > 0">
+      @if (data.actionItems().overdueOrders.length > 0) {
+        {{ data.actionItems().overdueOrders.length }}
+        invoice{{
+          data.actionItems().overdueOrders.length === 1
+            ? '' : 's'
+        }} overdue
+      } @else {
+        across all customers
+      }
+    </span>
+  </div>
+
+  <div class="ov-kpi-card">
+    <span class="ov-kpi-label">Active customers</span>
+    <span class="ov-kpi-value ov-val--navy">
+      {{ liveKpis().activeCustomers }}
+    </span>
+    <span class="ov-kpi-sub"
+      [class.ov-sub--accent]="
+        data.actionItems().pendingAccessRequests.length > 0">
+      @if (data.actionItems().pendingAccessRequests.length > 0) {
+        {{ data.actionItems().pendingAccessRequests.length }}
+        new request{{
+          data.actionItems().pendingAccessRequests.length === 1
+            ? '' : 's'
+        }}
+      } @else {
+        wholesale accounts
+      }
+    </span>
+  </div>
+
+  <div class="ov-kpi-card"
+    [class.ov-kpi-card--warn]="
+      liveKpis().lowStockItems > 0">
+    <span class="ov-kpi-label">Low stock</span>
+    <span class="ov-kpi-value"
+      [class.ov-val--warn]="liveKpis().lowStockItems > 0"
+      [class.ov-val--navy]="liveKpis().lowStockItems === 0">
+      {{ liveKpis().lowStockItems }}
+    </span>
+    <span class="ov-kpi-sub"
+      [class.ov-sub--warn]="liveKpis().lowStockItems > 0">
+      @if (liveKpis().lowStockItems > 0) {
+        {{ data.lowStockProducts()[0]?.stock === 0
+          ? 'including 1 out of stock'
+          : 'below threshold' }}
+      } @else {
+        all products stocked
+      }
+    </span>
+  </div>
+
+</div>

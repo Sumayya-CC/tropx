@@ -1,0 +1,151 @@
+// Root wraps both @if blocks (Needs Attention + Backorders) in a flex
+// column with the same gap admin-dashboard's own top-level .dashboard
+// flex container uses between its direct children — this widget used to
+// contribute up to 2 separate direct children there, spaced by that
+// gap. Using gap here (not a fixed margin) means, same as before, no
+// spacing is added when only one of the two blocks actually renders.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ov-attention {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ov-attention-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--cream);
+}
+
+.ov-attention-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--navy-deep);
+}
+
+.ov-attention-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--red);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.ov-attention-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ov-attn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  transition: background 0.15s;
+  gap: 1rem;
+  border-left: 3px solid transparent;
+
+  &:last-child { border-bottom: none; }
+
+  &.ov-attn-row--danger {
+    border-left-color: var(--red);
+    &:hover { background: rgba(231, 34, 46, 0.03); }
+  }
+
+  &.ov-attn-row--warn {
+    border-left-color: var(--gold);
+    &:hover { background: rgba(201, 149, 42, 0.03); }
+  }
+
+  &.ov-attn-row--accent {
+    border-left-color: var(--navy);
+    &:hover { background: rgba(10, 45, 74, 0.03); }
+  }
+
+  &.ov-attn-row--new {
+    border-left: 3px solid #0d9488;
+    background: rgba(13, 148, 136, 0.04);
+    &:hover {
+      background: rgba(13, 148, 136, 0.08);
+    }
+  }
+}
+
+.ov-attn-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ov-attn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+
+  &.ov-attn-dot--danger { background: var(--red); }
+  &.ov-attn-dot--warn   { background: var(--gold); }
+  &.ov-attn-dot--accent { background: var(--navy); }
+  &.ov-attn-dot--new {
+    background: #0d9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
+  }
+}
+
+.ov-attn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ov-attn-main {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.ov-attn-sub {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.ov-attn-arrow {
+  font-size: 0.875rem;
+  color: var(--gray);
+  flex-shrink: 0;
+}
+
+// ── Backorders card ───────────────────────────────────
+.backorder-card .bo-summary { display:flex; align-items:baseline; gap:.5rem; margin-bottom:1rem; }
+.bo-total { font-size:1.75rem; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+.bo-total-lbl { font-size:.85rem; color:var(--gray); }
+.bo-list { display:flex; flex-direction:column; }
+.bo-row { display:flex; justify-content:space-between; padding:.55rem 0; border-bottom:1px solid var(--border-light); text-decoration:none; transition: background 0.15s; }
+.bo-row:hover { background: var(--cream); }
+.bo-row:last-child { border-bottom:none; }
+.bo-name { font-weight:600; color:var(--navy-deep); font-size:.875rem; }
+.bo-units { font-size:.82rem; color:#8a6d1f; font-weight:600; }
+.bo-units small { color:var(--gray); font-weight:400; }
