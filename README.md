@@ -142,16 +142,22 @@ npm run build
 
 ### Production Deploy
 
+`--config firebase.prod.json` is required on every command below — `.firebaserc`'s `prod` alias only
+maps to the `tropx-wholesale-prod` project ID, it does not select `firebase.prod.json`. Without
+`--config`, the Firebase CLI silently falls back to `firebase.json` (the **dev** config, `firestore.database:
+"tropx-dev"`) even with `--project tropx-wholesale-prod` set, and the deploy will target a database that
+doesn't exist in the prod project.
+
 ```bash
-firebase deploy --only [target] --project tropx-wholesale-prod
+firebase deploy --only [target] --config firebase.prod.json --project tropx-wholesale-prod
 ```
 
 Examples:
 
 ```bash
-firebase deploy --only functions --project tropx-wholesale-prod
-firebase deploy --only firestore:rules --project tropx-wholesale-prod
-firebase deploy --only firestore:indexes --project tropx-wholesale-prod
+firebase deploy --only functions --config firebase.prod.json --project tropx-wholesale-prod
+firebase deploy --only firestore:rules --config firebase.prod.json --project tropx-wholesale-prod
+firebase deploy --only firestore:indexes --config firebase.prod.json --project tropx-wholesale-prod
 ```
 
 ---
