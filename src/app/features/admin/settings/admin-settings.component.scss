@@ -157,26 +157,6 @@
   }
 }
 
-.toggle-section-label {
-  font-size: 0.8125rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--navy-deep);
-  padding: 1rem 0 0.5rem;
-  border-top: 1px solid var(--color-border);
-  margin-top: 0.5rem;
-}
-
-.view-section-label {
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--navy-deep);
-  margin-bottom: 0.75rem;
-}
-
 .capitalize { text-transform: capitalize; }
 
 /* ── EDIT MODE ─────────────────────────────────────── */
@@ -364,34 +344,6 @@
     transition: all 0.2s;
     &:hover:not(:disabled) { background: var(--navy); }
     &:disabled { opacity: 0.6; cursor: not-allowed; }
-  }
-}
-
-.notif-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.875rem 1rem;
-  background: var(--cream);
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  margin-top: 0.75rem;
-
-  .notif-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .notif-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--charcoal);
-  }
-
-  .notif-hint {
-    font-size: 0.8rem;
-    color: var(--gray);
   }
 }
 
