@@ -7,7 +7,6 @@ import { Functions, httpsCallable } from '@angular/fire/functions';
 import { AuthService } from '../../../core/services/auth.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { ToastService } from '../../../shared/services/toast.service';
-import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
 import { Shop } from '../../../core/models/shop.model';
@@ -27,6 +26,7 @@ import { TopCustomersCardComponent } from './widgets/top-customers-card/top-cust
 import { OrderStatusDonutComponent } from './widgets/order-status-donut/order-status-donut.component';
 import { ReturnsSummaryCardComponent } from './widgets/returns-summary-card/returns-summary-card.component';
 import { RecentOrdersCardComponent } from './widgets/recent-orders-card/recent-orders-card.component';
+import { ProductsOverviewCardComponent } from './widgets/products-overview-card/products-overview-card.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -50,6 +50,7 @@ import { RecentOrdersCardComponent } from './widgets/recent-orders-card/recent-o
     OrderStatusDonutComponent,
     ReturnsSummaryCardComponent,
     RecentOrdersCardComponent,
+    ProductsOverviewCardComponent,
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'
@@ -155,34 +156,7 @@ export class AdminDashboardComponent {
     };
   });
 
-  // ── PRODUCTS TAB ─────────────────────────────────────
-  topProducts = computed(() => {
-    const map = new Map<string, any>();
-    for (const o of this.data.periodOrders()) {
-      for (const item of o.items) {
-        const cur = map.get(item.productId) || {
-          productId: item.productId,
-          productName: item.productName,
-          productSku: item.productSku,
-          unitsSold: 0,
-          revenue: 0
-        };
-        cur.unitsSold += item.quantity;
-        cur.revenue += item.lineTotalCents;
-        map.set(item.productId, cur);
-      }
-    }
-    return Array.from(map.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-  });
-
   // ── UTILS ────────────────────────────────────────────
-  formatCurrency(cents: number): string {
-    return centsToDisplay(cents);
-  }
-
-
   getTimeOfDay(): string {
     const h = new Date().getHours();
     if (h < 12) return 'morning';
