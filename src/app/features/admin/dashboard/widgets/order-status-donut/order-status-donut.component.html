@@ -1,0 +1,71 @@
+<!-- Order Status Donut -->
+<div class="dash-card">
+  <div class="dash-card-header">
+    <h3>Order Breakdown</h3>
+  </div>
+  <div class="dash-card-body donut-layout">
+    @let total =
+      data.orderStatusBreakdown().confirmed +
+      data.orderStatusBreakdown().preparing +
+      data.orderStatusBreakdown().outForDelivery +
+      data.orderStatusBreakdown().delivered +
+      data.orderStatusBreakdown().cancelled;
+    @if (total === 0) {
+      <div class="empty-chart">No orders</div>
+    } @else {
+      <svg viewBox="0 0 120 120" class="donut-svg">
+        @for (seg of getDonutSegments();
+          track seg.label) {
+          <path [attr.d]="seg.path"
+            [attr.fill]="seg.color"/>
+        }
+        <circle cx="60" cy="60" r="32" fill="white"/>
+        <text x="60" y="56" text-anchor="middle"
+          font-size="16" font-weight="800"
+          fill="var(--navy-deep)">{{ total }}</text>
+        <text x="60" y="69" text-anchor="middle"
+          font-size="8" fill="var(--gray)">
+          orders
+        </text>
+      </svg>
+      <div class="donut-legend">
+        <div class="donut-row">
+          <span class="donut-dot navy"></span>
+          <span>Confirmed</span>
+          <strong>
+            {{ data.orderStatusBreakdown().confirmed }}
+          </strong>
+        </div>
+        <div class="donut-row">
+          <span class="donut-dot purple"></span>
+          <span>Preparing</span>
+          <strong>
+            {{ data.orderStatusBreakdown().preparing }}
+          </strong>
+        </div>
+        <div class="donut-row">
+          <span class="donut-dot gold"></span>
+          <span>Out for Delivery</span>
+          <strong>
+            {{ data.orderStatusBreakdown()
+              .outForDelivery }}
+          </strong>
+        </div>
+        <div class="donut-row">
+          <span class="donut-dot green"></span>
+          <span>Delivered</span>
+          <strong>
+            {{ data.orderStatusBreakdown().delivered }}
+          </strong>
+        </div>
+        <div class="donut-row">
+          <span class="donut-dot red"></span>
+          <span>Cancelled</span>
+          <strong>
+            {{ data.orderStatusBreakdown().cancelled }}
+          </strong>
+        </div>
+      </div>
+    }
+  </div>
+</div>

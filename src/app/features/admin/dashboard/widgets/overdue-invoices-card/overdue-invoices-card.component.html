@@ -1,0 +1,52 @@
+@if (data.actionItems().overdueOrders.length > 0) {
+  <div class="dash-card full-width overdue-card">
+    <div class="dash-card-header">
+      <div class="overdue-header-left">
+        <span class="overdue-icon">⚠️</span>
+        <h3>Overdue Invoices</h3>
+        <span class="tab-badge red">
+          {{ data.actionItems().overdueOrders.length }}
+        </span>
+      </div>
+      <span class="header-sub">
+        Balance overdue {{ settingsService.ordering().overdueAfterDays }}+ days
+      </span>
+    </div>
+    <div class="dash-card-body no-pad">
+      @for (o of sortedOverdueOrders(); track o.id) {
+        <a [routerLink]="['/admin/orders', o.id]"
+          class="list-row overdue-row">
+          <div class="list-row-left">
+            <span class="mono-num">
+              {{ o.orderNumber }}
+            </span>
+            <span class="list-sub">
+              {{ o.customerName }}
+            </span>
+          </div>
+          <div class="list-row-right">
+            <span class="overdue-age">
+              {{ getOrderAgeDays(o) }} days old
+            </span>
+            <span class="owing-chip">
+              {{ formatCurrency(o.balanceCents) }} owing
+            </span>
+            <span class="date-text">
+              {{ formatShortDate(o.confirmedAt) }}
+            </span>
+            <app-status-badge
+              [status]="o.status"
+              [color]="getOrderStatusColor(o.status)">
+            </app-status-badge>
+          </div>
+        </a>
+      }
+      <div class="overdue-total-row">
+        <span>Total Overdue</span>
+        <span class="overdue-total-val">
+          {{ formatCurrency(data.actionItems().overdueTotalBalance) }}
+        </span>
+      </div>
+    </div>
+  </div>
+}

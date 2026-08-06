@@ -1,0 +1,48 @@
+.overdue-card {
+  border-color: rgba(231,34,46,0.3);
+  box-shadow: 0 2px 12px rgba(231,34,46,0.08);
+}
+
+.overdue-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+
+  .overdue-icon { font-size: 1.1rem; }
+
+  h3 { margin: 0; }
+}
+
+.overdue-row {
+  background: rgba(231,34,46,0.02);
+
+  &:hover { background: rgba(231,34,46,0.05); }
+}
+
+.overdue-age {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--red);
+  background: rgba(231,34,46,0.08);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.overdue-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1.25rem;
+  background: rgba(231,34,46,0.06);
+  border-top: 1px solid rgba(231,34,46,0.15);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--charcoal);
+}
+
+.overdue-total-val {
+  color: var(--red);
+  font-size: 1rem;
+  font-weight: 800;
+}

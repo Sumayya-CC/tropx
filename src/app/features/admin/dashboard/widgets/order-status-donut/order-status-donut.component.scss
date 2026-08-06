@@ -1,0 +1,50 @@
+.donut-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+
+  @media (min-width: 480px) {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+}
+
+.donut-svg {
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.donut-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--charcoal);
+
+  strong {
+    margin-left: auto;
+    color: var(--navy-deep);
+  }
+}
+
+.donut-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.navy { background: var(--navy); }
+  &.purple { background: #7c3aed; }
+  &.gold { background: var(--gold); }
+  &.green { background: var(--green); }
+  &.red { background: var(--red); }
+}

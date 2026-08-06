@@ -1,0 +1,95 @@
+<!-- Returns Summary Card -->
+<div class="dash-card full-width">
+  <div class="dash-card-header">
+    <h3>Returns</h3>
+    <a routerLink="/admin/returns"
+      class="header-link">View all →</a>
+  </div>
+  <div class="dash-card-body">
+    @if (returnsSummary().total === 0) {
+      <div class="empty-state-sm">
+        No returns in this period
+      </div>
+    } @else {
+      <div class="returns-summary-grid">
+        <div class="returns-stat">
+          <span class="returns-stat-label">Total</span>
+          <span class="returns-stat-value navy">
+            {{ returnsSummary().total }}
+          </span>
+        </div>
+        <div class="returns-stat">
+          <span class="returns-stat-label">Pending</span>
+          <span class="returns-stat-value gold">
+            {{ returnsSummary().pending }}
+          </span>
+        </div>
+        <div class="returns-stat">
+          <span class="returns-stat-label">Approved</span>
+          <span class="returns-stat-value green">
+            {{ returnsSummary().approved }}
+          </span>
+        </div>
+        <div class="returns-stat">
+          <span class="returns-stat-label">Rejected</span>
+          <span class="returns-stat-value gray">
+            {{ returnsSummary().rejected }}
+          </span>
+        </div>
+        @if (isAdmin()) {
+          <div class="returns-stat">
+            <span class="returns-stat-label">
+              Credit Notes
+            </span>
+            <span class="returns-stat-value red">
+              {{ formatCurrency(
+                returnsSummary().creditNotes
+              ) }}
+            </span>
+          </div>
+          <div class="returns-stat">
+            <span class="returns-stat-label">Refunds</span>
+            <span class="returns-stat-value red">
+              {{ formatCurrency(returnsSummary().refunds) }}
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Returns list -->
+      <div class="returns-list">
+        @for (r of recentReturnsOrdersTab();
+          track r.id) {
+          <a routerLink="/admin/returns"
+            class="list-row">
+            <div class="list-row-left">
+              <span class="mono-num">
+                {{ r.returnNumber }}
+              </span>
+              <span class="list-sub">
+                {{ r.customerName }} · {{ r.orderNumber }}
+              </span>
+            </div>
+            <div class="list-row-right">
+              <span class="action-sub-type"
+                [class.credit]="r.type === 'credit_note'"
+                [class.refund]="r.type === 'refund'">
+                {{ r.type === 'credit_note'
+                  ? 'Credit' : 'Refund' }}
+              </span>
+              <span class="returns-status-badge"
+                [class.pending]="r.status === 'pending'"
+                [class.approved]="r.status === 'approved'"
+                [class.rejected]="r.status === 'rejected'">
+                {{ r.status | titlecase }}
+              </span>
+              <span class="amount-text red">
+                -{{ formatCurrency(r.amountCents) }}
+              </span>
+            </div>
+          </a>
+        }
+      </div>
+    }
+  </div>
+</div>

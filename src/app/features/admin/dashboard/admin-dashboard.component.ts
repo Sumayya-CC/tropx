@@ -11,7 +11,6 @@ import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
 import { Shop } from '../../../core/models/shop.model';
-import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { LogFuelButtonComponent } from './log-fuel-button/log-fuel-button.component';
 import { AdminDashboardDataService, DatePreset } from './admin-dashboard-data.service';
@@ -23,6 +22,11 @@ import { PeriodAnalyticsCardsComponent } from './widgets/period-analytics-cards/
 import { FinancialsChartsRowComponent } from './widgets/financials-charts-row/financials-charts-row.component';
 import { AgingReportCardComponent } from './widgets/aging-report-card/aging-report-card.component';
 import { RecentPaymentsCardComponent } from './widgets/recent-payments-card/recent-payments-card.component';
+import { OverdueInvoicesCardComponent } from './widgets/overdue-invoices-card/overdue-invoices-card.component';
+import { TopCustomersCardComponent } from './widgets/top-customers-card/top-customers-card.component';
+import { OrderStatusDonutComponent } from './widgets/order-status-donut/order-status-donut.component';
+import { ReturnsSummaryCardComponent } from './widgets/returns-summary-card/returns-summary-card.component';
+import { RecentOrdersCardComponent } from './widgets/recent-orders-card/recent-orders-card.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -31,7 +35,6 @@ import { RecentPaymentsCardComponent } from './widgets/recent-payments-card/rece
     CommonModule,
     FormsModule,
     RouterModule,
-    StatusBadgeComponent,
     LoadingSpinnerComponent,
     LogFuelButtonComponent,
     LiveKpiRowComponent,
@@ -42,6 +45,11 @@ import { RecentPaymentsCardComponent } from './widgets/recent-payments-card/rece
     FinancialsChartsRowComponent,
     AgingReportCardComponent,
     RecentPaymentsCardComponent,
+    OverdueInvoicesCardComponent,
+    TopCustomersCardComponent,
+    OrderStatusDonutComponent,
+    ReturnsSummaryCardComponent,
+    RecentOrdersCardComponent,
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'
@@ -73,7 +81,6 @@ export class AdminDashboardComponent {
   }
 
   isLoading = computed(() => !this.authService.currentProfile());
-  isAdmin = computed(() => this.authService.isAdmin());
   userFirstName = computed(() =>
     this.authService.currentProfile()?.firstName || ''
   );
@@ -148,88 +155,6 @@ export class AdminDashboardComponent {
     };
   });
 
-  returnsSummary = computed(() => {
-    const returns = this.data.periodReturns();
-    return {
-      total: returns.length,
-      pending: returns.filter(
-        r => r.status === 'pending'
-      ).length,
-      approved: returns.filter(
-        r => r.status === 'approved'
-      ).length,
-      rejected: returns.filter(
-        r => r.status === 'rejected'
-      ).length,
-      creditNotes: returns.filter(
-        r => r.status === 'approved' &&
-          r.type === 'credit_note'
-      ).reduce((s, r) => s + r.amountCents, 0),
-      refunds: returns.filter(
-        r => r.status === 'approved' &&
-          r.type === 'refund'
-      ).reduce((s, r) => s + r.amountCents, 0),
-    };
-  });
-
-  recentReturnsOrdersTab = computed(() => {
-    return this.data.periodReturns()
-      .sort((a, b) => {
-        const at = a.createdAt?.seconds ?? 0;
-        const bt = b.createdAt?.seconds ?? 0;
-        return bt - at;
-      })
-      .slice(0, 10);
-  });
-
-  sortedOverdueOrders = computed(() => {
-    return [...this.data.actionItems().overdueOrders].sort((a, b) => {
-      const at = a.confirmedAt?.seconds ?? 0;
-      const bt = b.confirmedAt?.seconds ?? 0;
-      return at - bt;
-    });
-  });
-
-  getOrderAgeDays(order: any): number {
-    const confirmed = this.data.toDate(order.confirmedAt);
-    return Math.floor(
-      (new Date().getTime() - confirmed.getTime()) /
-      86400000
-    );
-  }
-
-  // ── ORDERS TAB ───────────────────────────────────────
-  topCustomers = computed(() => {
-    const map = new Map<string, any>();
-    for (const o of this.data.periodOrders()) {
-      const cur = map.get(o.customerId) || {
-        customerId: o.customerId,
-        customerName: o.customerName,
-        ordersCount: 0,
-        revenue: 0,
-        collected: 0,
-        balance: 0
-      };
-      cur.ordersCount++;
-      cur.revenue += o.totalCents;
-      cur.collected += o.amountPaidCents || 0;
-      cur.balance += o.balanceCents || 0;
-      map.set(o.customerId, cur);
-    }
-    return Array.from(map.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 8);
-  });
-
-  recentOrdersFull = computed(() =>
-    this.data.periodOrders()
-      .sort((a, b) =>
-        this.data.toDate(b.confirmedAt).getTime() -
-        this.data.toDate(a.confirmedAt).getTime()
-      )
-      .slice(0, 20)
-  );
-
   // ── PRODUCTS TAB ─────────────────────────────────────
   topProducts = computed(() => {
     const map = new Map<string, any>();
@@ -252,84 +177,9 @@ export class AdminDashboardComponent {
       .slice(0, 10);
   });
 
-  getDonutSegments() {
-    const b = this.data.orderStatusBreakdown();
-    const total = b.confirmed + b.preparing + b.outForDelivery +
-      b.delivered + b.cancelled;
-    if (total === 0) return [];
-
-    const data = [
-      {
-        label: 'Confirmed', count: b.confirmed,
-        color: 'var(--navy)'
-      },
-      {
-        label: 'Preparing', count: b.preparing,
-        color: '#7c3aed'
-      },
-      {
-        label: 'Out for Delivery', count: b.outForDelivery,
-        color: 'var(--gold)'
-      },
-      {
-        label: 'Delivered', count: b.delivered,
-        color: 'var(--green)'
-      },
-      {
-        label: 'Cancelled', count: b.cancelled,
-        color: 'var(--red)'
-      },
-    ];
-
-    let angle = -Math.PI / 2;
-    const cx = 60, cy = 60, r = 50;
-
-    return data.map(item => {
-      const slice = (item.count / total) * 2 * Math.PI;
-      const end = angle + slice;
-      const x1 = cx + r * Math.cos(angle);
-      const y1 = cy + r * Math.sin(angle);
-      const x2 = cx + r * Math.cos(end);
-      const y2 = cy + r * Math.sin(end);
-      const large = slice > Math.PI ? 1 : 0;
-      const path = item.count === 0 ? '' :
-        `M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ` +
-        `${large} 1 ${x2} ${y2} Z`;
-      angle = end;
-      return { ...item, path };
-    });
-  }
-
   // ── UTILS ────────────────────────────────────────────
   formatCurrency(cents: number): string {
     return centsToDisplay(cents);
-  }
-
-  formatShortDate(ts: any): string {
-    if (!ts) return '—';
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
-    return d.toLocaleDateString('en-CA', {
-      month: 'short', day: 'numeric'
-    });
-  }
-
-  formatDate(ts: any): string {
-    if (!ts) return '—';
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
-    return d.toLocaleDateString('en-CA', {
-      month: 'short', day: 'numeric', year: 'numeric'
-    });
-  }
-
-  getOrderStatusColor(status: string): string {
-    const map: Record<string, string> = {
-      confirmed: 'info',
-      preparing: 'purple',
-      out_for_delivery: 'warning',
-      delivered: 'success',
-      cancelled: 'danger'
-    };
-    return map[status] || 'info';
   }
 
 

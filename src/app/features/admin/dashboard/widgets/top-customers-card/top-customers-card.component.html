@@ -1,0 +1,51 @@
+<!-- Top Customers -->
+<div class="dash-card">
+  <div class="dash-card-header">
+    <h3>Top Customers</h3>
+    <span class="header-sub">by revenue</span>
+  </div>
+  <div class="dash-card-body no-pad">
+    @if (topCustomers().length === 0) {
+      <div class="empty-state-sm">
+        No orders in period
+      </div>
+    } @else {
+      @for (c of topCustomers();
+        track c.customerId; let i = $index) {
+        <a [routerLink]="[
+          '/admin/customers', c.customerId]"
+          class="top-row">
+          <span class="top-rank">{{ i + 1 }}</span>
+          <div class="top-body">
+            <span class="top-name">
+              {{ c.customerName }}
+            </span>
+            <div class="top-progress-wrap">
+              <div class="top-progress-track">
+                <div class="top-progress-fill"
+                  [style.width.%]="
+                    c.revenue > 0
+                      ? (c.collected/c.revenue)*100
+                      : 0">
+                </div>
+              </div>
+              <span class="top-meta">
+                {{ c.ordersCount }} orders
+                @if (c.balance > 0) {
+                  ·
+                  <span class="owing">
+                    {{ formatCurrency(c.balance) }}
+                    owing
+                  </span>
+                }
+              </span>
+            </div>
+          </div>
+          <span class="top-value">
+            {{ formatCurrency(c.revenue) }}
+          </span>
+        </a>
+      }
+    }
+  </div>
+</div>

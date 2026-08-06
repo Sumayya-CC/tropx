@@ -183,3 +183,112 @@
     color: var(--green);
   }
 }
+
+// Added D4 — "top N" ranked-list rows, used by Orders' Top Customers
+// plus Products' (not yet extracted) Top Products.
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--cream);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.top-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+  flex-shrink: 0;
+}
+
+.top-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.top-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-meta {
+  font-size: 0.75rem;
+  color: var(--gray);
+  font-weight: 500;
+
+  .owing {
+    color: var(--red);
+    font-weight: 600;
+  }
+}
+
+.top-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy-deep);
+  flex-shrink: 0;
+}
+
+// Added D4 — .tab-badge has two pre-existing definitions in
+// admin-dashboard.component.scss (unrelated, unconsolidated — out of
+// scope to fix here); both are moved verbatim, in their original
+// relative order, so the shell's own tab-bar and Orders' overdue-
+// invoices-card widget both see byte-identical cascade behavior to
+// before the split, quirk included.
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--red);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+
+  &.red { background: var(--red); }
+  &.teal { background: #0d9488; color: white; }
+}
+
+.tab-badge { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px;
+  padding:0 5px; margin-left:.4rem; background:var(--red); color:#fff; font-size:.7rem; font-weight:700;
+  border-radius:20px; }
+
+// Added D4 — used by both overdue-invoices-card and recent-orders-card
+// within the same phase (a "balance owing" chip on an order row).
+.owing-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--red);
+  background: rgba(231, 34, 46, 0.05);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}

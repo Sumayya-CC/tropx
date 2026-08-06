@@ -1,0 +1,47 @@
+<!-- Recent Orders Full -->
+<div class="dash-card full-width">
+  <div class="dash-card-header">
+    <h3>Orders</h3>
+    <a routerLink="/admin/orders"
+      class="header-link">View all →</a>
+  </div>
+  <div class="dash-card-body no-pad">
+    @if (recentOrdersFull().length === 0) {
+      <div class="empty-state-sm">
+        No orders in period
+      </div>
+    } @else {
+      @for (o of recentOrdersFull(); track o.id) {
+        <a [routerLink]="['/admin/orders', o.id]"
+          class="list-row">
+          <div class="list-row-left">
+            <span class="mono-num">
+              {{ o.orderNumber }}
+            </span>
+            <span class="list-sub">
+              {{ o.customerName }}
+            </span>
+          </div>
+          <div class="list-row-right">
+            <app-status-badge
+              [status]="o.status"
+              [color]="getOrderStatusColor(o.status)">
+            </app-status-badge>
+            @if ((o.balanceCents || 0) > 0) {
+              <span class="owing-chip">
+                {{ formatCurrency(o.balanceCents) }}
+                owing
+              </span>
+            }
+            <span class="amount-text">
+              {{ formatCurrency(o.totalCents) }}
+            </span>
+            <span class="date-text">
+              {{ formatShortDate(o.confirmedAt) }}
+            </span>
+          </div>
+        </a>
+      }
+    }
+  </div>
+</div>
