@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { serverTimestamp } from '@angular/fire/firestore';
+import { serverTimestamp, arrayUnion } from '@angular/fire/firestore';
 import { FirestoreService } from './firestore.service';
 import { AuthService } from './auth.service';
-import { Shop, PipelineStage, PipelineHistoryEntry } from '../models/shop.model';
+import { Shop, PipelineStage } from '../models/shop.model';
 
 @Injectable({ providedIn: 'root' })
 export class PipelineService {
@@ -13,18 +13,19 @@ export class PipelineService {
   async changeStage(shop: Shop, newStage: PipelineStage): Promise<void> {
     if (shop.pipelineStage === newStage) return;
     const by = this.auth.getActionBy();
-    const now = new Date();
-    const entry: PipelineHistoryEntry = { stage: newStage, enteredAt: now, by: by ?? undefined };
-    const history = [...(shop.pipelineHistory || []), entry];
+    // arrayUnion, not a read-modify-write full-array overwrite: two
+    // near-simultaneous stage changes (two admin tabs, a stale cached
+    // `shop`) each append their own entry server-side instead of one
+    // silently clobbering the other's history entry.
     await this.firestore.updateDocument(`shops/${shop.id}`, {
       pipelineStage: newStage,
       pipelineEnteredStageAt: serverTimestamp(),
-      pipelineHistory: history.map(h => ({
-        stage: h.stage,
+      pipelineHistory: arrayUnion({
+        stage: newStage,
         // serverTimestamp() can't go inside an array; store the client Date for history entries.
-        enteredAt: h.enteredAt,
-        by: h.by ?? null,
-      })),
+        enteredAt: new Date(),
+        by: by ?? null,
+      }),
     });
   }
 
