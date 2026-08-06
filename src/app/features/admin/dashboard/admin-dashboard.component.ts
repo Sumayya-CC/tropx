@@ -2,11 +2,8 @@ import { Component, inject, signal, computed, HostListener } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { where } from '@angular/fire/firestore';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 
-import { FirestoreService } from '../../../core/services/firestore.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -14,19 +11,12 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { centsToDisplay } from '../../../shared/utils/currency.utils';
 import { todayInputValue, toDateInputValue, dateInputToLocalDate } from '../../../shared/utils/date.utils';
 
-import { Order, OrderStatus, ORDER_STATUS_LABELS } from '../../../core/models/order.model';
-import { Payment } from '../../../core/models/payment.model';
-import { Return } from '../../../core/models/return.model';
-import { Customer } from '../../../core/models/customer.model';
-import { Product } from '../../../core/models/product.model';
+import { OrderStatus, ORDER_STATUS_LABELS } from '../../../core/models/order.model';
 import { Shop } from '../../../core/models/shop.model';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { LogFuelButtonComponent } from './log-fuel-button/log-fuel-button.component';
-
-type DatePreset = 'today' | 'week' | 'month' | 'days30' | 'months3' | 'months6' | 'year' | 'custom';
-
-import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
+import { AdminDashboardDataService, DatePreset } from './admin-dashboard-data.service';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -43,49 +33,13 @@ import { OwnerFullNamePipe } from '../../../shared/pipes/full-name.pipe';
   styleUrl: './admin-dashboard.component.scss'
 })
 export class AdminDashboardComponent {
-  private readonly firestore = inject(FirestoreService);
+  protected readonly data = inject(AdminDashboardDataService);
   private readonly authService = inject(AuthService);
   protected readonly settingsService = inject(SettingsService);
   private readonly notificationService = inject(NotificationService);
   protected readonly router = inject(Router);
   private readonly functions2 = inject(Functions);
   private readonly toast = inject(ToastService);
-
-  private orders$ = this.firestore.getCollection<Order>(
-    'orders', where('tenantId', '==', 1)
-  );
-  private payments$ = this.firestore.getCollection<Payment>(
-    'payments', where('tenantId', '==', 1)
-  );
-  private customers$ = this.firestore.getCollection<Customer>(
-    'customers', where('tenantId', '==', 1)
-  );
-  private products$ = this.firestore.getCollection<Product>(
-    'products', where('tenantId', '==', 1)
-  );
-  private returns$ = this.firestore.getCollection<Return>(
-    'returns', where('tenantId', '==', 1)
-  );
-  private shops$ = this.firestore.getCollection<Shop>(
-    'shops', where('tenantId', '==', 1)
-  );
-  private accessRequests$ = this.firestore.getCollection<any>(
-    'accessRequests', where('tenantId', '==', 1)
-  );
-  private reconciliationLog$ = this.firestore.getCollection<any>(
-    'reconciliationLog',
-    where('tenantId', '==', 1),
-    where('status', '==', 'needs_review')
-  );
-
-  allOrders = toSignal(this.orders$, { initialValue: [] as Order[] });
-  allPayments = toSignal(this.payments$, { initialValue: [] as Payment[] });
-  allCustomers = toSignal(this.customers$, { initialValue: [] as Customer[] });
-  allProducts = toSignal(this.products$, { initialValue: [] as Product[] });
-  allReturns = toSignal(this.returns$, { initialValue: [] as Return[] });
-  allShops = toSignal(this.shops$, { initialValue: [] as Shop[] });
-  allAccessRequests = toSignal(this.accessRequests$, { initialValue: [] as any[] });
-  needsReviewDiscrepancies = toSignal(this.reconciliationLog$, { initialValue: [] as any[] });
 
   expandedActions = signal<Set<string>>(new Set());
 
@@ -129,10 +83,9 @@ export class AdminDashboardComponent {
     }
   }
 
-  // Date range
-  selectedPreset = signal<DatePreset>('days30');
-  customFrom = signal('');
-  customTo = signal('');
+  // Date range picker UI (the underlying selectedPreset/customFrom/
+  // customTo signals live on the data service now — widgets need to
+  // react to them too — but the dropdown UI itself stays here).
   showDateDropdown = signal(false);
   today = todayInputValue();
 
@@ -149,12 +102,12 @@ export class AdminDashboardComponent {
 
   selectedPresetLabel = computed(() =>
     this.presets.find(
-      p => p.value === this.selectedPreset()
+      p => p.value === this.data.selectedPreset()
     )?.label || 'This Month'
   );
 
   selectPreset(preset: DatePreset) {
-    this.selectedPreset.set(preset);
+    this.data.selectedPreset.set(preset);
     if (preset !== 'custom') {
       this.showDateDropdown.set(false);
     }
@@ -168,92 +121,9 @@ export class AdminDashboardComponent {
     }
   }
 
-  dateRange = computed((): { from: Date; to: Date } => {
-    const now = new Date();
-    const today = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate()
-    );
-    const todayEnd = new Date(
-      now.getFullYear(), now.getMonth(),
-      now.getDate(), 23, 59, 59
-    );
-
-    switch (this.selectedPreset()) {
-      case 'today':
-        return { from: today, to: todayEnd };
-      case 'week': {
-        const dow = today.getDay();
-        const mon = new Date(today);
-        mon.setDate(
-          today.getDate() - (dow === 0 ? 6 : dow - 1)
-        );
-        return { from: mon, to: todayEnd };
-      }
-      case 'month':
-        return {
-          from: new Date(
-            now.getFullYear(), now.getMonth(), 1
-          ),
-          to: todayEnd
-        };
-      case 'days30': {
-        const from = new Date(today);
-        from.setDate(from.getDate() - 30);
-        return { from, to: todayEnd };
-      }
-      case 'months3': {
-        const from = new Date(today);
-        from.setMonth(from.getMonth() - 3);
-        return { from, to: todayEnd };
-      }
-      case 'months6': {
-        const from = new Date(today);
-        from.setMonth(from.getMonth() - 6);
-        return { from, to: todayEnd };
-      }
-      case 'year':
-        return {
-          from: new Date(now.getFullYear(), 0, 1),
-          to: todayEnd
-        };
-      case 'custom': {
-        const from = this.customFrom()
-          ? new Date(this.customFrom() + 'T00:00:00') : today;
-        const to = this.customTo()
-          ? new Date(this.customTo() + 'T23:59:59')
-          : todayEnd;
-        return { from, to };
-      }
-      default:
-        return { from: today, to: todayEnd };
-    }
-  });
-
-  previousDateRange = computed((): { from: Date; to: Date } => {
-    const cur = this.dateRange();
-    const dur = cur.to.getTime() - cur.from.getTime();
-    return {
-      from: new Date(cur.from.getTime() - dur),
-      to: new Date(cur.from.getTime() - 1)
-    };
-  });
-
-  private toDate(ts: any): Date {
-    if (!ts) return new Date(0);
-    if (ts.toDate) return ts.toDate();
-    return new Date(ts);
-  }
-
-  private inRange(
-    date: Date,
-    range: { from: Date; to: Date }
-  ): boolean {
-    return date >= range.from && date <= range.to;
-  }
-
   // ── LIVE KPIs (always current) ──────────────────────
   liveKpis = computed(() => {
-    const customers = this.allCustomers()
+    const customers = this.data.allCustomers()
       .filter(c => !c.isDeleted);
     const activeCustomers = customers
       .filter(c => c.status === 'active').length;
@@ -261,7 +131,7 @@ export class AdminDashboardComponent {
     // Compute outstanding from live order balanceCents
     // (source of truth) not the denormalized counter
     // which can drift. Mirrors the aging report exactly.
-    const outstandingBalance = this.allOrders()
+    const outstandingBalance = this.data.allOrders()
       .filter(o =>
         !o.isDeleted &&
         o.status !== 'cancelled' &&
@@ -286,7 +156,7 @@ export class AdminDashboardComponent {
   // Reconciliation discrepancies frozen for manual review —
   // highest-priority integrity alert.
   reconciliationAlert = computed(() => {
-    const items = this.needsReviewDiscrepancies();
+    const items = this.data.needsReviewDiscrepancies();
     const count = items.length;
     const totalAbsDelta = items.reduce(
       (sum, r) => sum + Math.abs(r.maxAbsDelta || 0), 0
@@ -304,35 +174,35 @@ export class AdminDashboardComponent {
     // 'confirmed' (not yet actioned into preparing/delivery).
     // Admin-created orders are excluded — you already know
     // about orders you keyed in yourself.
-    const newOrders = this.allOrders()
+    const newOrders = this.data.allOrders()
       .filter(o =>
         !o.isDeleted &&
         o.status === 'confirmed' &&
         o.source === 'customer_portal'
       )
       .sort((a, b) =>
-        this.toDate(b.confirmedAt).getTime() -
-        this.toDate(a.confirmedAt).getTime()
+        this.data.toDate(b.confirmedAt).getTime() -
+        this.data.toDate(a.confirmedAt).getTime()
       );
 
     const newOrdersTotal = newOrders.reduce(
       (sum, o) => sum + (o.totalCents || 0), 0
     );
 
-    const overdueOrders = this.allOrders().filter(o =>
+    const overdueOrders = this.data.allOrders().filter(o =>
       !o.isDeleted &&
       o.status !== 'cancelled' &&
       o.status !== 'delivered' &&
       (o.balanceCents || 0) > 0 &&
-      this.toDate(o.confirmedAt) < threshold
+      this.data.toDate(o.confirmedAt) < threshold
     );
     // Note: 'preparing' is intentionally included in overdue
     // since it still has an outstanding balance.
 
-    const pendingReturns = this.allReturns()
+    const pendingReturns = this.data.allReturns()
       .filter(r => !r.isDeleted && r.status === 'pending');
 
-    const lowStockProducts = this.allProducts()
+    const lowStockProducts = this.data.allProducts()
       .filter(p =>
         !p.isDeleted &&
         p.active &&
@@ -340,7 +210,7 @@ export class AdminDashboardComponent {
       )
       .sort((a, b) => a.stock - b.stock);
 
-    const pendingAccessRequests = this.allAccessRequests()
+    const pendingAccessRequests = this.data.allAccessRequests()
       .filter(r => r.status === 'pending')
       .sort((a: any, b: any) => {
         const at = a.submittedAt?.toDate?.() ??
@@ -379,7 +249,7 @@ export class AdminDashboardComponent {
 
   // ── SHOP HEALTH SUMMARY ────────────────────────────
   shopHealthSummary = computed(() => {
-    const shops = this.allShops().filter(s => !s.isDeleted);
+    const shops = this.data.allShops().filter(s => !s.isDeleted);
     const bands: Record<string, number> = { healthy:0, watch:0, at_risk:0, warm:0, cooling:0, cold:0, unknown:0 };
     const attention: { shop: Shop; days: number | null; kind: string }[] = [];
     for (const s of shops) {
@@ -399,7 +269,7 @@ export class AdminDashboardComponent {
   });
 
   healthTabData = computed(() => {
-    const shops = this.allShops().filter(s => !s.isDeleted);
+    const shops = this.data.allShops().filter(s => !s.isDeleted);
     const customers = shops.filter(s => s.healthKind === 'customer');
     const prospects = shops.filter(s => s.healthKind === 'prospect');
     const byBand = (list: Shop[], band: string) => list.filter(s => (s.healthBand||'unknown') === band)
@@ -413,7 +283,7 @@ export class AdminDashboardComponent {
   });
 
   // ── PIPELINE SUMMARY ───────────────────────────────
-  private pipelineShops = computed(() => this.allShops().filter(s => !s.isDeleted && s.status === 'prospect'));
+  private pipelineShops = computed(() => this.data.allShops().filter(s => !s.isDeleted && s.status === 'prospect'));
   pipelineSummary = computed(() => {
     const ps = this.pipelineShops();
     const stuck = ps.filter(s => s.pipelineStuck).length;
@@ -437,7 +307,7 @@ export class AdminDashboardComponent {
       now.getFullYear(), now.getMonth(), now.getDate()
     );
 
-    return this.allOrders()
+    return this.data.allOrders()
       .filter(o =>
         !o.isDeleted &&
         (o.status === 'confirmed' ||
@@ -446,10 +316,10 @@ export class AdminDashboardComponent {
       .map(o => ({
         ...o,
         deliveryDate: o.expectedDeliveryDate
-          ? this.toDate(o.expectedDeliveryDate)
+          ? this.data.toDate(o.expectedDeliveryDate)
           : null,
         isDelayed: o.expectedDeliveryDate
-          ? this.toDate(o.expectedDeliveryDate) < today
+          ? this.data.toDate(o.expectedDeliveryDate) < today
           : false,
         isPortal: o.source === 'customer_portal',
       }))
@@ -464,14 +334,14 @@ export class AdminDashboardComponent {
         }
         if (a.deliveryDate) return -1;
         if (b.deliveryDate) return 1;
-        return this.toDate(b.confirmedAt).getTime() -
-          this.toDate(a.confirmedAt).getTime();
+        return this.data.toDate(b.confirmedAt).getTime() -
+          this.data.toDate(a.confirmedAt).getTime();
       });
   });
 
   // ── BACKORDERS SUMMARY ───────────────────────────────
   backorderSummary = computed(() => {
-    const orders = this.allOrders().filter(o =>
+    const orders = this.data.allOrders().filter(o =>
       !o.isDeleted && o.hasBackorder &&
       o.status !== 'cancelled' && o.status !== 'delivered');
     const byProduct = new Map<string, { productName: string; units: number; orders: Set<string> }>();
@@ -496,51 +366,9 @@ export class AdminDashboardComponent {
     this.ordersToFulfill().filter(o => o.isDelayed).length
   );
 
-  // ── PERIOD FILTERS ───────────────────────────────────
-  periodOrders = computed(() => {
-    const range = this.dateRange();
-    return this.allOrders().filter(o =>
-      !o.isDeleted &&
-      o.status !== 'cancelled' &&
-      this.inRange(this.toDate(o.confirmedAt), range)
-    );
-  });
-
-  prevPeriodOrders = computed(() => {
-    const range = this.previousDateRange();
-    return this.allOrders().filter(o =>
-      !o.isDeleted &&
-      o.status !== 'cancelled' &&
-      this.inRange(this.toDate(o.confirmedAt), range)
-    );
-  });
-
-  periodPayments = computed(() => {
-    const range = this.dateRange();
-    return this.allPayments().filter(p =>
-      !p.isDeleted &&
-      this.inRange(new Date(p.receivedDate + 'T00:00:00'), range)
-    );
-  });
-
-  prevPeriodPayments = computed(() => {
-    const range = this.previousDateRange();
-    return this.allPayments().filter(p =>
-      !p.isDeleted &&
-      this.inRange(new Date(p.receivedDate + 'T00:00:00'), range)
-    );
-  });
-
-  periodReturns = computed(() => {
-    const range = this.dateRange();
-    return this.allReturns().filter(r =>
-      !r.isDeleted &&
-      this.inRange(this.toDate(r.createdAt), range)
-    );
-  });
 
   returnsSummary = computed(() => {
-    const returns = this.periodReturns();
+    const returns = this.data.periodReturns();
     return {
       total: returns.length,
       pending: returns.filter(
@@ -564,7 +392,7 @@ export class AdminDashboardComponent {
   });
 
   recentReturnsOrdersTab = computed(() => {
-    return this.periodReturns()
+    return this.data.periodReturns()
       .sort((a, b) => {
         const at = a.createdAt?.seconds ?? 0;
         const bt = b.createdAt?.seconds ?? 0;
@@ -582,7 +410,7 @@ export class AdminDashboardComponent {
   });
 
   getOrderAgeDays(order: any): number {
-    const confirmed = this.toDate(order.confirmedAt);
+    const confirmed = this.data.toDate(order.confirmedAt);
     return Math.floor(
       (new Date().getTime() - confirmed.getTime()) /
       86400000
@@ -591,16 +419,16 @@ export class AdminDashboardComponent {
 
   // ── OVERVIEW RECENT ──────────────────────────────────
   recentOrdersOverview = computed(() =>
-    this.periodOrders()
+    this.data.periodOrders()
       .sort((a, b) =>
-        this.toDate(b.confirmedAt).getTime() -
-        this.toDate(a.confirmedAt).getTime()
+        this.data.toDate(b.confirmedAt).getTime() -
+        this.data.toDate(a.confirmedAt).getTime()
       )
       .slice(0, 5)
   );
 
   recentPaymentsOverview = computed(() =>
-    this.periodPayments()
+    this.data.periodPayments()
       .sort((a, b) =>
         (b.receivedDate || '').localeCompare(
           a.receivedDate || ''
@@ -631,12 +459,12 @@ export class AdminDashboardComponent {
         month: 'short', day: 'numeric'
       });
 
-      const revenueCents = this.allOrders()
+      const revenueCents = this.data.allOrders()
         .filter(o => {
           if (o.isDeleted || o.status === 'cancelled') {
             return false;
           }
-          const d = this.toDate(o.confirmedAt);
+          const d = this.data.toDate(o.confirmedAt);
           return d >= weekStart && d <= weekEnd;
         })
         .reduce((sum, o) => sum + o.totalCents, 0);
@@ -672,10 +500,10 @@ export class AdminDashboardComponent {
 
   // ── FINANCIALS ───────────────────────────────────────
   periodAnalytics = computed(() => {
-    const orders = this.periodOrders();
-    const prev = this.prevPeriodOrders();
-    const payments = this.periodPayments();
-    const prevPayments = this.prevPeriodPayments();
+    const orders = this.data.periodOrders();
+    const prev = this.data.prevPeriodOrders();
+    const payments = this.data.periodPayments();
+    const prevPayments = this.data.prevPeriodPayments();
 
     const revenue = orders.reduce(
       (s, o) => s + o.totalCents, 0
@@ -718,7 +546,7 @@ export class AdminDashboardComponent {
     const days = this.settingsService
       .ordering().overdueAfterDays || 30;
     const now = new Date();
-    const unpaid = this.allOrders().filter(o =>
+    const unpaid = this.data.allOrders().filter(o =>
       !o.isDeleted &&
       o.status !== 'cancelled' &&
       (o.balanceCents || 0) > 0
@@ -732,7 +560,7 @@ export class AdminDashboardComponent {
     for (const o of unpaid) {
       const age = Math.floor(
         (now.getTime() -
-          this.toDate(o.confirmedAt).getTime()) /
+          this.data.toDate(o.confirmedAt).getTime()) /
         86400000
       );
       const bal = o.balanceCents || 0;
@@ -754,7 +582,7 @@ export class AdminDashboardComponent {
   });
 
   paymentMethodBreakdown = computed(() => {
-    const p = this.periodPayments();
+    const p = this.data.periodPayments();
     return {
       cash: p.filter(x => x.method === 'cash')
         .reduce((s, x) => s + x.amountCents, 0),
@@ -768,7 +596,7 @@ export class AdminDashboardComponent {
   });
 
   recentPaymentsFull = computed(() =>
-    this.periodPayments()
+    this.data.periodPayments()
       .sort((a, b) =>
         (b.receivedDate || '').localeCompare(
           a.receivedDate || ''
@@ -778,35 +606,9 @@ export class AdminDashboardComponent {
   );
 
   // ── ORDERS TAB ───────────────────────────────────────
-  orderStatusBreakdown = computed(() => {
-    const o = this.periodOrders();
-    const cancelled = this.allOrders().filter(x =>
-      !x.isDeleted &&
-      x.status === 'cancelled' &&
-      this.inRange(
-        this.toDate(x.confirmedAt), this.dateRange()
-      )
-    ).length;
-    return {
-      confirmed: o.filter(
-        x => x.status === 'confirmed'
-      ).length,
-      preparing: o.filter(
-        x => x.status === 'preparing'
-      ).length,
-      outForDelivery: o.filter(
-        x => x.status === 'out_for_delivery'
-      ).length,
-      delivered: o.filter(
-        x => x.status === 'delivered'
-      ).length,
-      cancelled
-    };
-  });
-
   topCustomers = computed(() => {
     const map = new Map<string, any>();
-    for (const o of this.periodOrders()) {
+    for (const o of this.data.periodOrders()) {
       const cur = map.get(o.customerId) || {
         customerId: o.customerId,
         customerName: o.customerName,
@@ -827,10 +629,10 @@ export class AdminDashboardComponent {
   });
 
   recentOrdersFull = computed(() =>
-    this.periodOrders()
+    this.data.periodOrders()
       .sort((a, b) =>
-        this.toDate(b.confirmedAt).getTime() -
-        this.toDate(a.confirmedAt).getTime()
+        this.data.toDate(b.confirmedAt).getTime() -
+        this.data.toDate(a.confirmedAt).getTime()
       )
       .slice(0, 20)
   );
@@ -838,7 +640,7 @@ export class AdminDashboardComponent {
   // ── PRODUCTS TAB ─────────────────────────────────────
   topProducts = computed(() => {
     const map = new Map<string, any>();
-    for (const o of this.periodOrders()) {
+    for (const o of this.data.periodOrders()) {
       for (const item of o.items) {
         const cur = map.get(item.productId) || {
           productId: item.productId,
@@ -858,7 +660,7 @@ export class AdminDashboardComponent {
   });
 
   lowStockProducts = computed(() =>
-    this.allProducts()
+    this.data.allProducts()
       .filter(p =>
         !p.isDeleted &&
         p.active &&
@@ -869,7 +671,7 @@ export class AdminDashboardComponent {
 
   // ── CHARTS ───────────────────────────────────────────
   chartBuckets = computed(() => {
-    const range = this.dateRange();
+    const range = this.data.dateRange();
     const diffDays = Math.ceil(
       (range.to.getTime() - range.from.getTime()) /
       86400000
@@ -947,13 +749,13 @@ export class AdminDashboardComponent {
       }
     }
 
-    for (const o of this.allOrders()) {
+    for (const o of this.data.allOrders()) {
       if (o.isDeleted || o.status === 'cancelled') continue;
-      const d = this.toDate(o.confirmedAt);
+      const d = this.data.toDate(o.confirmedAt);
       const b = buckets.find(x => d >= x.from && d <= x.to);
       if (b) b.revenue += o.totalCents;
     }
-    for (const p of this.allPayments()) {
+    for (const p of this.data.allPayments()) {
       if (p.isDeleted) continue;
       const d = new Date(p.receivedDate + 'T00:00:00');
       const b = buckets.find(x => d >= x.from && d <= x.to);
@@ -971,7 +773,7 @@ export class AdminDashboardComponent {
   }
 
   getDonutSegments() {
-    const b = this.orderStatusBreakdown();
+    const b = this.data.orderStatusBreakdown();
     const total = b.confirmed + b.preparing + b.outForDelivery +
       b.delivered + b.cancelled;
     if (total === 0) return [];

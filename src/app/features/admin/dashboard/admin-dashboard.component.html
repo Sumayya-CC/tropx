@@ -47,11 +47,11 @@
                 <button
                   class="date-preset-item"
                   [class.active]="
-                    selectedPreset() === preset.value
+                    data.selectedPreset() === preset.value
                   "
                   (click)="selectPreset(preset.value)">
                   <span class="preset-check">
-                    @if (selectedPreset() === preset.value) {
+                    @if (data.selectedPreset() === preset.value) {
                       ✓
                     }
                   </span>
@@ -62,41 +62,41 @@
             <div class="date-divider"></div>
             <button
               class="date-preset-item"
-              [class.active]="selectedPreset() === 'custom'"
+              [class.active]="data.selectedPreset() === 'custom'"
               (click)="selectPreset('custom')">
               <span class="preset-check">
-                @if (selectedPreset() === 'custom') { ✓ }
+                @if (data.selectedPreset() === 'custom') { ✓ }
               </span>
               Custom Range
             </button>
-            @if (selectedPreset() === 'custom') {
+            @if (data.selectedPreset() === 'custom') {
               <div class="custom-range-inputs">
                 <div class="custom-range-row">
                   <label>From</label>
                   <input type="date"
-                    [value]="customFrom()"
-                    (change)="customFrom.set(
+                    [value]="data.customFrom()"
+                    (change)="data.customFrom.set(
                       $any($event.target).value
                     )"
-                    [max]="customTo() || today">
+                    [max]="data.customTo() || today">
                 </div>
                 <div class="custom-range-row">
                   <label>To</label>
                   <input type="date"
-                    [value]="customTo()"
-                    (change)="customTo.set(
+                    [value]="data.customTo()"
+                    (change)="data.customTo.set(
                       $any($event.target).value
                     )"
-                    [min]="customFrom()"
+                    [min]="data.customFrom()"
                     [max]="today">
                 </div>
               </div>
             }
           </div>
           <div class="date-range-footer">
-            {{ dateRange().from | date:'MMM d, y' }}
+            {{ data.dateRange().from | date:'MMM d, y' }}
             —
-            {{ dateRange().to | date:'MMM d, y' }}
+            {{ data.dateRange().to | date:'MMM d, y' }}
           </div>
         </div>
       }
@@ -551,53 +551,53 @@
         <div class="dash-card-body">
 
           @let total =
-            orderStatusBreakdown().confirmed +
-            orderStatusBreakdown().preparing +
-            orderStatusBreakdown().outForDelivery +
-            orderStatusBreakdown().delivered +
-            orderStatusBreakdown().cancelled;
+            data.orderStatusBreakdown().confirmed +
+            data.orderStatusBreakdown().preparing +
+            data.orderStatusBreakdown().outForDelivery +
+            data.orderStatusBreakdown().delivered +
+            data.orderStatusBreakdown().cancelled;
 
           @if (total === 0) {
             <div class="empty-chart">No orders</div>
           } @else {
             <!-- Progress bar -->
             <div class="ov-status-bar">
-              @if (orderStatusBreakdown().confirmed > 0) {
+              @if (data.orderStatusBreakdown().confirmed > 0) {
                 <div class="ov-status-seg ov-seg--confirmed"
                   [style.width.%]="
-                    (orderStatusBreakdown().confirmed
+                    (data.orderStatusBreakdown().confirmed
                       / total) * 100
                   ">
                 </div>
               }
-              @if (orderStatusBreakdown().preparing > 0) {
+              @if (data.orderStatusBreakdown().preparing > 0) {
                 <div class="ov-status-seg ov-seg--preparing"
                   [style.width.%]="
-                    (orderStatusBreakdown().preparing
+                    (data.orderStatusBreakdown().preparing
                       / total) * 100
                   ">
                 </div>
               }
-              @if (orderStatusBreakdown().outForDelivery > 0) {
+              @if (data.orderStatusBreakdown().outForDelivery > 0) {
                 <div class="ov-status-seg ov-seg--delivery"
                   [style.width.%]="
-                    (orderStatusBreakdown().outForDelivery
+                    (data.orderStatusBreakdown().outForDelivery
                       / total) * 100
                   ">
                 </div>
               }
-              @if (orderStatusBreakdown().delivered > 0) {
+              @if (data.orderStatusBreakdown().delivered > 0) {
                 <div class="ov-status-seg ov-seg--delivered"
                   [style.width.%]="
-                    (orderStatusBreakdown().delivered
+                    (data.orderStatusBreakdown().delivered
                       / total) * 100
                   ">
                 </div>
               }
-              @if (orderStatusBreakdown().cancelled > 0) {
+              @if (data.orderStatusBreakdown().cancelled > 0) {
                 <div class="ov-status-seg ov-seg--cancelled"
                   [style.width.%]="
-                    (orderStatusBreakdown().cancelled
+                    (data.orderStatusBreakdown().cancelled
                       / total) * 100
                   ">
                 </div>
@@ -612,7 +612,7 @@
                 ov-status-dot--confirmed"></span>
               <span class="ov-status-label">Confirmed</span>
               <span class="ov-status-val">
-                {{ orderStatusBreakdown().confirmed }}
+                {{ data.orderStatusBreakdown().confirmed }}
               </span>
             </div>
             <div class="ov-status-row">
@@ -620,7 +620,7 @@
                 ov-status-dot--preparing"></span>
               <span class="ov-status-label">Preparing</span>
               <span class="ov-status-val">
-                {{ orderStatusBreakdown().preparing }}
+                {{ data.orderStatusBreakdown().preparing }}
               </span>
             </div>
             <div class="ov-status-row">
@@ -630,7 +630,7 @@
                 Out for delivery
               </span>
               <span class="ov-status-val">
-                {{ orderStatusBreakdown().outForDelivery }}
+                {{ data.orderStatusBreakdown().outForDelivery }}
               </span>
             </div>
             <div class="ov-status-row">
@@ -638,7 +638,7 @@
                 ov-status-dot--delivered"></span>
               <span class="ov-status-label">Delivered</span>
               <span class="ov-status-val">
-                {{ orderStatusBreakdown().delivered }}
+                {{ data.orderStatusBreakdown().delivered }}
               </span>
             </div>
             <div class="ov-status-row">
@@ -646,7 +646,7 @@
                 ov-status-dot--cancelled"></span>
               <span class="ov-status-label">Cancelled</span>
               <span class="ov-status-val">
-                {{ orderStatusBreakdown().cancelled }}
+                {{ data.orderStatusBreakdown().cancelled }}
               </span>
             </div>
           </div>
@@ -1285,11 +1285,11 @@
         </div>
         <div class="dash-card-body donut-layout">
           @let total =
-            orderStatusBreakdown().confirmed +
-            orderStatusBreakdown().preparing +
-            orderStatusBreakdown().outForDelivery +
-            orderStatusBreakdown().delivered +
-            orderStatusBreakdown().cancelled;
+            data.orderStatusBreakdown().confirmed +
+            data.orderStatusBreakdown().preparing +
+            data.orderStatusBreakdown().outForDelivery +
+            data.orderStatusBreakdown().delivered +
+            data.orderStatusBreakdown().cancelled;
           @if (total === 0) {
             <div class="empty-chart">No orders</div>
           } @else {
@@ -1313,21 +1313,21 @@
                 <span class="donut-dot navy"></span>
                 <span>Confirmed</span>
                 <strong>
-                  {{ orderStatusBreakdown().confirmed }}
+                  {{ data.orderStatusBreakdown().confirmed }}
                 </strong>
               </div>
               <div class="donut-row">
                 <span class="donut-dot purple"></span>
                 <span>Preparing</span>
                 <strong>
-                  {{ orderStatusBreakdown().preparing }}
+                  {{ data.orderStatusBreakdown().preparing }}
                 </strong>
               </div>
               <div class="donut-row">
                 <span class="donut-dot gold"></span>
                 <span>Out for Delivery</span>
                 <strong>
-                  {{ orderStatusBreakdown()
+                  {{ data.orderStatusBreakdown()
                     .outForDelivery }}
                 </strong>
               </div>
@@ -1335,14 +1335,14 @@
                 <span class="donut-dot green"></span>
                 <span>Delivered</span>
                 <strong>
-                  {{ orderStatusBreakdown().delivered }}
+                  {{ data.orderStatusBreakdown().delivered }}
                 </strong>
               </div>
               <div class="donut-row">
                 <span class="donut-dot red"></span>
                 <span>Cancelled</span>
                 <strong>
-                  {{ orderStatusBreakdown().cancelled }}
+                  {{ data.orderStatusBreakdown().cancelled }}
                 </strong>
               </div>
             </div>
