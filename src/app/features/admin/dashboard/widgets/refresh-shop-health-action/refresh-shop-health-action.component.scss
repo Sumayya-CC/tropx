@@ -1,0 +1,8 @@
+.btn-refresh { display:inline-flex; align-items:center; gap:.5rem; padding:.55rem 1.1rem;
+  background:#fff; border:1px solid var(--border-light); border-radius:8px; font-weight:600;
+  font-size:.875rem; color:var(--navy-deep); cursor:pointer; transition:all .15s; }
+.btn-refresh:hover:not(:disabled) { background:#f8fafc; border-color:var(--navy); }
+.btn-refresh:disabled { opacity:.6; cursor:default; }
+.refresh-ico { display:inline-block; font-size:1rem; }
+.refresh-ico.spin { animation:hspin 1s linear infinite; }
+@keyframes hspin { to { transform:rotate(360deg); } }

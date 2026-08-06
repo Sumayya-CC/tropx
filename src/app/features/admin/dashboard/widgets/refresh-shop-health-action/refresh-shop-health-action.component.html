@@ -1,0 +1,4 @@
+<button class="btn-refresh" (click)="refreshShopHealth()" [disabled]="isRefreshingHealth()">
+  <span class="refresh-ico" [class.spin]="isRefreshingHealth()">↻</span>
+  {{ isRefreshingHealth() ? 'Refreshing…' : 'Refresh Now' }}
+</button>

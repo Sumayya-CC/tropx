@@ -1,0 +1,38 @@
+<!-- Pipeline Section -->
+<div class="fo-section">
+  <div class="fo-section-head">
+    <h2>Pipeline</h2>
+    <a routerLink="/admin/pipeline" class="header-link">Open pipeline →</a>
+  </div>
+  <div class="health-summary-grid">
+    <div class="health-card">
+      <div class="hc-title">Prospects</div>
+      <div class="hc-bands">
+        <div class="band-tile green"><span class="bt-num">{{ data.pipelineSummary().active }}</span><span class="bt-label">Active</span></div>
+        <div class="band-tile red"><span class="bt-num">{{ data.pipelineSummary().stuck }}</span><span class="bt-label">Stuck</span></div>
+        <div class="band-tile gold"><span class="bt-num">{{ data.pipelineSummary().ready }}</span><span class="bt-label">Ready</span></div>
+      </div>
+    </div>
+    <div class="health-card">
+      <div class="hc-list-head"><span class="dot red"></span><h3>Stuck Prospects</h3><span class="hc-count">{{ data.pipelineSummary().stuck }}</span></div>
+      @if (data.pipelineSummary().stuckList.length === 0) { <p class="hc-empty">Nothing stuck.</p> }
+      @for (s of data.pipelineSummary().stuckList; track s.id) {
+        <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+          <span class="hc-name">{{ s.name }}</span>
+          <span class="hc-meta red-text">{{ s.daysInStage ?? 0 }}d in stage</span>
+        </a>
+      }
+    </div>
+  </div>
+  @if (data.pipelineSummary().overdueList.length) {
+    <div class="health-card" style="margin-top:1.25rem;">
+      <div class="hc-list-head"><span class="dot gold"></span><h3>Overdue Follow-ups</h3><span class="hc-count">{{ data.pipelineSummary().overdueCount }}</span></div>
+      @for (s of data.pipelineSummary().overdueList; track s.id) {
+        <a class="hc-row" [routerLink]="['/admin/shops', s.id]">
+          <span class="hc-name">{{ s.name }}</span>
+          <span class="hc-meta gold-text">{{ s.nextActionNote || 'follow-up due' }}</span>
+        </a>
+      }
+    </div>
+  }
+</div>
