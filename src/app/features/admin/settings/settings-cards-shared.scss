@@ -172,6 +172,17 @@
 
 .capitalize { text-transform: capitalize; }
 
+// Added S4 — was duplicated verbatim into business-info-card's own scoped
+// scss in S1; promoted here now that Featured Banner needs it too, so a
+// third copy isn't pasted in (the exact duplication risk flagged for this
+// split — see the file header).
+.empty-hint {
+  font-size: 0.8125rem;
+  color: var(--gray);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
 /* ── EDIT MODE ─────────────────────────────────────── */
 
 .edit-section {
