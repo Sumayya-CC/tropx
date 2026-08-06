@@ -1,0 +1,86 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Shop Health</h2>
+      <p>How long before a shop is flagged inactive. Days.</p>
+    </div>
+    @if (!editingShopHealth()) {
+      <button class="btn-edit" (click)="editingShopHealth.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+  @if (!editingShopHealth()) {
+    <!-- VIEW MODE -->
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Customer: Watch after</div>
+          <div class="view-value">{{ shCustomerWatch() }} days</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Customer: At Risk after</div>
+          <div class="view-value">{{ shCustomerAtRisk() }} days</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Prospect: Cooling after</div>
+          <div class="view-value">{{ shProspectCooling() }} days</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Prospect: Cold after</div>
+          <div class="view-value">{{ shProspectCold() }} days</div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <!-- EDIT MODE -->
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Shop Health Thresholds</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Customer: Watch after (Days)</label>
+            <input type="number" min="1"
+              [value]="shCustomerWatch()"
+              (input)="shCustomerWatch.set(+$any($event.target).value)">
+          </div>
+          <div class="form-group">
+            <label>Customer: At Risk after (Days)</label>
+            <input type="number" min="1"
+              [value]="shCustomerAtRisk()"
+              (input)="shCustomerAtRisk.set(+$any($event.target).value)">
+          </div>
+          <div class="form-group">
+            <label>Prospect: Cooling after (Days)</label>
+            <input type="number" min="1"
+              [value]="shProspectCooling()"
+              (input)="shProspectCooling.set(+$any($event.target).value)">
+          </div>
+          <div class="form-group">
+            <label>Prospect: Cold after (Days)</label>
+            <input type="number" min="1"
+              [value]="shProspectCold()"
+              (input)="shProspectCold.set(+$any($event.target).value)">
+          </div>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button class="btn-cancel-edit"
+          (click)="cancelShopHealth()"
+          [disabled]="isSaving()">
+          Cancel
+        </button>
+        <button class="btn-save-edit"
+          (click)="saveShopHealth()"
+          [disabled]="isSaving()">
+          @if (isSaving()) { Saving... }
+          @else { Save }
+        </button>
+      </div>
+    </div>
+  }
+</div>

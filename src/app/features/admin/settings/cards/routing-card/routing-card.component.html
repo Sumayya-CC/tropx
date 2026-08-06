@@ -1,0 +1,141 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Routing</h2>
+      <p>Route optimization and navigation defaults</p>
+    </div>
+    @if (!editingRouting()) {
+      <button class="btn-edit" (click)="editingRouting.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+
+  @if (!editingRouting()) {
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Max Waypoints per Leg</div>
+          <div class="view-value">{{ rtMaxWaypoints() }}</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Cluster Radius (km)</div>
+          <div class="view-value">{{ rtClusterRadius() }}</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Default Travel Mode</div>
+          <div class="view-value capitalize">{{ rtTravelMode() }}</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Vehicle Fuel Usage</div>
+          <div class="view-value">{{ rtFuelPerKm() != null ? (rtFuelPerKm() + ' L/km') : 'Not set' }}</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Fuel Price</div>
+          <div class="view-value">{{ rtFuelPriceCentsPerLiter() != null ? ('$' + (rtFuelPriceCentsPerLiter()! / 100).toFixed(2) + ' / L') : 'Not set' }}</div>
+        </div>
+        <div class="view-item" style="grid-column: 1 / -1;">
+          <div class="view-label">Default Map Center</div>
+          <div class="view-value">{{ rtDefaultCenter().lat }}, {{ rtDefaultCenter().lng }}</div>
+        </div>
+        <div class="view-item" style="grid-column: 1 / -1;">
+          <div class="view-label">Start Locations</div>
+          <div class="view-value">
+            @if (rtStarts().length === 0) {
+              <span class="no-value">No start locations defined</span>
+            } @else {
+              <ul style="margin:0; padding-left:1.5rem; color:var(--text-dark);">
+                @for (s of rtStarts(); track $index) {
+                  <li><strong>{{ s.label || 'Unnamed' }}</strong>: {{ s.lat }}, {{ s.lng }}</li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <h3>Start Locations</h3>
+        <p class="hint" style="margin-top:-0.5rem; margin-bottom:1rem;">
+          Preset origins for your delivery routes (e.g., "Main Warehouse").
+        </p>
+        @for (s of rtStarts(); track $index; let idx = $index) {
+          <div style="display:flex; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+            <div class="form-group" style="flex:2;">
+              <label>Label</label>
+              <input type="text" [value]="s.label" (input)="s.label = $any($event.target).value">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Latitude</label>
+              <input type="number" step="0.000001" [value]="s.lat" (input)="s.lat = +$any($event.target).value">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Longitude</label>
+              <input type="number" step="0.000001" [value]="s.lng" (input)="s.lng = +$any($event.target).value">
+            </div>
+            <button type="button" class="btn-outline sm" style="margin-bottom:0.25rem;" (click)="useCurrentLocation(idx)" [disabled]="gettingLocation()">
+              📍 {{ gettingLocation() ? 'Locating…' : 'Use current location' }}
+            </button>
+            <button type="button" class="btn-cancel-edit" style="margin-bottom:0.25rem;" (click)="removeRoutingStart(idx)">Remove</button>
+          </div>
+        }
+        <button type="button" class="btn-edit" style="width:fit-content; margin-bottom:2rem;" (click)="addRoutingStart()">+ Add Location</button>
+
+        <h3>Optimization & Navigation</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Max Waypoints per Leg</label>
+            <input type="number" min="1" max="25" [value]="rtMaxWaypoints()" (input)="rtMaxWaypoints.set(+$any($event.target).value)">
+            <span class="hint">Google Maps allows max 9-25 depending on API vs URL.</span>
+          </div>
+          <div class="form-group">
+            <label>Cluster Radius (km)</label>
+            <input type="number" min="0" step="0.1" [value]="rtClusterRadius()" (input)="rtClusterRadius.set(+$any($event.target).value)">
+            <span class="hint">Max distance to look for infill prospects.</span>
+          </div>
+          <div class="form-group">
+            <label>Travel Mode</label>
+            <select [value]="rtTravelMode()" (change)="rtTravelMode.set($any($event.target).value)">
+              <option value="driving">Driving</option>
+              <option value="walking">Walking</option>
+              <option value="bicycling">Bicycling</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fuel Usage (L/km)</label>
+            <input type="number" min="0" step="0.01" [value]="rtFuelPerKm() ?? ''" (input)="rtFuelPerKm.set($any($event.target).value ? +$any($event.target).value : null)">
+            <span class="hint">Leave blank to disable cost estimates.</span>
+          </div>
+          <div class="form-group">
+            <label>Fuel Price ($/L)</label>
+            <input type="number" min="0" step="0.01" [value]="rtFuelPriceCentsPerLiter() != null ? (rtFuelPriceCentsPerLiter()! / 100) : ''" (input)="rtFuelPriceCentsPerLiter.set($any($event.target).value ? Math.round(+$any($event.target).value * 100) : null)">
+            <span class="hint">Used with Fuel Usage to estimate route cost.</span>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Default Map Center</label>
+            <div style="display:flex; gap:1rem; align-items:center;">
+              <input type="number" step="0.000001" placeholder="Lat" [value]="rtDefaultCenter().lat" (input)="rtDefaultCenter.set({lat: +$any($event.target).value, lng: rtDefaultCenter().lng})">
+              <input type="number" step="0.000001" placeholder="Lng" [value]="rtDefaultCenter().lng" (input)="rtDefaultCenter.set({lat: rtDefaultCenter().lat, lng: +$any($event.target).value})">
+              <button type="button" class="btn-outline sm" (click)="useCurrentLocationForCenter()" [disabled]="gettingLocation()">
+                📍 {{ gettingLocation() ? 'Locating…' : 'Use current location' }}
+              </button>
+            </div>
+            <span class="hint">Fallback map center when no shops are visible.</span>
+          </div>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button class="btn-cancel-edit" (click)="cancelRouting()" [disabled]="isSaving()">Cancel</button>
+        <button class="btn-save-edit" (click)="saveRouting()" [disabled]="isSaving()">
+          @if (isSaving()) { Saving... } @else { Save Routing }
+        </button>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,95 @@
+<div class="settings-card">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>Expenses</h2>
+      <p>Fuel logging defaults and expense categories</p>
+    </div>
+    @if (!editingExpenses()) {
+      <button class="btn-edit" (click)="editingExpenses.set(true)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Edit
+      </button>
+    }
+  </div>
+
+  @if (!editingExpenses()) {
+    <div class="card-body">
+      <div class="view-grid">
+        <div class="view-item">
+          <div class="view-label">Default Fuel Log Amount</div>
+          <div class="view-value">${{ expDefaultFuel() }}</div>
+        </div>
+        <div class="view-item">
+          <div class="view-label">Fuel Reminder on Visit Save</div>
+          <div class="view-value">{{ expFuelReminder() ? 'On' : 'Off' }}</div>
+        </div>
+        <div class="view-item" style="grid-column: 1 / -1;">
+          <div class="view-label">Expense Categories</div>
+          <div class="view-value">
+            @if (expCategories().length === 0) {
+              <span class="no-value">No categories defined</span>
+            } @else {
+              <ul style="margin:0; padding-left:1.5rem; color:var(--text-dark);">
+                @for (c of expCategories(); track $index) {
+                  <li>{{ c.icon }} {{ c.label || 'Unnamed' }}</li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="card-body edit-mode">
+      <div class="edit-section">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Default Fuel Log Amount ($)</label>
+            <input type="number" min="0" step="0.01" [value]="expDefaultFuel()" (input)="expDefaultFuel.set(+$any($event.target).value)">
+            <span class="hint">Pre-filled amount on the fuel-log popup.</span>
+          </div>
+        </div>
+
+        <div class="toggle-list" style="margin-top:1rem;">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <span class="toggle-title">Fuel Reminder on Visit Save</span>
+              <span class="toggle-desc">Shows a quick fuel-log popup after saving a visit</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                [checked]="expFuelReminder()"
+                (change)="expFuelReminder.set($any($event.target).checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1.5rem;">Expense Categories</h3>
+        @for (c of expCategories(); track $index; let idx = $index) {
+          <div style="display:flex; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+            <div class="form-group" style="flex:0 0 80px;">
+              <label>Icon</label>
+              <input type="text" [value]="c.icon" (input)="updateExpenseCategoryIcon(idx, $any($event.target).value)">
+            </div>
+            <div class="form-group" style="flex:2;">
+              <label>Label</label>
+              <input type="text" [value]="c.label" (input)="updateExpenseCategoryLabel(idx, $any($event.target).value)">
+            </div>
+            <button type="button" class="btn-cancel-edit" style="margin-bottom:0.25rem;" (click)="removeExpenseCategory(idx)">Remove</button>
+          </div>
+        }
+        <button type="button" class="btn-edit" style="width:fit-content;" (click)="addExpenseCategory()">+ Add Category</button>
+      </div>
+      <div class="edit-actions">
+        <button class="btn-cancel-edit" (click)="cancelExpenses()" [disabled]="isSaving()">Cancel</button>
+        <button class="btn-save-edit" (click)="saveExpenses()" [disabled]="isSaving()">
+          @if (isSaving()) { Saving... } @else { Save Expenses }
+        </button>
+      </div>
+    </div>
+  }
+</div>
