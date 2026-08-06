@@ -1,0 +1,21 @@
+.method-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: var(--color-border);
+  color: var(--charcoal);
+
+  &[data-method="cash"] {
+    background: rgba(26, 124, 74, 0.08);
+    color: var(--green);
+  }
+  &[data-method="e_transfer"] {
+    background: rgba(10, 45, 74, 0.08);
+    color: var(--navy);
+  }
+  &[data-method="cheque"] {
+    background: rgba(201, 149, 42, 0.08);
+    color: #b45309;
+  }
+}

@@ -1,0 +1,83 @@
+<!-- Aging Report -->
+<div class="dash-card full-width">
+  <div class="dash-card-header">
+    <h3>Invoice Aging</h3>
+    <span class="header-sub">
+      Threshold:
+      {{ settingsService.ordering().overdueAfterDays }}
+      days
+    </span>
+  </div>
+  <div class="dash-card-body no-pad">
+    @let aging = agingReport();
+    @let days = settingsService
+      .ordering().overdueAfterDays || 30;
+    <div class="aging-row-item">
+      <div class="aging-row-left">
+        <span class="aging-badge current">Current</span>
+        <span class="aging-range">
+          0 – {{ days }} days
+        </span>
+        <span class="aging-count">
+          {{ aging.current.orders.length }} invoices
+        </span>
+      </div>
+      <span class="aging-val green">
+        {{ formatCurrency(aging.current.total) }}
+      </span>
+    </div>
+    <div class="aging-row-item">
+      <div class="aging-row-left">
+        <span class="aging-badge tier1">Overdue</span>
+        <span class="aging-range">
+          {{ days }} – {{ days * 2 }} days
+        </span>
+        <span class="aging-count">
+          {{ aging.tier1.orders.length }} invoices
+        </span>
+      </div>
+      <span class="aging-val gold">
+        {{ formatCurrency(aging.tier1.total) }}
+      </span>
+    </div>
+    <div class="aging-row-item">
+      <div class="aging-row-left">
+        <span class="aging-badge tier2">Late</span>
+        <span class="aging-range">
+          {{ days * 2 }} – {{ days * 3 }} days
+        </span>
+        <span class="aging-count">
+          {{ aging.tier2.orders.length }} invoices
+        </span>
+      </div>
+      <span class="aging-val orange">
+        {{ formatCurrency(aging.tier2.total) }}
+      </span>
+    </div>
+    <div class="aging-row-item">
+      <div class="aging-row-left">
+        <span class="aging-badge tier3">Critical</span>
+        <span class="aging-range">
+          {{ days * 3 }}+ days
+        </span>
+        <span class="aging-count">
+          {{ aging.tier3.orders.length }} invoices
+        </span>
+      </div>
+      <span class="aging-val red">
+        {{ formatCurrency(aging.tier3.total) }}
+      </span>
+    </div>
+    <div class="aging-total-row">
+      <span>Total Outstanding</span>
+      <span class="aging-total-val">
+        {{ formatCurrency(
+          aging.current.total +
+          aging.tier1.total +
+          aging.tier2.total +
+          aging.tier3.total
+        ) }}
+      </span>
+    </div>
+  </div>
+</div>

@@ -19,6 +19,10 @@ import { LiveKpiRowComponent } from './widgets/live-kpi-row/live-kpi-row.compone
 import { NeedsAttentionCardComponent } from './widgets/needs-attention-card/needs-attention-card.component';
 import { OverviewChartsRowComponent } from './widgets/overview-charts-row/overview-charts-row.component';
 import { OrdersToFulfillCardComponent } from './widgets/orders-to-fulfill-card/orders-to-fulfill-card.component';
+import { PeriodAnalyticsCardsComponent } from './widgets/period-analytics-cards/period-analytics-cards.component';
+import { FinancialsChartsRowComponent } from './widgets/financials-charts-row/financials-charts-row.component';
+import { AgingReportCardComponent } from './widgets/aging-report-card/aging-report-card.component';
+import { RecentPaymentsCardComponent } from './widgets/recent-payments-card/recent-payments-card.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -34,6 +38,10 @@ import { OrdersToFulfillCardComponent } from './widgets/orders-to-fulfill-card/o
     NeedsAttentionCardComponent,
     OverviewChartsRowComponent,
     OrdersToFulfillCardComponent,
+    PeriodAnalyticsCardsComponent,
+    FinancialsChartsRowComponent,
+    AgingReportCardComponent,
+    RecentPaymentsCardComponent,
   ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss'
@@ -190,89 +198,6 @@ export class AdminDashboardComponent {
     );
   }
 
-  // ── OVERVIEW RECENT ──────────────────────────────────
-  recentOrdersOverview = computed(() =>
-    this.data.periodOrders()
-      .sort((a, b) =>
-        this.data.toDate(b.confirmedAt).getTime() -
-        this.data.toDate(a.confirmedAt).getTime()
-      )
-      .slice(0, 5)
-  );
-
-  recentPaymentsOverview = computed(() =>
-    this.data.periodPayments()
-      .sort((a, b) =>
-        (b.receivedDate || '').localeCompare(
-          a.receivedDate || ''
-        )
-      )
-      .slice(0, 5)
-  );
-
-  agingReport = computed(() => {
-    const days = this.settingsService
-      .ordering().overdueAfterDays || 30;
-    const now = new Date();
-    const unpaid = this.data.allOrders().filter(o =>
-      !o.isDeleted &&
-      o.status !== 'cancelled' &&
-      (o.balanceCents || 0) > 0
-    );
-    const b = {
-      current: { orders: [] as any[], total: 0 },
-      tier1: { orders: [] as any[], total: 0 },
-      tier2: { orders: [] as any[], total: 0 },
-      tier3: { orders: [] as any[], total: 0 },
-    };
-    for (const o of unpaid) {
-      const age = Math.floor(
-        (now.getTime() -
-          this.data.toDate(o.confirmedAt).getTime()) /
-        86400000
-      );
-      const bal = o.balanceCents || 0;
-      if (age <= days) {
-        b.current.orders.push(o);
-        b.current.total += bal;
-      } else if (age <= days * 2) {
-        b.tier1.orders.push(o);
-        b.tier1.total += bal;
-      } else if (age <= days * 3) {
-        b.tier2.orders.push(o);
-        b.tier2.total += bal;
-      } else {
-        b.tier3.orders.push(o);
-        b.tier3.total += bal;
-      }
-    }
-    return b;
-  });
-
-  paymentMethodBreakdown = computed(() => {
-    const p = this.data.periodPayments();
-    return {
-      cash: p.filter(x => x.method === 'cash')
-        .reduce((s, x) => s + x.amountCents, 0),
-      etransfer: p.filter(x => x.method === 'e_transfer')
-        .reduce((s, x) => s + x.amountCents, 0),
-      cheque: p.filter(x => x.method === 'cheque')
-        .reduce((s, x) => s + x.amountCents, 0),
-      other: p.filter(x => x.method === 'other')
-        .reduce((s, x) => s + x.amountCents, 0),
-    };
-  });
-
-  recentPaymentsFull = computed(() =>
-    this.data.periodPayments()
-      .sort((a, b) =>
-        (b.receivedDate || '').localeCompare(
-          a.receivedDate || ''
-        )
-      )
-      .slice(0, 20)
-  );
-
   // ── ORDERS TAB ───────────────────────────────────────
   topCustomers = computed(() => {
     const map = new Map<string, any>();
@@ -327,109 +252,6 @@ export class AdminDashboardComponent {
       .slice(0, 10);
   });
 
-  // ── CHARTS ───────────────────────────────────────────
-  chartBuckets = computed(() => {
-    const range = this.data.dateRange();
-    const diffDays = Math.ceil(
-      (range.to.getTime() - range.from.getTime()) /
-      86400000
-    );
-
-    let buckets: {
-      label: string;
-      from: Date;
-      to: Date;
-      revenue: number;
-      collected: number;
-    }[] = [];
-
-    if (diffDays <= 1) {
-      for (let h = 0; h < 24; h++) {
-        const from = new Date(range.from);
-        from.setHours(h, 0, 0, 0);
-        const to = new Date(range.from);
-        to.setHours(h, 59, 59, 999);
-        buckets.push({
-          label: `${h}:00`, from, to,
-          revenue: 0, collected: 0
-        });
-      }
-    } else if (diffDays <= 31) {
-      const cur = new Date(range.from);
-      cur.setHours(0, 0, 0, 0);
-      while (cur <= range.to) {
-        const from = new Date(cur);
-        const to = new Date(cur);
-        to.setHours(23, 59, 59, 999);
-        buckets.push({
-          label: from.toLocaleDateString('en-CA', {
-            month: 'short', day: 'numeric'
-          }),
-          from, to, revenue: 0, collected: 0
-        });
-        cur.setDate(cur.getDate() + 1);
-      }
-    } else if (diffDays <= 90) {
-      const cur = new Date(range.from);
-      cur.setHours(0, 0, 0, 0);
-      while (cur <= range.to) {
-        const from = new Date(cur);
-        const to = new Date(cur);
-        to.setDate(to.getDate() + 6);
-        to.setHours(23, 59, 59, 999);
-        if (to > range.to) to.setTime(range.to.getTime());
-        buckets.push({
-          label: from.toLocaleDateString('en-CA', {
-            month: 'short', day: 'numeric'
-          }),
-          from, to, revenue: 0, collected: 0
-        });
-        cur.setDate(cur.getDate() + 7);
-      }
-    } else {
-      const cur = new Date(
-        range.from.getFullYear(),
-        range.from.getMonth(), 1
-      );
-      while (cur <= range.to) {
-        const from = new Date(cur);
-        const to = new Date(
-          cur.getFullYear(),
-          cur.getMonth() + 1, 0, 23, 59, 59
-        );
-        buckets.push({
-          label: from.toLocaleDateString('en-CA', {
-            month: 'short', year: '2-digit'
-          }),
-          from, to, revenue: 0, collected: 0
-        });
-        cur.setMonth(cur.getMonth() + 1);
-      }
-    }
-
-    for (const o of this.data.allOrders()) {
-      if (o.isDeleted || o.status === 'cancelled') continue;
-      const d = this.data.toDate(o.confirmedAt);
-      const b = buckets.find(x => d >= x.from && d <= x.to);
-      if (b) b.revenue += o.totalCents;
-    }
-    for (const p of this.data.allPayments()) {
-      if (p.isDeleted) continue;
-      const d = new Date(p.receivedDate + 'T00:00:00');
-      const b = buckets.find(x => d >= x.from && d <= x.to);
-      if (b) b.collected += p.amountCents;
-    }
-
-    return buckets;
-  });
-
-  getChartMax(): number {
-    const b = this.chartBuckets();
-    return Math.max(
-      ...b.map(x => Math.max(x.revenue, x.collected)), 1
-    );
-  }
-
   getDonutSegments() {
     const b = this.data.orderStatusBreakdown();
     const total = b.confirmed + b.preparing + b.outForDelivery +
@@ -478,33 +300,6 @@ export class AdminDashboardComponent {
     });
   }
 
-  getMethodBars() {
-    const pm = this.paymentMethodBreakdown();
-    return [
-      {
-        label: 'Cash', value: pm.cash,
-        color: 'var(--green)'
-      },
-      {
-        label: 'E-Transfer', value: pm.etransfer,
-        color: 'var(--navy)'
-      },
-      {
-        label: 'Cheque', value: pm.cheque,
-        color: 'var(--gold)'
-      },
-      {
-        label: 'Other', value: pm.other,
-        color: 'var(--gray)'
-      },
-    ];
-  }
-
-  changePct(cur: number, prev: number): number {
-    if (prev === 0) return cur > 0 ? 100 : 0;
-    return Math.round(((cur - prev) / prev) * 100);
-  }
-
   // ── UTILS ────────────────────────────────────────────
   formatCurrency(cents: number): string {
     return centsToDisplay(cents);
@@ -537,15 +332,6 @@ export class AdminDashboardComponent {
     return map[status] || 'info';
   }
 
-  getMethodLabel(method: string): string {
-    const map: Record<string, string> = {
-      cash: 'Cash',
-      e_transfer: 'E-Transfer',
-      cheque: 'Cheque',
-      other: 'Other'
-    };
-    return map[method] || method;
-  }
 
   getTimeOfDay(): string {
     const h = new Date().getHours();

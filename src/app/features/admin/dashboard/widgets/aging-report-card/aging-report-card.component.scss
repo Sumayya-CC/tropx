@@ -1,0 +1,84 @@
+.aging-row-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  gap: 1rem;
+}
+
+.aging-row-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.aging-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  width: 80px;
+  text-align: center;
+
+  &.current {
+    background: rgba(26, 124, 74, 0.08);
+    color: var(--green);
+  }
+  &.tier1 {
+    background: rgba(201, 149, 42, 0.08);
+    color: var(--gold);
+  }
+  &.tier2 {
+    background: rgba(231, 100, 20, 0.08);
+    color: #c45a0a;
+  }
+  &.tier3 {
+    background: rgba(231, 34, 46, 0.08);
+    color: var(--red);
+  }
+}
+
+.aging-range {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  width: 120px;
+}
+
+.aging-count {
+  font-size: 0.8125rem;
+  color: var(--gray);
+}
+
+.aging-val {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &.green { color: var(--green); }
+  &.gold { color: var(--gold); }
+  &.orange { color: #c45a0a; }
+  &.red { color: var(--red); }
+}
+
+.aging-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background: var(--navy-deep);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+
+  .aging-total-val {
+    color: var(--gold-light);
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+}

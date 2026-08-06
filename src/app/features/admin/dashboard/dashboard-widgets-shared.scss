@@ -105,6 +105,75 @@
   color: var(--navy-deep);
 }
 
+// Added D3 — used by Financials' Charts Row plus Orders/Products'
+// (not yet extracted) 2-column layouts.
+.two-col-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Added D3 — used by Financials' Recent Payments plus Orders/Products'
+// (not yet extracted) list rows.
+.list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  transition: background 0.15s ease;
+  gap: 1rem;
+
+  &:hover {
+    background: var(--cream);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.critical-row {
+    background: rgba(231, 34, 46, 0.02);
+    &:hover {
+      background: rgba(231, 34, 46, 0.05);
+    }
+  }
+}
+
+.list-row-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.list-row-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.list-sub {
+  font-size: 0.875rem;
+  color: var(--gray);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date-text {
+  font-size: 0.8125rem;
+  color: var(--gray);
+  width: 80px;
+  text-align: right;
+}
+
 .amount-text {
   font-size: 0.9375rem;
   font-weight: 700;

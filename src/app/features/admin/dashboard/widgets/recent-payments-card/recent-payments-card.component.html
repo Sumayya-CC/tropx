@@ -1,0 +1,42 @@
+<!-- Recent Payments -->
+<div class="dash-card full-width">
+  <div class="dash-card-header">
+    <h3>Recent Payments</h3>
+    <a routerLink="/admin/payments"
+      class="header-link">View all →</a>
+  </div>
+  <div class="dash-card-body no-pad">
+    @if (recentPaymentsFull().length === 0) {
+      <div class="empty-state-sm">
+        No payments in this period
+      </div>
+    } @else {
+      @for (p of recentPaymentsFull(); track p.id) {
+        <a [routerLink]="['/admin/orders', p.orderId]"
+          class="list-row">
+          <div class="list-row-left">
+            <span class="mono-num">
+              {{ p.paymentNumber }}
+            </span>
+            <span class="list-sub">
+              {{ p.customerName }} ·
+              {{ p.orderNumber }}
+            </span>
+          </div>
+          <div class="list-row-right">
+            <span class="method-chip"
+              [attr.data-method]="p.method">
+              {{ getMethodLabel(p.method) }}
+            </span>
+            <span class="amount-text green">
+              {{ formatCurrency(p.amountCents) }}
+            </span>
+            <span class="date-text">
+              {{ p.receivedDate }}
+            </span>
+          </div>
+        </a>
+      }
+    }
+  </div>
+</div>

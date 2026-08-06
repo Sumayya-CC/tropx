@@ -1,0 +1,103 @@
+<!-- Charts Row -->
+<div class="two-col-row">
+
+  <!-- Revenue vs Collected -->
+  <div class="dash-card wide">
+    <div class="dash-card-header">
+      <h3>Revenue vs Collected</h3>
+      <div class="chart-legend">
+        <span class="legend-item">
+          <span class="legend-dot navy"></span>Revenue
+        </span>
+        <span class="legend-item">
+          <span class="legend-dot green"></span>Collected
+        </span>
+      </div>
+    </div>
+    <div class="dash-card-body chart-scroll">
+      @if (chartBuckets().length === 0 ||
+           getChartMax() === 1) {
+        <div class="empty-chart">No data</div>
+      } @else {
+        <svg class="bar-chart-svg"
+          [attr.viewBox]="'0 0 ' +
+            (chartBuckets().length * 52 + 40) +
+            ' 180'">
+          @for (b of chartBuckets();
+            track b.label; let i = $index) {
+            @let x = i * 52 + 20;
+            @let max = getChartMax();
+            @let rh = (b.revenue / max) * 130;
+            @let ch = (b.collected / max) * 130;
+            <rect [attr.x]="x"
+              [attr.y]="140 - rh"
+              width="16" [attr.height]="rh || 1"
+              fill="var(--navy-deep)" rx="2"/>
+            <rect [attr.x]="x + 18"
+              [attr.y]="140 - ch"
+              width="16" [attr.height]="ch || 1"
+              fill="var(--green)" rx="2"/>
+            <text [attr.x]="x + 16" y="156"
+              text-anchor="middle"
+              font-size="8" fill="var(--gray)">
+              {{ b.label }}
+            </text>
+          }
+          <line x1="10" y1="140"
+            [attr.x2]="
+              chartBuckets().length * 52 + 30"
+            y2="140"
+            stroke="var(--color-border)"
+            stroke-width="1"/>
+        </svg>
+      }
+    </div>
+  </div>
+
+  <!-- Payment Methods -->
+  <div class="dash-card">
+    <div class="dash-card-header">
+      <h3>Payment Methods</h3>
+    </div>
+    <div class="dash-card-body">
+      @let pmTotal = paymentMethodBreakdown().cash +
+        paymentMethodBreakdown().etransfer +
+        paymentMethodBreakdown().cheque +
+        paymentMethodBreakdown().other;
+      @if (pmTotal === 0) {
+        <div class="empty-chart">No payments</div>
+      } @else {
+        <div class="method-bar-list">
+          @for (m of getMethodBars(); track m.label) {
+            <div class="method-bar-item">
+              <div class="method-bar-header">
+                <span class="method-bar-name">
+                  {{ m.label }}
+                </span>
+                <span class="method-bar-value">
+                  {{ formatCurrency(m.value) }}
+                </span>
+              </div>
+              <div class="method-bar-track">
+                <div class="method-bar-fill"
+                  [style.width.%]="
+                    pmTotal > 0
+                      ? (m.value / pmTotal) * 100
+                      : 0"
+                  [style.background]="m.color">
+                </div>
+              </div>
+              <span class="method-bar-pct">
+                {{ pmTotal > 0
+                  ? ((m.value/pmTotal)*100
+                    | number:'1.0-0')
+                  : 0 }}%
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,179 @@
+<!-- Period Analytics Cards -->
+<div class="analytics-grid">
+
+  <div class="analytics-card">
+    <div class="analytics-icon-box orders-icon">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0
+          2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+    </div>
+    <div class="analytics-body">
+      <span class="analytics-label">Orders</span>
+      <span class="analytics-value">
+        {{ data.periodAnalytics().ordersCount }}
+      </span>
+      <span class="analytics-change"
+        [class.up]="changePct(
+          data.periodAnalytics().ordersCount,
+          data.periodAnalytics().prevOrdersCount
+        ) >= 0"
+        [class.down]="changePct(
+          data.periodAnalytics().ordersCount,
+          data.periodAnalytics().prevOrdersCount
+        ) < 0">
+        {{ changePct(
+          data.periodAnalytics().ordersCount,
+          data.periodAnalytics().prevOrdersCount
+        ) >= 0 ? '↑' : '↓' }}
+        {{ changePct(
+          data.periodAnalytics().ordersCount,
+          data.periodAnalytics().prevOrdersCount
+        ) | number:'1.0-0' }}%
+      </span>
+    </div>
+  </div>
+
+  <div class="analytics-card">
+    <div class="analytics-icon-box revenue-icon">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <polyline points="23 6 13.5 15.5 8.5
+          10.5 1 18"/>
+        <polyline points="17 6 23 6 23 12"/>
+      </svg>
+    </div>
+    <div class="analytics-body">
+      <span class="analytics-label">Revenue</span>
+      <span class="analytics-value">
+        {{ formatCurrency(data.periodAnalytics().revenue) }}
+      </span>
+      <span class="analytics-change"
+        [class.up]="changePct(
+          data.periodAnalytics().revenue,
+          data.periodAnalytics().prevRevenue
+        ) >= 0"
+        [class.down]="changePct(
+          data.periodAnalytics().revenue,
+          data.periodAnalytics().prevRevenue
+        ) < 0">
+        {{ changePct(
+          data.periodAnalytics().revenue,
+          data.periodAnalytics().prevRevenue
+        ) >= 0 ? '↑' : '↓' }}
+        {{ changePct(
+          data.periodAnalytics().revenue,
+          data.periodAnalytics().prevRevenue
+        ) | number:'1.0-0' }}%
+      </span>
+    </div>
+  </div>
+
+  <div class="analytics-card">
+    <div class="analytics-icon-box collected-icon">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div class="analytics-body">
+      <span class="analytics-label">Collected</span>
+      <span class="analytics-value">
+        {{ formatCurrency(
+          data.periodAnalytics().collected
+        ) }}
+      </span>
+      <span class="analytics-change"
+        [class.up]="changePct(
+          data.periodAnalytics().collected,
+          data.periodAnalytics().prevCollected
+        ) >= 0"
+        [class.down]="changePct(
+          data.periodAnalytics().collected,
+          data.periodAnalytics().prevCollected
+        ) < 0">
+        {{ changePct(
+          data.periodAnalytics().collected,
+          data.periodAnalytics().prevCollected
+        ) >= 0 ? '↑' : '↓' }}
+        {{ changePct(
+          data.periodAnalytics().collected,
+          data.periodAnalytics().prevCollected
+        ) | number:'1.0-0' }}%
+      </span>
+    </div>
+  </div>
+
+  @if (isAdmin()) {
+    <div class="analytics-card">
+      <div class="analytics-icon-box margin-icon">
+        <svg xmlns="http://www.w3.org/2000/svg"
+          width="20" height="20" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor"
+          stroke-width="2">
+          <line x1="19" y1="5" x2="5" y2="19"/>
+          <circle cx="6.5" cy="6.5" r="2.5"/>
+          <circle cx="17.5" cy="17.5" r="2.5"/>
+        </svg>
+      </div>
+      <div class="analytics-body">
+        <span class="analytics-label">Margin</span>
+        <span class="analytics-value">
+          {{ data.periodAnalytics().marginPct }}%
+        </span>
+        <span class="analytics-change"
+          [class.up]="changePct(
+            data.periodAnalytics().marginPct,
+            data.periodAnalytics().prevMarginPct
+          ) >= 0"
+          [class.down]="changePct(
+            data.periodAnalytics().marginPct,
+            data.periodAnalytics().prevMarginPct
+          ) < 0">
+          {{ changePct(
+            data.periodAnalytics().marginPct,
+            data.periodAnalytics().prevMarginPct
+          ) >= 0 ? '↑' : '↓' }}
+          {{ changePct(
+            data.periodAnalytics().marginPct,
+            data.periodAnalytics().prevMarginPct
+          ) | number:'1.0-0' }}%
+        </span>
+      </div>
+    </div>
+  }
+
+  <div class="analytics-card">
+    <div class="analytics-icon-box hst-icon">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width="20" height="20" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2
+          0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+    </div>
+    <div class="analytics-body">
+      <span class="analytics-label">HST Collected</span>
+      <span class="analytics-value">
+        {{ formatCurrency(
+          data.periodAnalytics().taxCollected
+        ) }}
+      </span>
+      <span class="analytics-sub">CRA remittance</span>
+    </div>
+  </div>
+
+</div>
