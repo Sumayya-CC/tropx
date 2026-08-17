@@ -259,6 +259,7 @@
                   @if (v.markedConversion) { ⭐ Converted } @else { {{ v.outcome || '—' }} }
                 </span>
                 <span class="visit-mgr">Mgr: {{ v.managerAvailable === true ? 'Yes' : (v.managerAvailable === false ? 'No' : '—') }}</span>
+                <span class="visit-rep">by {{ v.visitedBy | fullName }}</span>
                 <span class="visit-expand">{{ expandedVisitId() === v.id ? '▲' : '▼' }}</span>
                 <button class="visit-action" (click)="$event.stopPropagation(); openEditVisit(v)" title="Edit">Edit</button>
                 <button class="visit-action del" (click)="$event.stopPropagation(); askDeleteVisit(v)" title="Delete">Delete</button>

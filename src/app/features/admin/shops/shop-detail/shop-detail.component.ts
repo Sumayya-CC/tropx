@@ -8,7 +8,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { Shop } from '../../../../core/models/shop.model';
 import { Customer } from '../../../../core/models/customer.model';
 import { serverTimestamp } from '@angular/fire/firestore';
-import { OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
+import { FullNamePipe, OwnerFullNamePipe } from '../../../../shared/pipes/full-name.pipe';
 import { ShopLinkService } from '../../../../core/services/shop-link.service';
 import { EntityLinkModalComponent, LinkableItem } from '../../../../shared/components/entity-link-modal/entity-link-modal.component';
 import { LogVisitComponent } from '../log-visit/log-visit.component';
@@ -29,7 +29,7 @@ import { ExpenseFormModalComponent } from '../../expenses/expense-form-modal/exp
 @Component({
   selector: 'app-shop-detail',
   standalone: true,
-  imports: [RouterLink, LoadingSpinnerComponent, OwnerFullNamePipe, EntityLinkModalComponent, LogVisitComponent, CommonModule, FormsModule, ExpenseFormModalComponent],
+  imports: [RouterLink, LoadingSpinnerComponent, OwnerFullNamePipe, FullNamePipe, EntityLinkModalComponent, LogVisitComponent, CommonModule, FormsModule, ExpenseFormModalComponent],
   templateUrl: './shop-detail.component.html',
   styleUrl: './shop-detail.component.scss'
 })

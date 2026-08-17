@@ -357,6 +357,7 @@
                     @if (v.markedConversion) { ⭐ }
                   </span>
                   <span class="order-date" style="text-transform: capitalize;">{{ v.outcome || '—' }}</span>
+                  <span class="order-date">by {{ v.visitedBy | fullName }}</span>
                 </div>
                 <div class="order-amount" style="font-weight:500;color:var(--gray);">
                   {{ v.items.length }} item{{ v.items.length === 1 ? '' : 's' }}
