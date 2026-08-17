@@ -223,6 +223,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'contact-inquiries',
+        data: { title: 'Contact Inquiries' },
+        loadComponent: () =>
+          import('./features/admin/contact-inquiries/admin-contact-inquiries.component').then(
+            m => m.AdminContactInquiriesComponent
+          ),
+      },
+      {
         path: 'shops',
         loadComponent: () =>
           import('./features/admin/shops/admin-shops.component').then(

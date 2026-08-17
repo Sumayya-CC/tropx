@@ -33,8 +33,8 @@ export class StatusBadgeComponent {
     }
 
     const s = this._status().toLowerCase();
-    const success = ['active', 'approved', 'paid', 'delivered', 'received', 'return_from_customer', 'in_stock', 'customer'];
-    const warning = ['pending', 'partial', 'low_stock', 'correction', 'other', 'sample', 'out_for_delivery', 'prospect'];
+    const success = ['active', 'approved', 'paid', 'delivered', 'received', 'return_from_customer', 'in_stock', 'customer', 'resolved'];
+    const warning = ['pending', 'partial', 'low_stock', 'correction', 'other', 'sample', 'out_for_delivery', 'prospect', 'new'];
     const danger = ['inactive', 'rejected', 'suspended', 'voided', 'unpaid', 'damaged', 'expired', 'lost', 'out_of_stock', 'cancelled', 'dormant'];
     const info = ['manager', 'warehouse', 'sales_rep', 'confirmed'];
 

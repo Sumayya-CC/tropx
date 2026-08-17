@@ -14,6 +14,7 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     'viewProducts', 'editProducts', 'viewOrders', 'manageOrders',
     'viewPayments', 'recordPayments', 'viewCustomers', 'manageCustomers',
     'addCustomer', 'adjustStock', 'viewDashboard', 'viewReports', 'approveAccess', 'manageShops',
+    'viewContactInquiries',
   ],
   sales_rep: [
     'viewProducts', 'viewOrders', 'manageOrders',

@@ -1,0 +1,117 @@
+<app-page-header
+  title="Contact Inquiries"
+  subtitle="Messages submitted through the public Contact Us form"
+  buttonIcon="none"
+></app-page-header>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Inquiries</div>
+    <div class="stat-value">{{ stats().total }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">New</div>
+    <div class="stat-value">{{ stats().newCount }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Resolved</div>
+    <div class="stat-value">{{ stats().resolved }}</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="search-box">
+    <input
+      type="text"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQuery.set($event)"
+      placeholder="Search by name, business, email, or message..."
+    />
+  </div>
+
+  <div class="filters">
+    <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+      <option value="new">New</option>
+      <option value="read">Read</option>
+      <option value="resolved">Resolved</option>
+      <option value="all">All Statuses</option>
+    </select>
+
+    <select [ngModel]="dateFilter()" (ngModelChange)="dateFilter.set($event)">
+      <option value="all">All Time</option>
+      <option value="today">Today</option>
+      <option value="7days">Last 7 Days</option>
+      <option value="30days">Last 30 Days</option>
+    </select>
+  </div>
+</div>
+
+<div class="table-container">
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="skeleton-row" *ngFor="let i of [1,2,3,4,5]"></div>
+    </div>
+  } @else if (filteredInquiries().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">📬</div>
+      <h3>No contact inquiries found</h3>
+      <p>Try adjusting your filters or search query.</p>
+    </div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date Submitted</th>
+          <th>Name / Business</th>
+          <th>Email / Phone</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th class="actions-col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (inquiry of filteredInquiries(); track inquiry.id) {
+          <tr [class.is-new]="inquiry.status === 'new'">
+            <td class="date-col">
+              <div class="date-cell">
+                <span class="date">{{ formatDate(inquiry.createdAt) }}</span>
+                <span class="time">{{ formatTime(inquiry.createdAt) }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="main-text">{{ inquiry.name }}</div>
+              <div class="sub-text">{{ inquiry.businessName }}</div>
+            </td>
+            <td>
+              <div class="main-text">{{ inquiry.email }}</div>
+              <div class="sub-text">{{ inquiry.phone || '—' }}</div>
+            </td>
+            <td class="message-col">
+              <div class="message-trunc" [title]="inquiry.message || ''">
+                @if (inquiry.message && inquiry.message.length > 60) {
+                  {{ (inquiry.message | slice:0:60) + '...' }}
+                } @else {
+                  {{ inquiry.message || '-' }}
+                }
+              </div>
+            </td>
+            <td>
+              <app-status-badge [status]="inquiry.status"></app-status-badge>
+            </td>
+            <td class="actions-col">
+              <button class="btn btn-sm btn-outline" (click)="openDetail(inquiry)">View</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+@if (selectedInquiry()) {
+  <app-contact-inquiry-detail-modal
+    [inquiry]="selectedInquiry()!"
+    (closed)="closeDetail()"
+    (statusChange)="setStatus(selectedInquiry()!, $event)"
+  ></app-contact-inquiry-detail-modal>
+}

@@ -1401,7 +1401,7 @@ The full per-function contract (trigger type, document/schedule, region, secrets
 | Role | Representative permissions |
 |---|---|
 | `admin` | `*` (all) |
-| `manager` | products, orders, payments, customers, stock adjust, dashboard, reports, approve access, manage shops |
+| `manager` | products, orders, payments, customers, stock adjust, dashboard, reports, approve access, view contact inquiries, manage shops |
 | `sales_rep` | view products, manage orders, record payments, view/add customers, manage shops |
 | `warehouse` | view products, manage orders, adjust stock, view customers |
 | `customer` | own profile/orders/cart/payments/totals, browse products |

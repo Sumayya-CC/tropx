@@ -17,6 +17,7 @@ export class NotificationService {
   allOrders = signal<Order[]>([]);
   allProducts = signal<Product[]>([]);
   allAccessRequests = signal<any[]>([]);
+  allContactInquiries = signal<any[]>([]);
 
   // Tracks IDs seen on previous emission so we can
   // detect genuinely new arrivals without firing on
@@ -83,6 +84,10 @@ export class NotificationService {
       this.firestore.getCollection<any>(
         'accessRequests', where('tenantId', '==', 1)
       ).subscribe(v => this.allAccessRequests.set(v));
+
+      this.firestore.getCollection<any>(
+        'contactInquiries', where('tenantId', '==', 1)
+      ).subscribe(v => this.allContactInquiries.set(v));
     });
   }
 
@@ -120,6 +125,12 @@ export class NotificationService {
   pendingAccessRequestsCount = computed(() =>
     this.allAccessRequests()
       .filter(r => r.status === 'pending')
+      .length
+  );
+
+  newContactInquiriesCount = computed(() =>
+    this.allContactInquiries()
+      .filter(i => (i.status ?? 'new') === 'new')
       .length
   );
 
@@ -178,6 +189,17 @@ export class NotificationService {
       .sort((a: any, b: any) => {
         const at = a.submittedAt?.seconds ?? 0;
         const bt = b.submittedAt?.seconds ?? 0;
+        return bt - at;
+      })
+      .slice(0, 3)
+  );
+
+  newContactInquiriesList = computed(() =>
+    this.allContactInquiries()
+      .filter(i => (i.status ?? 'new') === 'new')
+      .sort((a: any, b: any) => {
+        const at = a.createdAt?.seconds ?? 0;
+        const bt = b.createdAt?.seconds ?? 0;
         return bt - at;
       })
       .slice(0, 3)

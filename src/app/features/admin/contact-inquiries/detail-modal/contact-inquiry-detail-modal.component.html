@@ -1,0 +1,58 @@
+<div class="modal-backdrop" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeModal()">&times;</button>
+
+    <div class="modal-body">
+      <div class="header-row">
+        <h2 class="business-name">{{ inquiry.businessName }}</h2>
+        <app-status-badge [status]="inquiry.status"></app-status-badge>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="label">Name</span>
+          <span class="value">{{ inquiry.name }}</span>
+        </div>
+
+        <div class="info-item">
+          <span class="label">Email</span>
+          <span class="value">
+            <a [href]="'mailto:' + inquiry.email">{{ inquiry.email }}</a>
+          </span>
+        </div>
+
+        <div class="info-item">
+          <span class="label">Phone</span>
+          <span class="value">
+            @if (inquiry.phone) {
+              <a [href]="'tel:' + inquiry.phone">{{ inquiry.phone }}</a>
+            } @else {
+              —
+            }
+          </span>
+        </div>
+
+        <div class="info-item">
+          <span class="label">Submitted</span>
+          <span class="value">{{ toDate(inquiry.createdAt) | date:'medium' }}</span>
+        </div>
+      </div>
+
+      <div class="message-box">
+        <div class="label">Message</div>
+        <p>{{ inquiry.message }}</p>
+      </div>
+
+      <div class="actions-row">
+        @if (inquiry.status !== 'read') {
+          <button class="btn btn-outline" (click)="statusChange.emit('read')">Mark as Read</button>
+        }
+        @if (inquiry.status !== 'resolved') {
+          <button class="btn btn-primary" (click)="statusChange.emit('resolved')">Mark as Resolved</button>
+        } @else {
+          <button class="btn btn-outline" (click)="statusChange.emit('read')">Reopen</button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

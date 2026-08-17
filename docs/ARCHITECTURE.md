@@ -235,6 +235,14 @@ and stamps a `processed`/`status` field back:
 `employeeInvitations`, `authActions`, `adminPasswordResets`,
 `invoiceRequests`, `poRequests`, `stockNotificationRequests`.
 
+`contactInquiries` is a partial exception: its trigger (`onContactInquiry`)
+only stamps `notificationSentAt`/`rateLimited` for its own idempotency, never
+`status`. `status` (`new`\|`read`\|`resolved`) is owned end-to-end by the
+admin UI at `/admin/contact-inquiries` — created as `new` by the public
+Contact Us form, transitioned by staff from there, mirroring the sibling
+`accessRequests`/`/admin/access-requests` admin UI but without an
+approve/reject/conversion workflow — just triage.
+
 ### 3.6 Indexing reality vs. stated convention
 
 `searchName`-normalized fields + server-side pagination are the **target

@@ -36,6 +36,12 @@ export const PAYMENT_STATUSES: StatusOption[] = [
   { value: 'paid', label: 'Paid', colorHint: '--green' },
 ];
 
+export const CONTACT_INQUIRY_STATUSES: StatusOption[] = [
+  { value: 'new', label: 'New', description: 'Not yet reviewed' },
+  { value: 'read', label: 'Read', description: 'Reviewed, no action taken yet' },
+  { value: 'resolved', label: 'Resolved', description: 'Followed up / closed out' },
+];
+
 export const PAYMENT_METHODS: StatusOption[] = [
   { value: 'cash', label: 'Cash' },
   { value: 'e_transfer', label: 'E-Transfer' },

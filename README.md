@@ -203,6 +203,7 @@ firebase deploy --only firestore:indexes --config firebase.prod.json --project t
 
 * Customer, employee, product, inventory, order, payment, return, and settings management
 * Approval-based access requests
+* Contact inquiry triage (public "Contact Us" submissions, `new → read → resolved`)
 * Product and inventory management
 * Purchase order generation (PDF + email)
 * Storefront and business configuration

@@ -116,8 +116,16 @@ import { FullNamePipe, OwnerFullNamePipe } from '../../../shared/pipes/full-name
                       @if (item.route === '/admin/access-requests' &&
                            pendingAccessRequests() > 0) {
                         <span class="nav-badge">
-                          {{ pendingAccessRequests() > 99 
+                          {{ pendingAccessRequests() > 99
                             ? '99+' : pendingAccessRequests() }}
+                        </span>
+                      }
+                      <!-- Badge for Contact Inquiries -->
+                      @if (item.route === '/admin/contact-inquiries' &&
+                           newContactInquiries() > 0) {
+                        <span class="nav-badge">
+                          {{ newContactInquiries() > 99
+                            ? '99+' : newContactInquiries() }}
                         </span>
                       }
                     </a>
@@ -445,6 +453,59 @@ import { FullNamePipe, OwnerFullNamePipe } from '../../../shared/pipes/full-name
                         </div>
                       }
 
+                      <!-- New Contact Inquiries -->
+                      @if (newContactInquiries() > 0) {
+                        <div class="notif-section">
+                          <div class="notif-section-header">
+                            <span class="notif-dot navy"></span>
+                            <span class="notif-section-label">
+                              Contact Inquiries
+                            </span>
+                            <span class="notif-section-count">
+                              {{ newContactInquiries() }}
+                            </span>
+                          </div>
+                          @for (inquiry of
+                            newContactInquiriesList();
+                            track inquiry.id) {
+                            <a routerLink="/admin/contact-inquiries"
+                              class="notif-item"
+                              (click)="showNotifications
+                                .set(false)">
+                              <div class="notif-item-main">
+                                <span class="notif-item-title">
+                                  {{ inquiry.businessName ||
+                                     inquiry.name }}
+                                </span>
+                                <span class="notif-item-sub">
+                                  {{ inquiry.email }}
+                                </span>
+                              </div>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14" height="14"
+                                viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                class="notif-arrow">
+                                <polyline
+                                  points="9 18 15 12 9 6"/>
+                              </svg>
+                            </a>
+                          }
+                          @if (newContactInquiries() > 3) {
+                            <a routerLink="/admin/contact-inquiries"
+                              class="notif-see-all"
+                              (click)="showNotifications
+                                .set(false)">
+                              View all
+                              {{ newContactInquiries() }}
+                              inquiries →
+                            </a>
+                          }
+                        </div>
+                      }
+
                     </div>
                   }
 
@@ -642,7 +703,8 @@ export class AdminShellComponent implements OnInit {
     this.overdueOrders() +
     this.pendingReturns() +
     this.lowStock() +
-    this.pendingAccessRequests()
+    this.pendingAccessRequests() +
+    this.newContactInquiries()
   );
 
   overdueOrdersList = computed(() =>
@@ -662,6 +724,11 @@ export class AdminShellComponent implements OnInit {
 
   pendingAccessRequestsList = computed(() =>
     this.notificationService.pendingAccessRequestsList?.()
+    ?? []
+  );
+
+  newContactInquiriesList = computed(() =>
+    this.notificationService.newContactInquiriesList?.()
     ?? []
   );
 
@@ -705,6 +772,9 @@ export class AdminShellComponent implements OnInit {
   pendingAccessRequests = computed(() =>
     this.notificationService.pendingAccessRequestsCount()
   );
+  newContactInquiries = computed(() =>
+    this.notificationService.newContactInquiriesCount()
+  );
 
   isCollapsed = signal<boolean>(false);
   isMobileOpen = signal<boolean>(false);
@@ -743,7 +813,8 @@ export class AdminShellComponent implements OnInit {
         { label: 'Field Map', route: '/admin/map', permission: 'manageShops', icon: this.svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>') },
         { label: 'Route Planner', route: '/admin/route', permission: 'manageShops', icon: this.svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>') },
         { label: 'Service Areas', route: '/admin/service-areas', permission: 'manageCustomers', icon: this.svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>') },
-        { label: 'Access Requests', route: '/admin/access-requests', permission: 'approveAccess', icon: this.svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>') }
+        { label: 'Access Requests', route: '/admin/access-requests', permission: 'approveAccess', icon: this.svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>') },
+        { label: 'Contact Inquiries', route: '/admin/contact-inquiries', permission: 'viewContactInquiries', icon: this.svg('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') }
       ]
     },
     {
