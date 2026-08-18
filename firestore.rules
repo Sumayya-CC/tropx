@@ -121,18 +121,21 @@ service cloud.firestore {
     }
 
     // ── Returns ──────────────────────────────────────────
-    // Staff: full access.
-    // Customers: read own + create (submit return).
+    // Staff: read + update (approve/reject) own docs.
+    // Customers: read own only.
+    // Creation is server-only — both the portal and admin flows go
+    // through submitReturn (onCall, Admin SDK), same trust boundary as
+    // placeOrder/cancelOrder/approveReturn. Used to allow a direct client
+    // create for both roles (the admin "create return" modal wrote here
+    // straight from the client); consolidated onto submitReturn so return
+    // creation is server-owned end to end, closing that write surface.
     match /returns/{returnId} {
       allow read: if isStaff() ||
         (isCustomer() &&
          request.auth.token.linkedCustomerId != null &&
          resource.data.customerId ==
          request.auth.token.linkedCustomerId);
-      allow create: if isStaff() ||
-        (isCustomer() &&
-         request.resource.data.customerId ==
-         request.auth.token.linkedCustomerId);
+      allow create: if false;
       allow update: if isStaff();
       allow delete: if false;
     }

@@ -460,8 +460,10 @@ export const submitReturn = onCall(
 
     const linkedCustomerId = auth.token["linkedCustomerId"] as string | undefined;
     const role = (auth.token["role"] as string) || "none";
-    if (role !== "customer" || !linkedCustomerId) {
-      throw new HttpsError("permission-denied", "Only customers can submit returns");
+    const isStaffCaller = STAFF_ROLES.includes(role);
+    const isCustomerCaller = role === "customer" && !!linkedCustomerId;
+    if (!isStaffCaller && !isCustomerCaller) {
+      throw new HttpsError("permission-denied", "Only staff or the owning customer can submit a return");
     }
 
     const data = request.data || {};
@@ -469,6 +471,9 @@ export const submitReturn = onCall(
     const returnType = data.returnType === "refund" ? "refund" : "credit_note";
     const reasonCode = (data.reasonCode || "other").toString();
     const notes = (data.notes || "").toString().slice(0, 2000);
+    // Staff-only: shown on the admin return detail regardless of status,
+    // never customer-facing (see admin-returns.component.html).
+    const internalNotes = isStaffCaller ? (data.internalNotes || "").toString().slice(0, 2000) : "";
     const rawItems: SubmitReturnItem[] = Array.isArray(data.items) ? data.items : [];
 
     if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
@@ -482,9 +487,15 @@ export const submitReturn = onCall(
       const order = orderSnap.data()!;
 
       if (order["isDeleted"]) throw new HttpsError("not-found", "Order not found");
-      if (order["customerId"] !== linkedCustomerId) {
+      // A portal customer may only return their own order; staff can
+      // submit a return for any customer's order (admin-created-return
+      // flow — formerly a separate client-side batch write, consolidated
+      // onto this callable so return creation is server-owned end to end,
+      // same trust boundary as placeOrder/cancelOrder/approveReturn).
+      if (isCustomerCaller && order["customerId"] !== linkedCustomerId) {
         throw new HttpsError("permission-denied", "This order does not belong to you");
       }
+      const customerId = order["customerId"] as string;
       // Matches the client-side canSubmitReturn gate — a return can only
       // be requested once the order has actually been delivered.
       if (order["status"] !== "delivered") {
@@ -497,11 +508,18 @@ export const submitReturn = onCall(
       const orderItems: any[] = order["items"] || [];
       const orderItemsByProduct = new Map(orderItems.map((it) => [it.productId, it]));
 
+      const orderSubtotalCents = order["subtotalCents"] || 0;
+      const orderDiscountCents = order["discountCents"] || 0;
+      const taxRatePercent = order["taxRatePercent"] || 0;
+      // Guard the >100%-discount clamp case, same as computeOrderTotals
+      // clamping taxableCents at 0.
+      const effectiveDiscountCents = Math.min(orderDiscountCents, orderSubtotalCents);
+
       // Server-authoritative: quantity and price come from the stored
       // order line, never from the client — a return can't be padded
       // past what was actually ordered or priced differently.
       const returnItems: any[] = [];
-      let amountCents = 0;
+      let returnGrossCents = 0;
       for (const raw of rawItems) {
         const pid = (raw.productId || "").toString();
         const orderLine = orderItemsByProduct.get(pid);
@@ -516,7 +534,7 @@ export const submitReturn = onCall(
           );
         }
         const lineTotalCents = orderLine.unitPriceCents * qty;
-        amountCents += lineTotalCents;
+        returnGrossCents += lineTotalCents;
         returnItems.push({
           productId: pid,
           productName: orderLine.productName,
@@ -526,6 +544,18 @@ export const submitReturn = onCall(
           lineTotalCents,
         });
       }
+
+      // Refund net-of-discount, plus-tax, using the order's frozen
+      // snapshot — same discount-first-then-tax ordering as
+      // computeOrderTotals, applied to the returned share of the order.
+      // Customers are credited what they actually paid for the returned
+      // units, not the gross line price.
+      const discountShareCents = orderSubtotalCents > 0 ?
+        Math.round((effectiveDiscountCents * returnGrossCents) / orderSubtotalCents) :
+        0;
+      const returnNetCents = Math.max(0, returnGrossCents - discountShareCents);
+      const returnTaxCents = Math.round((returnNetCents * taxRatePercent) / 100);
+      let amountCents = returnNetCents + returnTaxCents;
 
       // isFullReturn: does this return, once approved, account for every
       // unit on the order? The existing return model has no cumulative
@@ -554,9 +584,26 @@ export const submitReturn = onCall(
         (oi) => (returnedByProduct.get(oi.productId) || 0) >= (oi.quantity || 0)
       );
 
-      const [allocation, custSnap] = await Promise.all([
+      // Proportional discount/tax shares won't sum back to totalCents
+      // exactly across multiple partial returns (rounding drift) — on the
+      // return that completes the order, true up to what's actually left
+      // instead of trusting the formula, so the order zeroes out clean.
+      // Prior *approved* returns have already been subtracted from
+      // order.totalCents by approveReturn; only pending ones (not yet
+      // applied) still need to be netted out here.
+      if (isFullReturn) {
+        let pendingPriorAmountCents = 0;
+        for (const doc of priorReturnsSnap.docs) {
+          const r = doc.data();
+          if (r["status"] === "pending") pendingPriorAmountCents += r["amountCents"] || 0;
+        }
+        amountCents = Math.max(0, (order["totalCents"] || 0) - pendingPriorAmountCents);
+      }
+
+      const [allocation, custSnap, staffActionBy] = await Promise.all([
         allocateReturnNumber(tx),
-        tx.get(db.collection("customers").doc(linkedCustomerId)),
+        tx.get(db.collection("customers").doc(customerId)),
+        isStaffCaller ? buildStaffActionBy(tx, auth.uid) : Promise.resolve(null),
       ]);
       const {number: returnNumber, nextSeq} = allocation;
       const cust = custSnap.exists ? custSnap.data()! : {};
@@ -569,14 +616,15 @@ export const submitReturn = onCall(
         returnNumber,
         orderId,
         orderNumber: order["orderNumber"],
-        customerId: linkedCustomerId,
+        customerId,
         customerName: order["customerName"],
         customerEmail: order["customerEmail"] || "",
         type: returnType,
         status: "pending",
-        source: "customer_portal",
+        source: isStaffCaller ? "admin" : "customer_portal",
         reasonCode,
         reason: notes || reasonCode,
+        ...(internalNotes ? {internalNotes} : {}),
         items: returnItems,
         amountCents,
         isFullReturn,
@@ -584,7 +632,7 @@ export const submitReturn = onCall(
         tenantId: 1,
         isDeleted: false,
         createdAt: now,
-        createdBy: {
+        createdBy: staffActionBy || {
           uid: auth.uid,
           firstName: cust["ownerFirstName"] || cust["businessName"] || "Portal customer",
           lastName: cust["ownerLastName"] || "",

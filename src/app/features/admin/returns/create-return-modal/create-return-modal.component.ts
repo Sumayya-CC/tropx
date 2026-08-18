@@ -1,21 +1,11 @@
 import { Component, Input, Output, EventEmitter, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Firestore, doc, getDoc, collection, serverTimestamp } from '@angular/fire/firestore';
-import { FirestoreService } from '../../../../core/services/firestore.service';
-import { AuthService } from '../../../../core/services/auth.service';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { centsToDisplay } from '../../../../shared/utils/currency.utils';
-import { Order, OrderItem } from '../../../../core/models/order.model';
-import { 
-  Return, 
-  ReturnItem, 
-  ReturnType, 
-  ReturnReasonCode, 
-  RefundMethod, 
-  RETURN_REASON_LABELS, 
-  REFUND_METHOD_LABELS 
-} from '../../../../core/models/return.model';
+import { Order } from '../../../../core/models/order.model';
+import { ReturnType, ReturnReasonCode, RETURN_REASON_LABELS } from '../../../../core/models/return.model';
 
 interface SelectionItem {
   productId: string;
@@ -35,10 +25,8 @@ interface SelectionItem {
   styleUrl: './create-return-modal.component.scss'
 })
 export class CreateReturnModalComponent implements OnInit {
-  private readonly firestore = inject(FirestoreService);
-  private readonly auth = inject(AuthService);
+  private readonly functions = inject(Functions);
   private readonly toast = inject(ToastService);
-  private readonly db = inject(Firestore);
 
   @Input({ required: true }) order!: Order;
   @Output() closed = new EventEmitter<boolean>();
@@ -48,8 +36,6 @@ export class CreateReturnModalComponent implements OnInit {
   reasonCode = signal<ReturnReasonCode>('wrong_item');
   reason = signal('');
   internalNotes = signal('');
-  refundMethod = signal<RefundMethod>('cash');
-  refundReferenceNumber = signal('');
   isSubmitting = signal(false);
 
   // List of order items prepared for selection
@@ -58,13 +44,6 @@ export class CreateReturnModalComponent implements OnInit {
   reasonOptions = computed(() => {
     return Object.entries(RETURN_REASON_LABELS).map(([code, label]) => ({
       code: code as ReturnReasonCode,
-      label
-    }));
-  });
-
-  refundMethodOptions = computed(() => {
-    return Object.entries(REFUND_METHOD_LABELS).map(([method, label]) => ({
-      method: method as RefundMethod,
       label
     }));
   });
@@ -87,7 +66,10 @@ export class CreateReturnModalComponent implements OnInit {
     }
   }
 
-  // Live total calculations
+  // Live total calculations — a client-side preview only. The server
+  // (submitReturn) re-derives amountCents net-of-discount, plus-tax from
+  // the order's frozen snapshot; this gross preview is close enough for
+  // in-modal feedback but is never what actually gets stored.
   liveSummary = computed(() => {
     const selected = this.items().filter(item => item.selected && item.returnQty > 0);
     const totalCount = selected.reduce((sum, item) => sum + item.returnQty, 0);
@@ -108,8 +90,8 @@ export class CreateReturnModalComponent implements OnInit {
     this.items.update(list =>
       list.map(i =>
         i.productId === item.productId
-          ? { 
-              ...i, 
+          ? {
+              ...i,
               selected: !i.selected,
               returnQty: !i.selected ? (i.returnQty || 1) : i.returnQty
             }
@@ -120,10 +102,10 @@ export class CreateReturnModalComponent implements OnInit {
 
   onQtyChange(item: SelectionItem, event: any) {
     const raw = parseInt(event.target.value, 10);
-    const qty = isNaN(raw) || raw < 1 
-      ? 1 
-      : raw > item.orderedQty 
-        ? item.orderedQty 
+    const qty = isNaN(raw) || raw < 1
+      ? 1
+      : raw > item.orderedQty
+        ? item.orderedQty
         : raw;
 
     this.items.update(list =>
@@ -139,8 +121,14 @@ export class CreateReturnModalComponent implements OnInit {
     this.closed.emit(saved);
   }
 
+  // Delegates to submitReturn (onCall) — same server-owned path the
+  // portal uses, so quantity/price validation, the net-of-discount+tax
+  // amountCents calc, and isFullReturn detection (which gates terminal
+  // coupon release on approveReturn) all run for admin-created returns
+  // too. Used to be a direct client Firestore batch write; that let an
+  // admin-created full return silently skip coupon release since
+  // isFullReturn was never stamped.
   async submitReturn() {
-    // 1. Validation
     const selectedItems = this.items().filter(item => item.selected && item.returnQty > 0);
     if (selectedItems.length === 0) {
       this.toast.error('Must select at least 1 item to return');
@@ -152,91 +140,35 @@ export class CreateReturnModalComponent implements OnInit {
       return;
     }
 
-    const actionBy = this.auth.getActionBy();
-    if (!actionBy) {
-      this.toast.error('Authentication session not found');
-      return;
-    }
-
     this.isSubmitting.set(true);
 
     try {
-      // 2. Fetch sequence and generate RET number outside the write batch
-      // First get sequence ref
-      const seqRef = doc(this.db, 'settings/returnSequence');
-      const seqSnap = await getDoc(seqRef);
-      
-      let nextNumber = 1;
-      if (seqSnap.exists()) {
-        const seqData = seqSnap.data();
-        nextNumber = (seqData['lastNumber'] || 0) + 1;
-      }
+      const callable = httpsCallable<
+        {
+          orderId: string;
+          items: { productId: string; quantity: number }[];
+          returnType: ReturnType;
+          reasonCode: ReturnReasonCode;
+          notes: string;
+          internalNotes: string;
+        },
+        { returnId: string; returnNumber: string }
+      >(this.functions, 'submitReturn');
 
-      const year = new Date().getFullYear();
-      const padded = String(nextNumber).padStart(4, '0');
-      const returnNumber = `RET-${year}-${padded}`;
-
-      // 3. Build ReturnItems snapshot list
-      const returnItems: ReturnItem[] = selectedItems.map(item => ({
-        productId: item.productId,
-        productName: item.productName,
-        productSku: item.productSku,
-        quantity: item.returnQty,
-        unitPriceCents: item.unitPriceCents,
-        lineTotalCents: item.returnQty * item.unitPriceCents
-      }));
-
-      const amountCents = this.liveSummary().amountCents;
-
-      // 4. Run the Firestore Write Batch
-      await this.firestore.runBatch(async (batch, db) => {
-        // a. Increment sequence
-        const batchSeqRef = doc(db, 'settings/returnSequence');
-        batch.set(batchSeqRef, { lastNumber: nextNumber, prefix: 'RET' }, { merge: true });
-
-        // b. Create Return Document
-        const returnDocRef = doc(collection(db, 'returns'));
-        
-        const returnData: Return = {
-          id: returnDocRef.id,
-          returnNumber,
-          orderId: this.order.id,
-          orderNumber: this.order.orderNumber,
-          customerId: this.order.customerId,
-          customerName: this.order.customerName,
-          customerPhone: this.order.customerPhone || '',
-          customerEmail: this.order.customerEmail || '',
-          type: this.returnType(),
-          status: 'pending',
-          items: returnItems,
-          amountCents,
-          reasonCode: this.reasonCode(),
-          reason: this.reason().trim(),
-          internalNotes: this.internalNotes().trim() || null,
-          stockRestored: false, // Stock decision is made by admin at approval time
-          stockAdjustmentIds: [],
-          tenantId: 1,
-          createdAt: serverTimestamp(),
-          createdBy: actionBy,
-          isDeleted: false
-        };
-
-        if (this.returnType() === 'refund') {
-          returnData.refundMethod = this.refundMethod();
-          if (this.refundReferenceNumber().trim()) {
-            returnData.refundReferenceNumber = this.refundReferenceNumber().trim();
-          }
-        }
-
-        batch.set(returnDocRef, returnData);
+      const res = await callable({
+        orderId: this.order.id,
+        items: selectedItems.map(item => ({ productId: item.productId, quantity: item.returnQty })),
+        returnType: this.returnType(),
+        reasonCode: this.reasonCode(),
+        notes: this.reason().trim(),
+        internalNotes: this.internalNotes().trim(),
       });
 
-      this.toast.success(`Return ${returnNumber} submitted for review`);
+      this.toast.success(`Return ${res.data.returnNumber} submitted for review`);
       this.close(true);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting return:', err);
-      this.toast.error('Failed to submit return');
+      this.toast.error(err?.message || 'Failed to submit return');
     } finally {
       this.isSubmitting.set(false);
     }

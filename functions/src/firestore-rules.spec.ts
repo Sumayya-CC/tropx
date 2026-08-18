@@ -375,8 +375,8 @@ describe("firestore.rules", () => {
       );
     });
 
-    it("customer can create a return for their own customerId", async () => {
-      await assertSucceeds(
+    it("customer cannot create a return directly — server-only via submitReturn", async () => {
+      await assertFails(
         setDoc(doc(customerCtx("cust-1").firestore(), "returns", "ret1"), {
           customerId: "cust-1",
           totalCents: 200,
@@ -384,10 +384,10 @@ describe("firestore.rules", () => {
       );
     });
 
-    it("customer cannot create a return for a different customerId", async () => {
+    it("staff cannot create a return directly either — same server-only rule", async () => {
       await assertFails(
-        setDoc(doc(customerCtx("cust-1").firestore(), "returns", "ret1"), {
-          customerId: "cust-2",
+        setDoc(doc(staffCtx("admin").firestore(), "returns", "ret1"), {
+          customerId: "cust-1",
           totalCents: 200,
         }),
       );

@@ -646,6 +646,37 @@ mirrored client-side in the portal cart and admin order-form previews so
 the pre-commit preview matches what `placeOrder`/`createAdminOrder`
 actually charge.
 
+**Return refunds mirror the same discount-then-tax ordering, proportionally.**
+`submitReturn` derives `amountCents` from the order's frozen snapshot —
+`returnGrossCents` (server-priced, never client-supplied) gets its
+proportional share of `min(discountCents, subtotalCents)` subtracted first,
+then `taxRatePercent` is applied to that net figure — so a return credits
+what the customer actually paid for those units, not the gross line price.
+`approveReturn` then nets that `amountCents` straight off
+`order.totalCents`/`balanceCents`, with no separate tax computation on its
+side. Because each return's discount/tax shares round independently,
+multiple partial returns on one order can drift a cent or two from
+`totalCents`; the return that completes the order (`isFullReturn`) skips
+the proportional formula and true-ups to whatever's actually left
+(`totalCents` minus any still-pending prior returns), so the order always
+lands on exactly zero. `couponDiscountCents`/`appliedCoupons` stay frozen
+either way — only the refunded amount changes, not the order's coupon
+bookkeeping.
+
+**`submitReturn` is the single server-owned entry point for creating a
+return**, called by both the portal (customer, own order only) and the
+admin "create return" modal (staff, any customer's order — `firestore.rules`
+denies a direct client `create` on `returns` for everyone). Until
+2026-08-18 the admin modal wrote return docs straight from the client via
+a Firestore batch; besides duplicating the gross-refund bug above, it
+never computed `isFullReturn`, so an admin-created full return silently
+never triggered `approveReturn`'s terminal coupon release. Consolidating
+both callers onto `submitReturn` fixed both at once — staff callers skip
+the customer-ownership check, get `source: 'admin'` +
+`buildStaffActionBy`-derived `createdBy` (vs. `source: 'customer_portal'`
++ the customer's own name), and may set a staff-only `internalNotes`
+field the portal path never populates.
+
 ### 8.3 Shop Lifecycle (prospect → customer)
 
 ```mermaid

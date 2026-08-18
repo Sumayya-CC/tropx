@@ -70,6 +70,29 @@ async function signInWithClaims(claims: Record<string, unknown>) {
   return userRecord.uid;
 }
 
+/**
+ * Signs the client SDK in as a staff user with the given role, and seeds a
+ * matching users/{uid} profile doc (submitReturn/approveReturn read it for
+ * the staff createdBy/processedBy snapshot).
+ * @param {string} role One of STAFF_ROLES.
+ * @param {Record<string, unknown>} profile Fields for the users/{uid} doc.
+ * @return {Promise<string>} The new user's Auth uid.
+ */
+async function signInStaff(role: string, profile: Record<string, unknown> = {}) {
+  const userRecord = await adminAuth.createUser({});
+  await adminDb.collection("users").doc(userRecord.uid).set({
+    firstName: "Staff",
+    lastName: "Member",
+    role,
+    tenantId: 1,
+    ...profile,
+  });
+  const customToken = await adminAuth.createCustomToken(userRecord.uid, {role, tenantId: 1});
+  const cred = await signInWithCustomToken(clientAuth, customToken);
+  await cred.user.getIdToken(true);
+  return userRecord.uid;
+}
+
 async function seedCustomerAndAuth(overrides: Partial<Record<string, unknown>> = {}) {
   const customerId = uid("customer");
   await adminDb.collection("customers").doc(customerId).set({
@@ -348,6 +371,195 @@ describe("submitReturn", () => {
     const item = (returnSnap.data()!["items"] as Array<Record<string, unknown>>)[0];
     expect(item["unitPriceCents"]).toBe(1500); // the real ordered price, not 1
     expect(returnSnap.data()!["amountCents"]).toBe(1500);
+  });
+
+  it("computes the return amount net of tax, using the order's frozen tax rate", async () => {
+    const productId = await seedProduct();
+    const {customerId} = await seedCustomerAndAuth();
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      subtotalCents: 6000,
+      discountCents: 0,
+      taxRatePercent: 13,
+      totalCents: 6780, // 6000 + 13%
+      balanceCents: 6780,
+      items: [{
+        productId,
+        productName: "Test Product",
+        productSku: "SKU-TEST",
+        quantity: 4,
+        unitPriceCents: 1500,
+        lineTotalCents: 6000,
+      }],
+    });
+
+    const res = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 1}],
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+    });
+
+    const data = res.data as {returnId: string};
+    const returnSnap = await adminDb.collection("returns").doc(data.returnId).get();
+    // gross 1500, no discount share, tax = round(1500 * 0.13) = 195
+    expect(returnSnap.data()!["amountCents"]).toBe(1695);
+    expect(returnSnap.data()!["isFullReturn"]).toBe(false);
+  });
+
+  it("computes the return amount net of its proportional share of the order discount", async () => {
+    const productId = await seedProduct();
+    const {customerId} = await seedCustomerAndAuth();
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      subtotalCents: 10000,
+      discountCents: 1000,
+      taxRatePercent: 0,
+      totalCents: 9000,
+      balanceCents: 9000,
+      items: [{
+        productId,
+        productName: "Test Product",
+        productSku: "SKU-TEST",
+        quantity: 5,
+        unitPriceCents: 2000,
+        lineTotalCents: 10000,
+      }],
+    });
+
+    const res = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 2}],
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+    });
+
+    const data = res.data as {returnId: string};
+    const returnSnap = await adminDb.collection("returns").doc(data.returnId).get();
+    // gross 4000, discount share = round(1000 * 4000 / 10000) = 400, net 3600, no tax
+    expect(returnSnap.data()!["amountCents"]).toBe(3600);
+    expect(returnSnap.data()!["isFullReturn"]).toBe(false);
+  });
+
+  it("true-ups the completing return so the order zeroes out exactly, even where the formula would drift", async () => {
+    const productId = await seedProduct();
+    const {customerId} = await seedCustomerAndAuth();
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      subtotalCents: 3000,
+      discountCents: 250,
+      taxRatePercent: 13,
+      totalCents: 3108, // taxable 2750, tax round(2750*0.13)=358
+      balanceCents: 3108,
+      items: [{
+        productId,
+        productName: "Test Product",
+        productSku: "SKU-TEST",
+        quantity: 3,
+        unitPriceCents: 1000,
+        lineTotalCents: 3000,
+      }],
+    });
+
+    const first = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 1}],
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+    });
+    const firstId = (first.data as {returnId: string}).returnId;
+    const firstSnap = await adminDb.collection("returns").doc(firstId).get();
+    // gross 1000, discount share round(250*1000/3000)=83, net 917, tax round(917*0.13)=119
+    expect(firstSnap.data()!["amountCents"]).toBe(1036);
+    expect(firstSnap.data()!["isFullReturn"]).toBe(false);
+
+    const second = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 2}], // completes all 3 units
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+    });
+    const secondId = (second.data as {returnId: string}).returnId;
+    const secondSnap = await adminDb.collection("returns").doc(secondId).get();
+    expect(secondSnap.data()!["isFullReturn"]).toBe(true);
+    // The proportional formula alone would give 2071 here (1000+2071=3107,
+    // one cent short of totalCents) — the true-up makes it 2072 instead so
+    // the two returns sum to exactly the order's totalCents.
+    expect(secondSnap.data()!["amountCents"]).toBe(2072);
+
+    const orderSnap = await adminDb.collection("orders").doc(orderId).get();
+    const total =
+      (firstSnap.data()!["amountCents"] as number) + (secondSnap.data()!["amountCents"] as number);
+    expect(total).toBe(orderSnap.data()!["totalCents"]);
+  });
+
+  it("allows a staff caller to submit a return for any customer's order, stamped source=admin", async () => {
+    const productId = await seedProduct();
+    const {customerId} = await seedCustomerAndAuth(); // signed in as the customer first...
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      items: [{
+        productId,
+        productName: "Test Product",
+        productSku: "SKU-TEST",
+        quantity: 3,
+        unitPriceCents: 1000,
+        lineTotalCents: 3000,
+      }],
+    });
+    await signInStaff("admin", {firstName: "Ada", lastName: "Admin"}); // ...then switch to staff
+
+    const res = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 2}],
+      returnType: "credit_note",
+      reasonCode: "wrong_item",
+      notes: "Customer-facing reason",
+      internalNotes: "Staff-only note about this return",
+    });
+
+    const data = res.data as {returnId: string};
+    const returnSnap = await adminDb.collection("returns").doc(data.returnId).get();
+    const ret = returnSnap.data()!;
+    expect(ret["amountCents"]).toBe(2000); // 2 x 1000, no tax/discount on this order
+    expect(ret["source"]).toBe("admin");
+    expect(ret["customerId"]).toBe(customerId); // derived from the order, not the staff caller
+    expect(ret["createdBy"]).toMatchObject({firstName: "Ada", lastName: "Admin"});
+    expect(ret["internalNotes"]).toBe("Staff-only note about this return");
+  });
+
+  it("does not stamp internalNotes when a portal customer submits (staff-only field)", async () => {
+    const productId = await seedProduct();
+    const {customerId} = await seedCustomerAndAuth();
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      items: [{
+        productId,
+        productName: "Test Product",
+        productSku: "SKU-TEST",
+        quantity: 1,
+        unitPriceCents: 1000,
+        lineTotalCents: 1000,
+      }],
+    });
+
+    const res = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 1}],
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+      internalNotes: "A customer shouldn't be able to set this",
+    });
+
+    const data = res.data as {returnId: string};
+    const returnSnap = await adminDb.collection("returns").doc(data.returnId).get();
+    expect(returnSnap.data()!["source"]).toBe("customer_portal");
+    expect(returnSnap.data()!["internalNotes"]).toBeUndefined();
   });
 
   it("rejects a return quantity greater than what was actually ordered", async () => {

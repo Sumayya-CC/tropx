@@ -156,6 +156,29 @@ async function callApproveReturn(data: unknown) {
   return callable(data);
 }
 
+async function callSubmitReturn(data: unknown) {
+  const callable = httpsCallable(clientFunctions, "submitReturn");
+  return callable(data);
+}
+
+/**
+ * Signs the client SDK in as a customer carrying the given linkedCustomerId
+ * claim, so it can call submitReturn for that customer's own order.
+ * @param {string} customerId The customers/{id} this session is linked to.
+ * @return {Promise<string>} The new user's Auth uid.
+ */
+async function signInCustomer(customerId: string) {
+  const userRecord = await adminAuth.createUser({});
+  const customToken = await adminAuth.createCustomToken(userRecord.uid, {
+    role: "customer",
+    linkedCustomerId: customerId,
+    tenantId: 1,
+  });
+  const cred = await signInWithCustomToken(clientAuth, customToken);
+  await cred.user.getIdToken(true);
+  return userRecord.uid;
+}
+
 beforeAll(async () => {
   const adminApp = admin.initializeApp(
     {projectId: "tropx-wholesale-dev"},
@@ -239,6 +262,125 @@ describe("approveReturn", () => {
     expect(adjSnap.docs[0].data()["type"]).toBe("returned");
     expect(adjSnap.docs[0].data()["previousStock"]).toBe(10);
     expect(adjSnap.docs[0].data()["newStock"]).toBe(12);
+  });
+
+  it("nets off a tax-adjusted return amount against a tax-inclusive order total without re-taxing it", async () => {
+    const customerId = await seedCustomer({
+      totalOrderedCents: 6780,
+      totalOwingCents: 6780,
+    });
+    const orderId = await seedOrder(customerId, {
+      subtotalCents: 6000,
+      discountCents: 0,
+      taxRatePercent: 13,
+      totalCents: 6780, // 6000 + 13% tax
+      balanceCents: 6780,
+      amountPaidCents: 0,
+    });
+    // amountCents as submitReturn would derive it: gross 1500, no discount
+    // share, tax round(1500 * 0.13) = 195.
+    const returnId = await seedReturn(orderId, customerId, {
+      type: "credit_note",
+      amountCents: 1695,
+    });
+    await signInStaff({role: "admin"});
+
+    await callApproveReturn({returnId, restoreStock: false});
+
+    const orderSnap = await adminDb.collection("orders").doc(orderId).get();
+    expect(orderSnap.data()!["totalCents"]).toBe(5085); // 6780 - 1695
+    expect(orderSnap.data()!["balanceCents"]).toBe(5085);
+
+    const custSnap = await adminDb.collection("customers").doc(customerId).get();
+    expect(custSnap.data()!["totalOrderedCents"]).toBe(5085);
+    expect(custSnap.data()!["totalOwingCents"]).toBe(5085);
+  });
+
+  it("nets off a discount-adjusted return amount against a discounted order total", async () => {
+    const customerId = await seedCustomer({
+      totalOrderedCents: 9000,
+      totalOwingCents: 9000,
+    });
+    const orderId = await seedOrder(customerId, {
+      subtotalCents: 10000,
+      discountCents: 1000,
+      taxRatePercent: 0,
+      totalCents: 9000, // 10000 - 1000 discount
+      balanceCents: 9000,
+      amountPaidCents: 0,
+    });
+    // amountCents as submitReturn would derive it: gross 4000, discount
+    // share round(1000 * 4000 / 10000) = 400, net 3600, no tax.
+    const returnId = await seedReturn(orderId, customerId, {
+      type: "credit_note",
+      amountCents: 3600,
+    });
+    await signInStaff({role: "admin"});
+
+    await callApproveReturn({returnId, restoreStock: false});
+
+    const orderSnap = await adminDb.collection("orders").doc(orderId).get();
+    expect(orderSnap.data()!["totalCents"]).toBe(5400); // 9000 - 3600
+    expect(orderSnap.data()!["balanceCents"]).toBe(5400);
+
+    const custSnap = await adminDb.collection("customers").doc(customerId).get();
+    expect(custSnap.data()!["totalOrderedCents"]).toBe(5400);
+    expect(custSnap.data()!["totalOwingCents"]).toBe(5400);
+  });
+
+  it("end-to-end: two partial returns via submitReturn+approveReturn zero out a taxed, discounted order", async () => {
+    const productId = await seedProduct({stock: 50});
+    const customerId = await seedCustomer({
+      totalOrderedCents: 3108,
+      totalOwingCents: 3108,
+    });
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      subtotalCents: 3000,
+      discountCents: 250,
+      taxRatePercent: 13,
+      totalCents: 3108, // taxable 2750, tax round(2750 * 0.13) = 358
+      balanceCents: 3108,
+      amountPaidCents: 0,
+      items: [{
+        productId,
+        productName: "Test Product",
+        productSku: "SKU-TEST",
+        quantity: 3,
+        unitPriceCents: 1000,
+        lineTotalCents: 3000,
+      }],
+    });
+
+    await signInCustomer(customerId);
+    const first = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 1}],
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+    });
+    const second = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 2}], // completes all 3 units
+      returnType: "credit_note",
+      reasonCode: "other",
+      notes: "",
+    });
+    const firstId = (first.data as {returnId: string}).returnId;
+    const secondId = (second.data as {returnId: string}).returnId;
+
+    await signInStaff({role: "admin"});
+    await callApproveReturn({returnId: firstId, restoreStock: false});
+    await callApproveReturn({returnId: secondId, restoreStock: false});
+
+    const orderSnap = await adminDb.collection("orders").doc(orderId).get();
+    expect(orderSnap.data()!["totalCents"]).toBe(0);
+    expect(orderSnap.data()!["balanceCents"]).toBe(0);
+
+    const custSnap = await adminDb.collection("customers").doc(customerId).get();
+    expect(custSnap.data()!["totalOrderedCents"]).toBe(0);
+    expect(custSnap.data()!["totalOwingCents"]).toBe(0);
   });
 
   it("approves a refund return: refund fields stamped, totalPaidCents reversed, not totalOwingCents", async () => {

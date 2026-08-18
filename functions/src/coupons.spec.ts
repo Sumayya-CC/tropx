@@ -218,6 +218,7 @@ const callCreateAdminOrder = callable<unknown, {orderId: string; orderNumber: st
 const callUpdateAdminOrder = callable<unknown, {orderId: string; orderNumber: string}>("updateAdminOrder");
 const callCancelOrder = callable<unknown, {orderNumber: string}>("cancelOrder");
 const callApproveReturn = callable<unknown, {returnNumber: string}>("approveReturn");
+const callSubmitReturn = callable<unknown, {returnId: string; returnNumber: string}>("submitReturn");
 const callValidateCoupon =
   callable<unknown, {valid: boolean; discountCents: number; message: string}>("validateCoupon");
 const callRecomputeCouponUsage = callable<unknown, {couponId: string; usedCount: number}>("recomputeCouponUsage");
@@ -616,6 +617,56 @@ describe("returns interaction", () => {
     expect((await getCoupon(code))["usedCount"]).toBe(0); // released on the full return
     expect((await getRedemption(code, customerId))!["count"]).toBe(0);
     order = (await adminDb.collection("orders").doc(orderId).get()).data()!;
+    expect(order["couponsReleasedAt"]).toBeTruthy();
+  });
+
+  it("an admin-created full return via submitReturn (not a direct client write) also releases the coupon", async () => {
+    // Before consolidating the admin "create return" modal onto
+    // submitReturn, it wrote return docs straight from the client and
+    // never computed isFullReturn — so a full return an admin created
+    // silently never released the coupon's redemption slot. This drives
+    // the whole flow through the real callable, as staff, so isFullReturn
+    // is genuinely derived server-side rather than hand-seeded.
+    const productId = await seedProduct();
+    const code = uid("ADMINRETURN").toUpperCase();
+    await seedCoupon(code, {type: "fixed", value: 300});
+    const customerId = await seedCustomer();
+
+    const orderId = await seedOrder(customerId, {
+      status: "delivered",
+      items: [lineItem(productId, 2, 1000)],
+      subtotalCents: 2000,
+      discountCents: 300,
+      couponDiscountCents: 300,
+      appliedCoupons: [{couponId: code, code, type: "fixed", value: 300, discountCents: 300}],
+      totalCents: 2000 - 300,
+      balanceCents: 0,
+      amountPaidCents: 2000 - 300,
+    });
+    await adminDb.collection("coupons").doc(code).update({usedCount: 1});
+    await adminDb.collection("coupons").doc(code).collection("redemptions").doc(customerId).set({
+      count: 1, lastOrderId: orderId, lastRedeemedAt: new Date(), tenantId: 1, isDeleted: false,
+    });
+
+    await signInStaff({role: "admin"});
+    const submitRes = await callSubmitReturn({
+      orderId,
+      items: [{productId, quantity: 2}], // the whole order — a full return
+      returnType: "credit_note",
+      reasonCode: "wrong_item",
+      notes: "Admin-created return",
+    });
+    const returnId = submitRes.data.returnId;
+
+    const returnSnap = await adminDb.collection("returns").doc(returnId).get();
+    expect(returnSnap.data()!["isFullReturn"]).toBe(true); // derived, not hand-seeded
+    expect(returnSnap.data()!["source"]).toBe("admin");
+
+    await callApproveReturn({returnId, restoreStock: true});
+
+    expect((await getCoupon(code))["usedCount"]).toBe(0); // released
+    expect((await getRedemption(code, customerId))!["count"]).toBe(0);
+    const order = (await adminDb.collection("orders").doc(orderId).get()).data()!;
     expect(order["couponsReleasedAt"]).toBeTruthy();
   });
 });

@@ -142,36 +142,9 @@
 
         </div>
 
-      <!-- Refund-specific fields -->
-      @if (returnType() === 'refund') {
-        <div class="form-grid refund-section-grid">
-          <div class="form-field">
-            <label class="form-label">Refund Method</label>
-            <select 
-              [ngModel]="refundMethod()" 
-              (ngModelChange)="refundMethod.set($event)"
-              name="refundMethod"
-              class="form-input"
-            >
-              @for (opt of refundMethodOptions(); track opt.method) {
-                <option [value]="opt.method">{{ opt.label }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="form-field">
-            <label class="form-label">Reference Number (Optional)</label>
-            <input 
-              type="text" 
-              [ngModel]="refundReferenceNumber()" 
-              (ngModelChange)="refundReferenceNumber.set($event)"
-              name="refundReferenceNumber"
-              placeholder="e.g. Cheque / E-Transfer ref"
-              class="form-input"
-            >
-          </div>
-        </div>
-      }
+      <!-- Refund method/reference are chosen at approval time
+           (approveReturn), not here — see admin-returns.component's
+           approve panel. -->
 
       <!-- Detailed Reason Description -->
       <div class="form-field">
