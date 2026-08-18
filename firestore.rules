@@ -193,6 +193,24 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // ── Coupons ──────────────────────────────────────────
+    // Staff-only, unlike products/categories (no public read): customers
+    // never read a coupon doc directly, only through the validateCoupon/
+    // placeOrder onCall functions (Admin SDK, bypasses rules) — same
+    // "customer client never trusted with money-affecting data" precedent
+    // as placeOrder/cancelOrder/submitReturn. Coupon CRUD itself is a
+    // plain staff Firestore write (like products), no Cloud Function
+    // needed there.
+    match /coupons/{code} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+
+      match /redemptions/{customerId} {
+        allow read: if isStaff();
+        allow write: if isStaff();
+      }
+    }
+
     match /expenses/{doc} {
       allow read: if isStaff();
       allow write: if isStaff();

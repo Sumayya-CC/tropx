@@ -72,7 +72,18 @@ export class OrderDetailComponent {
     if (!order) return null;
 
     const subtotalCents = items.reduce((sum, i) => sum + i.lineTotalCents, 0);
-    const discountCents = this.editDiscountCents();
+    const manualDiscountCents = this.editDiscountCents();
+    // This editor doesn't let staff add/remove coupons, but any coupon
+    // already on the order is still in effect and must be reflected in
+    // the preview — otherwise what's shown here disagrees with what
+    // saveOrderQuantityEdits actually charges after save. Mirrors the
+    // server's own recompute: percentage coupons rescale with the new
+    // (possibly smaller) subtotal, fixed-cents coupons don't change.
+    const couponDiscountCents = (order.appliedCoupons || []).reduce((sum, c) => {
+      const cents = c.type === 'percentage' ? Math.round(subtotalCents * (c.value / 100)) : c.discountCents;
+      return sum + cents;
+    }, 0);
+    const discountCents = manualDiscountCents + couponDiscountCents;
     const taxableAmount = Math.max(0, subtotalCents - discountCents);
     const taxCents = Math.round(taxableAmount * order.taxRatePercent / 100);
     const totalCents = taxableAmount + taxCents;
@@ -80,7 +91,8 @@ export class OrderDetailComponent {
 
     return {
       subtotalCents,
-      discountCents,
+      discountCents: manualDiscountCents,
+      couponDiscountCents,
       taxCents,
       totalCents,
       balanceCents,

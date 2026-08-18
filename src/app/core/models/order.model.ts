@@ -1,4 +1,5 @@
 import { ActionBy } from './action-by.model';
+import { AppliedCoupon } from './coupon.model';
 
 export type OrderStatus = 
   | 'confirmed' 
@@ -41,7 +42,11 @@ export interface Order {
   subtotalCents: number;
   taxRatePercent: number;    // e.g. 13 for 13% HST
   taxCents: number;
-  discountCents: number;     // manual discount
+  discountCents: number;     // manualDiscountCents + couponDiscountCents (see below)
+  manualDiscountCents?: number;   // staff-typed flat amount (admin orders only); ?? discountCents for pre-coupon orders
+  couponDiscountCents?: number;   // sum of appliedCoupons[].discountCents; ?? 0 for pre-coupon orders
+  appliedCoupons?: AppliedCoupon[];  // audit snapshot of coupons applied at order time
+  couponsReleasedAt?: any;    // set once by the terminal coupon release (cancelOrder / full-return approval); presence = already released, never touched by edits
   totalCents: number;        // subtotal - discount + tax
   currencyCode: string;
   hasBackorder?: boolean;

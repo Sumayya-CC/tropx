@@ -334,6 +334,31 @@
 
             <div class="summary-divider"></div>
 
+            <!-- Coupon code -->
+            <div class="coupon-section">
+              <div class="coupon-input-row">
+                <input
+                  type="text"
+                  [ngModel]="couponCodesInput()"
+                  (ngModelChange)="couponCodesInput.set($event)"
+                  placeholder="Coupon code(s), comma-separated"
+                >
+                <button type="button" (click)="applyCoupons()" [disabled]="isValidatingCoupons()">
+                  {{ isValidatingCoupons() ? 'Checking...' : 'Apply' }}
+                </button>
+              </div>
+              @if (couponPreview(); as preview) {
+                <div class="coupon-status" [class.invalid]="!preview.valid">
+                  @if (preview.valid) {
+                    <span>Coupon applied: −{{ formatCurrency(couponDiscountCents()) }}</span>
+                  } @else {
+                    <span>{{ preview.message }}</span>
+                  }
+                  <button type="button" class="remove-coupon" (click)="removeCoupons()">Remove</button>
+                </div>
+              }
+            </div>
+
             <!-- Totals -->
             <div class="totals-stack">
               <div class="totals-row">
@@ -344,6 +369,12 @@
                   ) }}
                 </span>
               </div>
+              @if (couponDiscountCents() > 0) {
+                <div class="totals-row discount">
+                  <span>Coupon</span>
+                  <span>−{{ formatCurrency(couponDiscountCents()) }}</span>
+                </div>
+              }
               <div class="totals-row">
                 <span>
                   HST ({{ taxRatePercent() }}%)

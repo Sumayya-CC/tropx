@@ -450,6 +450,17 @@ exports[`function contract baseline (Prompt 5, 5.0 preconditions gate) every exp
     "trigger": "callable",
   },
   {
+    "name": "recomputeCouponUsage",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
     "name": "reconcileShopLinksNow",
     "region": [
       "northamerica-northeast2",
@@ -563,6 +574,17 @@ exports[`function contract baseline (Prompt 5, 5.0 preconditions gate) every exp
   },
   {
     "name": "updateAdminOrder",
+    "region": [
+      "northamerica-northeast2",
+    ],
+    "secrets": [
+      "SENTRY_DSN",
+    ],
+    "timeoutSeconds": null,
+    "trigger": "callable",
+  },
+  {
+    "name": "validateCoupon",
     "region": [
       "northamerica-northeast2",
     ],

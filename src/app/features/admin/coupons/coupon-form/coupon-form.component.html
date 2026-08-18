@@ -1,0 +1,127 @@
+<div class="page-header">
+  <div class="left-group">
+    <button class="back-btn" routerLink="/admin/coupons">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      &nbsp; Coupons
+    </button>
+    <h1>{{ isEditMode() ? 'Edit Coupon' : 'Add Coupon' }}</h1>
+  </div>
+  <div class="actions">
+    @if (isEditMode()) {
+      <button class="btn-danger" (click)="deleteCoupon()" [disabled]="isSaving()">Delete Coupon</button>
+    }
+    <button class="btn-primary" (click)="save()" [disabled]="isSaving()">
+      @if (isSaving()) {
+        <app-loading-spinner size="sm" color="#fff"></app-loading-spinner>
+        Saving...
+      } @else {
+        Save Coupon
+      }
+    </button>
+  </div>
+</div>
+
+@if (isLoading()) {
+  <div class="loading-placeholder">Loading coupon...</div>
+} @else {
+  <div class="form-layout">
+    <div class="form-section">
+      <h2>Code</h2>
+      <div class="row">
+        <div class="col form-group">
+          <label>Coupon Code <span class="required">*</span></label>
+          <input
+            type="text"
+            [ngModel]="code()"
+            (ngModelChange)="code.set($event)"
+            [disabled]="isEditMode()"
+            placeholder="e.g. SAVE10"
+            style="text-transform: uppercase;"
+          >
+          @if (isEditMode()) {
+            <p class="hint">Codes can't be renamed after creation — deactivate this one and create a new code instead.</p>
+          }
+        </div>
+        <div class="col form-group">
+          <label>Description</label>
+          <input type="text" [ngModel]="description()" (ngModelChange)="description.set($event)" placeholder="Internal note (not shown to customers)">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Discount</h2>
+      <div class="row">
+        <div class="col form-group">
+          <label>Type</label>
+          <select [ngModel]="type()" (ngModelChange)="type.set($event)">
+            <option value="percentage">Percentage off</option>
+            <option value="fixed">Fixed amount off</option>
+          </select>
+        </div>
+        <div class="col form-group">
+          @if (type() === 'percentage') {
+            <label>Percent off <span class="required">*</span></label>
+            <input type="number" min="1" max="100" [ngModel]="percentValue()" (ngModelChange)="percentValue.set(toNum($event))">
+          } @else {
+            <label>Amount off ($) <span class="required">*</span></label>
+            <input type="text" inputmode="decimal" [ngModel]="fixedValueDisplay()" (ngModelChange)="fixedValueDisplay.set($event)" placeholder="0.00">
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col form-group toggle-row">
+          <label>Active</label>
+          <label class="switch">
+            <input type="checkbox" [ngModel]="active()" (ngModelChange)="active.set($event)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="col form-group toggle-row">
+          <label>Stackable with other coupons</label>
+          <label class="switch">
+            <input type="checkbox" [ngModel]="stackable()" (ngModelChange)="stackable.set($event)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Validity Window <span class="optional">(optional)</span></h2>
+      <div class="row">
+        <div class="col form-group">
+          <label>Starts</label>
+          <input type="date" [ngModel]="startsAtInput()" (ngModelChange)="startsAtInput.set($event)">
+        </div>
+        <div class="col form-group">
+          <label>Expires</label>
+          <input type="date" [ngModel]="expiresAtInput()" (ngModelChange)="expiresAtInput.set($event)">
+        </div>
+      </div>
+      <p class="hint">Leave either blank for no start/end limit.</p>
+    </div>
+
+    <div class="form-section">
+      <h2>Limits <span class="optional">(optional)</span></h2>
+      <div class="row">
+        <div class="col form-group">
+          <label>Minimum order ($)</label>
+          <input type="text" inputmode="decimal" [ngModel]="minOrderDisplay()" (ngModelChange)="minOrderDisplay.set($event)" placeholder="No minimum">
+        </div>
+        <div class="col form-group">
+          <label>Total uses allowed</label>
+          <input type="number" min="1" [ngModel]="maxUsesTotal()" (ngModelChange)="maxUsesTotal.set(toNumOrNull($event))" placeholder="Unlimited">
+        </div>
+        <div class="col form-group">
+          <label>Uses per customer</label>
+          <input type="number" min="1" [ngModel]="maxUsesPerCustomer()" (ngModelChange)="maxUsesPerCustomer.set(toNumOrNull($event))" placeholder="Unlimited">
+        </div>
+      </div>
+      @if (isEditMode()) {
+        <p class="hint">Used {{ usedCount() }} time{{ usedCount() === 1 ? '' : 's' }} so far.</p>
+      }
+    </div>
+  </div>
+}

@@ -39,7 +39,10 @@ export class OrderFormComponent {
   showProductPicker = signal(false);
   selectedCustomer = signal<Customer | null>(null);
   items = signal<OrderItem[]>([]);
-  discountCents = signal(0);
+  discountCents = signal(0); // manual discount only — coupon discount is tracked separately below
+  couponCodesInput = signal(''); // comma-separated codes as typed
+  couponPreview = signal<{ codes: string[]; subtotalCents: number; valid: boolean; discountCents: number; message: string } | null>(null);
+  isValidatingCoupons = signal(false);
   taxRatePercent = signal(13);
   deliveryType = signal<DeliveryType>('delivery');
   expectedDeliveryDate = signal<string>('');
@@ -152,6 +155,7 @@ export class OrderFormComponent {
         } : null,
         items: items,
         discountCents: this.discountCents(),
+        couponCodesInput: this.couponCodesInput(),
         taxRatePercent: this.taxRatePercent(),
         deliveryType: this.deliveryType(),
         expectedDeliveryDate: this.expectedDeliveryDate(),
@@ -200,7 +204,21 @@ export class OrderFormComponent {
       };
       this.selectedCustomer.set(customerFromOrder);
       this.items.set(order.items);
-      this.discountCents.set(order.discountCents || 0);
+      // manualDiscountCents ?? discountCents — backward compatible with
+      // orders written before the coupon split (their full discountCents
+      // was always manual, so this is a safe reinterpretation).
+      this.discountCents.set(order.manualDiscountCents ?? order.discountCents ?? 0);
+      const existingCoupons = order.appliedCoupons || [];
+      if (existingCoupons.length > 0) {
+        this.couponCodesInput.set(existingCoupons.map(c => c.code).join(', '));
+        this.couponPreview.set({
+          codes: existingCoupons.map(c => c.couponId),
+          subtotalCents: order.subtotalCents,
+          valid: true,
+          discountCents: order.couponDiscountCents ?? existingCoupons.reduce((s, c) => s + c.discountCents, 0),
+          message: '',
+        });
+      }
       this.taxRatePercent.set(order.taxRatePercent || 13);
       this.deliveryType.set(order.deliveryType || 'delivery');
       this.customerNotes.set(order.customerNotes || '');
@@ -221,6 +239,7 @@ export class OrderFormComponent {
     
     this.items.set(draft.items || []);
     this.discountCents.set(draft.discountCents || 0);
+    this.couponCodesInput.set(draft.couponCodesInput || '');
     this.taxRatePercent.set(draft.taxRatePercent || 13);
     this.deliveryType.set(draft.deliveryType || 'delivery');
     this.expectedDeliveryDate.set(draft.expectedDeliveryDate || '');
@@ -274,10 +293,34 @@ export class OrderFormComponent {
     return this.items().reduce((sum, item) => sum + item.lineTotalCents, 0);
   });
 
+  couponCodes = computed(() =>
+    [...new Set(this.couponCodesInput().split(',').map(c => c.trim().toUpperCase()).filter(Boolean))]
+  );
+
+  // Last-previewed discount only, and only if it still matches the current
+  // code list + subtotal — a stale preview (codes edited, or an item
+  // quantity changed, since the last "Apply") is treated as no discount
+  // rather than silently overstating the total. Real enforcement +
+  // redemption happens server-side at save; this is advisory only, same
+  // pattern as the portal cart's live preview.
+  couponDiscountCents = computed(() => {
+    const preview = this.couponPreview();
+    if (!preview) return 0;
+    const codes = this.couponCodes();
+    const sameCodes = preview.codes.length === codes.length && preview.codes.every((c, i) => c === codes[i]);
+    if (!sameCodes || preview.subtotalCents !== this.subtotalCents()) return 0;
+    return preview.valid ? preview.discountCents : 0;
+  });
+
   // Floor at 0: a discount larger than the subtotal must not produce a
   // negative taxable amount or total (matches order-detail's edit-mode
-  // editTotals computed, which already floors this).
-  private taxableCents = computed(() => Math.max(0, this.subtotalCents() - this.discountCents()));
+  // editTotals computed, which already floors this). Discount here is
+  // manual + previewed coupon combined — must mirror computeOrderTotals
+  // server-side exactly: discount applied BEFORE tax, never subtracted
+  // from an already-taxed total.
+  private taxableCents = computed(() =>
+    Math.max(0, this.subtotalCents() - this.discountCents() - this.couponDiscountCents())
+  );
 
   taxCents = computed(() => {
     return Math.round(this.taxableCents() * (this.taxRatePercent() / 100));
@@ -357,6 +400,44 @@ export class OrderFormComponent {
     this.discountCents.set(Math.round(val * 100));
   }
 
+  onCouponCodesInput(event: Event) {
+    this.couponCodesInput.set((event.target as HTMLInputElement).value);
+  }
+
+  async applyCoupons() {
+    const codes = this.couponCodes();
+    const customer = this.selectedCustomer();
+    if (codes.length === 0) {
+      this.couponPreview.set(null);
+      return;
+    }
+    if (!customer) {
+      this.toast.error('Select a customer first');
+      return;
+    }
+    this.isValidatingCoupons.set(true);
+    try {
+      const callable = httpsCallable<
+        { couponCodes: string[]; subtotalCents: number; customerId: string },
+        { valid: boolean; discountCents: number; message: string }
+      >(this.functions, 'validateCoupon');
+      const res = await callable({
+        couponCodes: codes,
+        subtotalCents: this.subtotalCents(),
+        customerId: customer.id,
+      });
+      this.couponPreview.set({ codes, subtotalCents: this.subtotalCents(), ...res.data });
+      if (!res.data.valid) {
+        this.toast.error(res.data.message || 'One or more coupon codes are invalid');
+      }
+    } catch (err: any) {
+      this.couponPreview.set(null);
+      this.toast.error(err?.message || 'Could not validate coupon codes');
+    } finally {
+      this.isValidatingCoupons.set(false);
+    }
+  }
+
   onTaxRateChange(event: Event) {
     const val = parseFloat((event.target as HTMLInputElement).value) || 0;
     this.taxRatePercent.set(val);
@@ -417,6 +498,7 @@ export class OrderFormComponent {
           customerId: string;
           items: { productId: string; productName: string; productSku: string; quantity: number; unitPriceCents: number; unitCostCents: number }[];
           discountCents: number;
+          couponCodes: string[];
           taxRatePercent: number;
           deliveryType: DeliveryType;
           customerNotes: string;
@@ -443,6 +525,7 @@ export class OrderFormComponent {
           unitCostCents: i.unitCostCents,
         })),
         discountCents: this.discountCents(),
+        couponCodes: this.couponCodes(),
         taxRatePercent: this.taxRatePercent(),
         deliveryType: this.deliveryType(),
         customerNotes: this.customerNotes(),
@@ -491,6 +574,7 @@ export class OrderFormComponent {
           orderId: string;
           items: { productId: string; productName: string; productSku: string; quantity: number; unitPriceCents: number; unitCostCents: number }[];
           discountCents: number;
+          couponCodes: string[];
           taxRatePercent: number;
           deliveryType: DeliveryType;
           customerNotes: string;
@@ -513,6 +597,7 @@ export class OrderFormComponent {
           unitCostCents: i.unitCostCents,
         })),
         discountCents: this.discountCents(),
+        couponCodes: this.couponCodes(),
         taxRatePercent: this.taxRatePercent(),
         deliveryType: this.deliveryType(),
         customerNotes: this.customerNotes(),

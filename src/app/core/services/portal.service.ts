@@ -358,7 +358,8 @@ export class PortalService {
   async placeOrder(
     deliveryType: 'delivery' | 'pickup',
     notes: string,
-    _settingsService?: any
+    _settingsService?: any,
+    couponCodes: string[] = []
   ): Promise<string> {
     const customerId = this.customerId();
     const profile = this.customerProfile() as any;
@@ -368,7 +369,12 @@ export class PortalService {
     if (items.length === 0) throw new Error('Cart is empty');
 
     const callable = httpsCallable<
-      { deliveryType: string; notes: string; items: { productId: string; quantity: number }[] },
+      {
+        deliveryType: string;
+        notes: string;
+        items: { productId: string; quantity: number }[];
+        couponCodes: string[];
+      },
       { orderId: string; orderNumber: string }
     >(this.functions, 'placeOrder');
 
@@ -377,6 +383,7 @@ export class PortalService {
         deliveryType,
         notes: notes || '',
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+        couponCodes,
       });
 
       await this.clearCart();

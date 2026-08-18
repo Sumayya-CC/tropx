@@ -231,6 +231,30 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'coupons',
+        data: { roles: ['admin', 'manager'], title: 'Coupons' },
+        loadComponent: () =>
+          import('./features/admin/coupons/admin-coupons.component').then(
+            m => m.AdminCouponsComponent
+          ),
+      },
+      {
+        path: 'coupons/add',
+        data: { roles: ['admin', 'manager'], title: 'Add Coupon' },
+        loadComponent: () =>
+          import('./features/admin/coupons/coupon-form/coupon-form.component').then(
+            m => m.CouponFormComponent
+          ),
+      },
+      {
+        path: 'coupons/:id/edit',
+        data: { roles: ['admin', 'manager'], title: 'Edit Coupon' },
+        loadComponent: () =>
+          import('./features/admin/coupons/coupon-form/coupon-form.component').then(
+            m => m.CouponFormComponent
+          ),
+      },
+      {
         path: 'shops',
         loadComponent: () =>
           import('./features/admin/shops/admin-shops.component').then(

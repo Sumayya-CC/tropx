@@ -7,6 +7,14 @@ import {
   allocateReturnNumber,
   computeOrderTotals,
 } from "../staff-transactions-shared";
+import {
+  normalizeCouponCode,
+  validateAndComputeCoupons,
+  redeemCoupons,
+  releaseCoupons,
+  releaseAllCoupons,
+  AppliedCoupon,
+} from "../coupon-shared";
 
 // ═══ Order Placement (transactional) ═════════════════════════════════════
 // Replaces client-side placeOrder. A Firestore transaction re-reads stock and
@@ -37,6 +45,7 @@ export const placeOrder = onCall(
     const deliveryType: "delivery" | "pickup" = data.deliveryType === "pickup" ? "pickup" : "delivery";
     const notes: string = (data.notes || "").toString().slice(0, 2000);
     const rawItems: PlaceOrderItem[] = Array.isArray(data.items) ? data.items : [];
+    const couponCodes: string[] = Array.isArray(data.couponCodes) ? data.couponCodes : [];
 
     if (rawItems.length === 0) {
       throw new HttpsError("invalid-argument", "Cart is empty");
@@ -135,8 +144,13 @@ export const placeOrder = onCall(
       const seqRef = db.collection("settings").doc("orderSequence");
       const {number: orderNumber, nextSeq} = await allocateOrderNumber(tx);
 
+      // ── coupons (read/validate — still the read phase) ──
+      const {appliedCoupons, couponDiscountCents, redemptionPlan} =
+        await validateAndComputeCoupons(tx, couponCodes, subtotalCents, linkedCustomerId);
+
       // ── totals ──
-      const discountCents = 0;
+      const manualDiscountCents = 0; // portal self-checkout has no manual-discount concept
+      const discountCents = manualDiscountCents + couponDiscountCents;
       const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const marginCents = subtotalCents - costTotalCents;
 
@@ -172,6 +186,9 @@ export const placeOrder = onCall(
         items: orderItems,
         subtotalCents,
         discountCents,
+        manualDiscountCents,
+        couponDiscountCents,
+        appliedCoupons,
         taxRatePercent,
         taxCents,
         totalCents,
@@ -196,6 +213,8 @@ export const placeOrder = onCall(
       });
 
       tx.set(seqRef, {sequence: nextSeq}, {merge: true});
+
+      redeemCoupons(tx, redemptionPlan, orderRef.id, now);
 
       for (const li of lineItems) {
         tx.update(db.collection("products").doc(li.productId), {stock: li._newStock});
@@ -305,6 +324,17 @@ export const cancelOrder = onCall(
         nextRetSeq = allocation.nextSeq;
       }
 
+      // Terminal coupon release — order is now dead. Guarded by
+      // couponsReleasedAt so this never double-decrements a usedCount
+      // shared with other customers (see coupon-shared.ts's release docs).
+      // Must run in the read phase (releaseAllCoupons does its own
+      // get-then-write) — before any of cancelOrder's own writes below.
+      const appliedCoupons = order["appliedCoupons"] || [];
+      const shouldReleaseCoupons = appliedCoupons.length > 0 && !order["couponsReleasedAt"];
+      if (shouldReleaseCoupons) {
+        await releaseAllCoupons(tx, appliedCoupons, linkedCustomerId);
+      }
+
       const now = FieldValue.serverTimestamp();
       const actionBy = {
         uid: auth.uid,
@@ -321,6 +351,7 @@ export const cancelOrder = onCall(
         cancelledByPortal: true,
         balanceCents: 0,
         paymentStatus: "unpaid",
+        ...(shouldReleaseCoupons ? {couponsReleasedAt: now} : {}),
       });
 
       const totalOrdered = (cust["totalOrderedCents"] || 0) - (order["totalCents"] || 0);
@@ -496,6 +527,33 @@ export const submitReturn = onCall(
         });
       }
 
+      // isFullReturn: does this return, once approved, account for every
+      // unit on the order? The existing return model has no cumulative
+      // returned-quantity tracking at all (pre-existing gap, unrelated to
+      // coupons) — this is the minimal addition needed to know when a
+      // coupon's redemption slot should free up. Counts pending+approved
+      // prior returns (their eventual approval isn't guaranteed, so this
+      // can go stale if a counted pending return is later rejected via the
+      // admin's direct rejectReturn() write — accepted v1 limitation, same
+      // looseness the rest of the return model already has).
+      const priorReturnsSnap = await tx.get(
+        db.collection("returns").where("orderId", "==", orderId).where("isDeleted", "==", false)
+      );
+      const returnedByProduct = new Map<string, number>();
+      for (const doc of priorReturnsSnap.docs) {
+        const r = doc.data();
+        if (r["status"] === "rejected") continue;
+        for (const it of (r["items"] || [])) {
+          returnedByProduct.set(it.productId, (returnedByProduct.get(it.productId) || 0) + (it.quantity || 0));
+        }
+      }
+      for (const ri of returnItems) {
+        returnedByProduct.set(ri.productId, (returnedByProduct.get(ri.productId) || 0) + ri.quantity);
+      }
+      const isFullReturn = orderItems.every(
+        (oi) => (returnedByProduct.get(oi.productId) || 0) >= (oi.quantity || 0)
+      );
+
       const [allocation, custSnap] = await Promise.all([
         allocateReturnNumber(tx),
         tx.get(db.collection("customers").doc(linkedCustomerId)),
@@ -521,6 +579,7 @@ export const submitReturn = onCall(
         reason: notes || reasonCode,
         items: returnItems,
         amountCents,
+        isFullReturn,
         stockRestored: false,
         tenantId: 1,
         isDeleted: false,
@@ -600,6 +659,20 @@ export const approveReturn = onCall(
         await Promise.all(productRefs.map((r) => tx.get(r))) :
         [];
 
+      // Terminal coupon release, only for a full return (see isFullReturn's
+      // doc comment in submitReturn for what "full" means and its
+      // accepted staleness limitation) — same couponsReleasedAt guard as
+      // cancelOrder/cancelAdminOrder. A partial return never touches
+      // appliedCoupons/couponDiscountCents (see plan: the return model
+      // doesn't recompute subtotal/discount/tax on partial returns either).
+      const orderForCoupons = orderSnap.exists ? orderSnap.data()! : null;
+      const appliedCoupons: AppliedCoupon[] = orderForCoupons?.["appliedCoupons"] || [];
+      const shouldReleaseCoupons = ret["isFullReturn"] === true &&
+        appliedCoupons.length > 0 && !orderForCoupons?.["couponsReleasedAt"];
+      if (shouldReleaseCoupons) {
+        await releaseAllCoupons(tx, appliedCoupons, ret["customerId"]);
+      }
+
       // ── writes (all reads done) ──
       const now = FieldValue.serverTimestamp();
       const returnUpdates: Record<string, unknown> = {
@@ -629,6 +702,7 @@ export const approveReturn = onCall(
           balanceCents: newBalance,
           amountPaidCents: newAmountPaid,
           paymentStatus: newPaymentStatus,
+          ...(shouldReleaseCoupons ? {couponsReleasedAt: now} : {}),
         });
       }
 
@@ -733,7 +807,8 @@ export const createAdminOrder = onCall(
     const data = request.data || {};
     const customerId = (data.customerId || "").toString();
     const rawItems: AdminOrderItemInput[] = Array.isArray(data.items) ? data.items : [];
-    const discountCents = Math.floor(Number(data.discountCents) || 0);
+    const manualDiscountCents = Math.floor(Number(data.discountCents) || 0);
+    const couponCodes: string[] = Array.isArray(data.couponCodes) ? data.couponCodes : [];
     const taxRatePercent = Number(data.taxRatePercent) || 0;
     const deliveryType: "delivery" | "pickup" = data.deliveryType === "pickup" ? "pickup" : "delivery";
     const customerNotes = (data.customerNotes || "").toString().slice(0, 2000) || null;
@@ -781,10 +856,9 @@ export const createAdminOrder = onCall(
       const productRefs = rawItems.map((it) => db.collection("products").doc(it.productId));
       const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
 
-      // ── writes (all reads done) ──
-      const now = FieldValue.serverTimestamp();
-      const orderRef = db.collection("orders").doc();
-
+      // Item/subtotal computation is pure JS (no Firestore calls) — done
+      // here, still within the read phase, so coupon validation below (a
+      // real read) can use the real subtotal before any write happens.
       const items = rawItems.map((it) => {
         const qty = Math.floor(Number(it.quantity) || 0);
         const unitPriceCents = Math.floor(Number(it.unitPriceCents) || 0);
@@ -801,8 +875,17 @@ export const createAdminOrder = onCall(
           currencyCode: "CAD",
         };
       });
-
       const subtotalCents = items.reduce((sum, i) => sum + i.lineTotalCents, 0);
+
+      // ── coupons (read/validate — still the read phase) ──
+      const {appliedCoupons, couponDiscountCents, redemptionPlan} =
+        await validateAndComputeCoupons(tx, couponCodes, subtotalCents, customerId);
+      const discountCents = manualDiscountCents + couponDiscountCents;
+
+      // ── writes (all reads done) ──
+      const now = FieldValue.serverTimestamp();
+      const orderRef = db.collection("orders").doc();
+
       const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const totalCostCents = items.reduce((sum, i) => sum + i.lineCostCents, 0);
 
@@ -819,6 +902,9 @@ export const createAdminOrder = onCall(
         taxRatePercent,
         taxCents,
         discountCents,
+        manualDiscountCents,
+        couponDiscountCents,
+        appliedCoupons,
         totalCents,
         currencyCode: "CAD",
         totalCostCents,
@@ -845,6 +931,8 @@ export const createAdminOrder = onCall(
         totalOwingCents: (cust["totalOwingCents"] || 0) + totalCents,
         lastOrderAt: now,
       });
+
+      redeemCoupons(tx, redemptionPlan, orderRef.id, now);
 
       tx.set(seqRef, {sequence: nextSeq}, {merge: true});
 
@@ -926,7 +1014,10 @@ export const updateAdminOrder = onCall(
     const data = request.data || {};
     const orderId = (data.orderId || "").toString();
     const rawItems: AdminOrderItemInput2[] = Array.isArray(data.items) ? data.items : [];
-    const discountCents = Math.floor(Number(data.discountCents) || 0);
+    const manualDiscountCents = Math.floor(Number(data.discountCents) || 0);
+    // Full desired set of coupon codes for the edited order (same
+    // convention as items — the complete target list, not a delta).
+    const couponCodes: string[] = Array.isArray(data.couponCodes) ? data.couponCodes : [];
     const taxRatePercent = Number(data.taxRatePercent) || 0;
     const deliveryType: "delivery" | "pickup" = data.deliveryType === "pickup" ? "pickup" : "delivery";
     const customerNotes = (data.customerNotes || "").toString().slice(0, 2000) || null;
@@ -964,6 +1055,30 @@ export const updateAdminOrder = onCall(
       const customerRef = db.collection("customers").doc(order["customerId"]);
       const customerSnap = await tx.get(customerRef);
 
+      // ── coupon diff setup ──
+      // Belt-and-suspenders: updateAdminOrder is already gated to
+      // status === 'confirmed' above, and the terminal release paths
+      // (cancelOrder/cancelAdminOrder/approveReturn) always move status
+      // away from 'confirmed' — so this should be unreachable today. Still
+      // block it explicitly: redeeming onto an order that's already been
+      // terminally released would leak a live redemption that no future
+      // cancel/return could ever release again (couponsReleasedAt already
+      // set, so releaseAllCoupons would never be called a second time).
+      const existingAppliedCoupons: AppliedCoupon[] = order["appliedCoupons"] || [];
+      const requestedCodes = [...new Set(couponCodes.map(normalizeCouponCode).filter(Boolean))];
+      const existingCodesSet = new Set(existingAppliedCoupons.map((c) => c.couponId));
+      const codesToAdd = requestedCodes.filter((c) => !existingCodesSet.has(c));
+      const requestedCodesSet = new Set(requestedCodes);
+      const couponsToRemove = existingAppliedCoupons.filter((c) => !requestedCodesSet.has(c.couponId));
+      const unchangedCoupons = existingAppliedCoupons.filter((c) => requestedCodesSet.has(c.couponId));
+
+      if (codesToAdd.length > 0 && order["couponsReleasedAt"]) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This order's coupons have already been released and can't be re-applied"
+        );
+      }
+
       const newItems = rawItems.map((it) => {
         const qty = Math.floor(Number(it.quantity) || 0);
         const unitPriceCents = Math.floor(Number(it.unitPriceCents) || 0);
@@ -990,10 +1105,48 @@ export const updateAdminOrder = onCall(
       const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
       const productSnapByPid = new Map([...allProductIds].map((pid, i) => [pid, productSnaps[i]]));
 
+      const subtotalCents = newItems.reduce((sum, i) => sum + i.lineTotalCents, 0);
+
+      // ── coupons (still the read phase) ──
+      // Unchanged coupons' stackable flag: only needed if we're adding new
+      // codes, to check the FULL resulting set's compatibility (not just
+      // the newly-added codes in isolation).
+      let existingAllStackable = true;
+      if (codesToAdd.length > 0 && unchangedCoupons.length > 0) {
+        const unchangedSnaps = await Promise.all(
+          unchangedCoupons.map((c) => tx.get(db.collection("coupons").doc(c.couponId)))
+        );
+        existingAllStackable = unchangedSnaps.every((s) => s.exists && s.data()?.["stackable"] !== false);
+      }
+
+      const {appliedCoupons: newlyAddedCoupons, redemptionPlan} = await validateAndComputeCoupons(
+        tx, codesToAdd, subtotalCents, order["customerId"],
+        {count: unchangedCoupons.length, allStackable: existingAllStackable}
+      );
+
+      // Removed coupons release now (own get-then-write, still before any
+      // of this function's own writes below) — never touches
+      // couponsReleasedAt, see coupon-shared.ts's releaseCoupons doc.
+      if (couponsToRemove.length > 0) {
+        await releaseCoupons(tx, couponsToRemove, order["customerId"]);
+      }
+
+      // Percentage-type coupons still on the order must be recomputed
+      // against the possibly-changed subtotal on every edit — the
+      // appliedCoupons[] snapshot and the rolled-up couponDiscountCents
+      // must never disagree. Fixed-cents coupons are edit-invariant.
+      const recomputedUnchanged: AppliedCoupon[] = unchangedCoupons.map((c) =>
+        c.type === "percentage" ?
+          {...c, discountCents: Math.round(subtotalCents * (c.value / 100))} :
+          c
+      );
+      const appliedCoupons: AppliedCoupon[] = [...recomputedUnchanged, ...newlyAddedCoupons];
+      const couponDiscountCents = appliedCoupons.reduce((sum, c) => sum + c.discountCents, 0);
+      const discountCents = manualDiscountCents + couponDiscountCents;
+
       // ── writes (all reads done) ──
       const now = FieldValue.serverTimestamp();
 
-      const subtotalCents = newItems.reduce((sum, i) => sum + i.lineTotalCents, 0);
       const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const totalCostCents = newItems.reduce((sum, i) => sum + i.lineCostCents, 0);
       const totalDiff = totalCents - (order["totalCents"] || 0);
@@ -1004,6 +1157,9 @@ export const updateAdminOrder = onCall(
         taxRatePercent,
         taxCents,
         discountCents,
+        manualDiscountCents,
+        couponDiscountCents,
+        appliedCoupons,
         totalCents,
         totalCostCents,
         marginCents: totalCents - totalCostCents,
@@ -1015,6 +1171,8 @@ export const updateAdminOrder = onCall(
         updatedAt: now,
         updatedBy: actionBy,
       });
+
+      redeemCoupons(tx, redemptionPlan, orderId, now);
 
       if (totalDiff !== 0 && customerSnap.exists) {
         const cd = customerSnap.data()!;
@@ -1120,6 +1278,13 @@ export const cancelAdminOrder = onCall(
       const productRefs = items.map((it) => db.collection("products").doc(it["productId"]));
       const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
 
+      // Terminal coupon release — same guard as the portal's cancelOrder.
+      const appliedCoupons: AppliedCoupon[] = order["appliedCoupons"] || [];
+      const shouldReleaseCoupons = appliedCoupons.length > 0 && !order["couponsReleasedAt"];
+      if (shouldReleaseCoupons) {
+        await releaseAllCoupons(tx, appliedCoupons, order["customerId"]);
+      }
+
       // ── writes (all reads done) ──
       const now = FieldValue.serverTimestamp();
 
@@ -1129,6 +1294,7 @@ export const cancelAdminOrder = onCall(
         cancelledBy: actionBy,
         cancellationReason: reason,
         balanceCents: 0,
+        ...(shouldReleaseCoupons ? {couponsReleasedAt: now} : {}),
       });
 
       if (customerSnap.exists) {
@@ -1223,7 +1389,14 @@ export const saveOrderQuantityEdits = onCall(
     const data = request.data || {};
     const orderId = (data.orderId || "").toString();
     const rawItems: OrderQuantityEditInput[] = Array.isArray(data.items) ? data.items : [];
-    const discountCents = Math.floor(Number(data.discountCents) || 0);
+    // order-detail.component.ts's quick-edit DOES have its own manual
+    // discount editor (editDiscountCents/editDiscountType/
+    // editDiscountPercent, fixed-$ or %) — client-supplied here, same
+    // trust boundary as updateAdminOrder's manual discount. An earlier
+    // version of this comment claimed this flow had no discount UI at
+    // all; that was wrong — verified against order-detail.component.ts
+    // directly. Coupons are layered on top server-side, see below.
+    const manualDiscountCents = Math.floor(Number(data.discountCents) || 0);
     if (!orderId) throw new HttpsError("invalid-argument", "orderId is required");
 
     const result = await db.runTransaction(async (tx) => {
@@ -1285,6 +1458,24 @@ export const saveOrderQuantityEdits = onCall(
 
       const subtotalCents = editedItems.reduce((sum, i) => sum + i.lineTotalCents, 0);
       const taxRatePercent = order["taxRatePercent"] || 0;
+
+      // This flow only ever reduces quantities — no lines added/removed —
+      // and has no coupon-editing UI of its own, but its manual discount
+      // editor IS real (see manualDiscountCents above). Coupons are layered
+      // on top, not editable here: any percentage-type coupon still
+      // applied is recomputed against the new (smaller) subtotal so
+      // appliedCoupons[] and the rolled-up couponDiscountCents never
+      // disagree with what's actually charged; fixed-cents coupons are
+      // edit-invariant. No coupons are added/removed/re-validated here.
+      const existingAppliedCoupons: AppliedCoupon[] = order["appliedCoupons"] || [];
+      const appliedCoupons: AppliedCoupon[] = existingAppliedCoupons.map((c) =>
+        c.type === "percentage" ?
+          {...c, discountCents: Math.round(subtotalCents * (c.value / 100))} :
+          c
+      );
+      const couponDiscountCents = appliedCoupons.reduce((sum, c) => sum + c.discountCents, 0);
+      const discountCents = manualDiscountCents + couponDiscountCents;
+
       const {taxCents, totalCents} = computeOrderTotals(subtotalCents, discountCents, taxRatePercent);
       const totalCostCents = editedItems.reduce((sum, i) => sum + i.lineCostCents, 0);
       const balanceCents = Math.max(0, totalCents - (order["amountPaidCents"] || 0));
@@ -1294,6 +1485,9 @@ export const saveOrderQuantityEdits = onCall(
         items: editedItems,
         subtotalCents,
         discountCents,
+        manualDiscountCents,
+        couponDiscountCents,
+        appliedCoupons,
         taxCents,
         totalCents,
         balanceCents,

@@ -1,5 +1,4 @@
-import * as admin from "firebase-admin";
-import {FieldValue} from "firebase-admin/firestore";
+import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {createHash} from "crypto";
 import * as logger from "./logger";
 import {db} from "./core";
@@ -41,6 +40,11 @@ export const RATE_LIMIT_DEFAULTS: Record<string, RateLimitConfig> = {
   passwordResetRequests: {maxPerWindow: 3, windowMinutes: 15},
   contactInquiries: {maxPerWindow: 5, windowMinutes: 60},
   accessRequests: {maxPerWindow: 5, windowMinutes: 60},
+  // Keyed by auth.uid rather than email/IP like the scopes above — this one
+  // gates an authenticated onCall (validateCoupon), not a public-create
+  // collection, so the "identifier" is a stable per-account signal instead
+  // of something an attacker could rotate for free.
+  validateCoupon: {maxPerWindow: 20, windowMinutes: 5},
 };
 
 /**
@@ -100,12 +104,16 @@ export async function isRateLimited(
       const snap = await tx.get(ref);
       const data = snap.data();
       const windowStartMs = data?.windowStart ?
-        (data.windowStart as admin.firestore.Timestamp).toMillis() :
+        (data.windowStart as Timestamp).toMillis() :
         0;
       const now = Date.now();
-      const expiresAt = admin.firestore.Timestamp.fromMillis(
-        now + 48 * 60 * 60 * 1000
-      );
+      // Modular Timestamp.fromMillis (not admin.firestore.Timestamp) — the
+      // old namespace-style static access crashes inside the Functions
+      // Emulator when combined with a named-database db.settings() call,
+      // same root cause documented on placeOrder's FieldValue usage (see
+      // place-order.spec.ts). Never actually exercised through a real
+      // onCall path in the emulator before validateCoupon's rate limit.
+      const expiresAt = Timestamp.fromMillis(now + 48 * 60 * 60 * 1000);
 
       if (!data || now - windowStartMs > windowMs) {
         tx.set(ref, {

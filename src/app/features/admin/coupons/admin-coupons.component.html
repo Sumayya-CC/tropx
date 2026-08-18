@@ -1,0 +1,91 @@
+<app-page-header
+  title="Coupons"
+  subtitle="Discount codes customers and staff can apply at checkout"
+  buttonLabel="Add Coupon"
+  (buttonClick)="router.navigate(['/admin/coupons/add'])"
+></app-page-header>
+
+<div class="filter-bar">
+  <div class="search-box">
+    <input
+      type="text"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQuery.set($event)"
+      placeholder="Search by code or description..."
+    />
+  </div>
+
+  <div class="filters">
+    <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+      <option value="all">All Statuses</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </div>
+</div>
+
+<div class="table-container">
+  @if (isLoading()) {
+    <div class="loading-state">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (filteredCoupons().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">🏷️</div>
+      <h3>No coupons found</h3>
+      <p>
+        @if (searchQuery() || statusFilter() !== 'all') {
+          Try adjusting your filters or search query.
+        } @else {
+          Create your first coupon code.
+        }
+      </p>
+    </div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Discount</th>
+          <th>Usage</th>
+          <th>Per-customer limit</th>
+          <th>Validity</th>
+          <th>Stackable</th>
+          <th>Status</th>
+          <th class="actions-col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (coupon of filteredCoupons(); track coupon.id) {
+          <tr [class.inactive-row]="!coupon.active">
+            <td>
+              <div class="main-text">{{ coupon.code }}</div>
+              @if (coupon.description) {
+                <div class="sub-text">{{ coupon.description }}</div>
+              }
+            </td>
+            <td>{{ valueLabel(coupon) }}</td>
+            <td>{{ usageLabel(coupon) }}</td>
+            <td>{{ coupon.maxUsesPerCustomer ?? '—' }}</td>
+            <td>{{ validityLabel(coupon) }}</td>
+            <td>{{ coupon.stackable ? 'Yes' : 'No' }}</td>
+            <td>
+              <label class="compact-toggle" *appHasPermission="'manageCoupons'">
+                <input type="checkbox" [ngModel]="coupon.active" (ngModelChange)="toggleActive(coupon)">
+                <span class="slider"></span>
+              </label>
+              @if (!coupon.active) {
+                <span class="status-text">Inactive</span>
+              }
+            </td>
+            <td class="actions-col">
+              <button class="btn btn-sm btn-outline" [routerLink]="['/admin/coupons', coupon.id, 'edit']">Edit</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

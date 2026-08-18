@@ -355,6 +355,9 @@ erDiagram
     ORDER ||--o{ PAYMENT : "paid down by"
     ORDER ||--o{ RETURN : "returned against"
     ORDER }o--o{ PRODUCT : "line items (embedded array, not FK rows)"
+    ORDER }o--o{ COUPON : "appliedCoupons (embedded snapshot, not FK rows)"
+    COUPON ||--o{ REDEMPTION : "usage tracked per customer"
+    CUSTOMER ||--o{ REDEMPTION : "redeems"
     PRODUCT ||--o{ STOCK_ADJUSTMENT : "stock changes logged in"
     SHOP ||--o{ VISIT : "visited via (keyed on shopId, never customerId)"
     USER ||--o| CUSTOMER : "linkedCustomerId (customer role only)"
@@ -392,6 +395,8 @@ erDiagram
         int totalCents
         int amountPaidCents
         int balanceCents "authoritative"
+        int couponDiscountCents
+        array appliedCoupons "embedded snapshot"
         array items "embedded line items"
     }
     PAYMENT {
@@ -422,6 +427,19 @@ erDiagram
         int previousStock
         int newStock
         string linkedOrderId
+    }
+    COUPON {
+        string id "normalized code (trim+uppercase) IS the doc id"
+        string type "percentage/fixed"
+        int value
+        bool active
+        int usedCount "cache, recomputed from redemptions"
+        bool stackable
+    }
+    REDEMPTION {
+        string customerId "doc id, subcollection of coupons/code"
+        int count
+        string lastOrderId
     }
     VISIT {
         string id
@@ -489,10 +507,14 @@ erDiagram
 ```
 
 > Firestore is a document database — `items[]` on `Order`/`PurchaseOrder`/
-> `PurchaseReceive`/`Visit` and `pipelineHistory[]` on `Shop` are **embedded
-> arrays inside the parent document**, not normalized rows in a separate
-> table. The ER notation above represents them as relationships purely for
-> conceptual clarity; there is no `order_items` collection.
+> `PurchaseReceive`/`Visit`, `pipelineHistory[]` on `Shop`, and
+> `appliedCoupons[]` on `Order` are **embedded arrays inside the parent
+> document**, not normalized rows in a separate table. The ER notation
+> above represents them as relationships purely for conceptual clarity;
+> there is no `order_items` collection. `coupons/{code}/redemptions/{customerId}`
+> **is** a real subcollection, unlike those embedded arrays — bounded by
+> real customer count, not by order count, which is why it's modeled as a
+> subcollection rather than an array on the coupon doc.
 
 ### 7.3 Source of truth vs. cache
 
@@ -504,6 +526,7 @@ erDiagram
 | `shop.hasCustomer` / `customer.hasShop` | the reciprocal `linkedCustomerId`/`linkedShopId` field | `ShopLinkService` writes + `nightlyLinkReconcile`/`weeklyLinkReconcile` |
 | `settings/storefront.popularProducts` | distinct-buyer counts over a configurable window | `computePopularProductsScheduled`/`computePopularProductsNow` |
 | `product.stock` | **is itself** the source of truth for ATP (see §8.6) | n/a — decremented transactionally at order confirmation |
+| `coupon.usedCount` | sum of `coupons/{code}/redemptions/*.count` | `recomputeCouponUsage` — on-demand only, no scheduled twin (see §8.9) |
 
 ### 7.4 Indexing reality vs. stated ambition
 
@@ -516,6 +539,10 @@ between the target convention and today's implementation depth, not a
 pattern to copy forward. New large lists should follow the indexed/
 paginated approach from the start; closing the gap on existing lists is
 separate, already-identified roadmap work (§14).
+
+A composite index was also added on `returns` (`orderId ASC, isDeleted
+ASC`) for the `isFullReturn` detection query — a targeted query index for
+a specific lookup, not an instance of the browsable-list convention above.
 
 ---
 
@@ -583,16 +610,18 @@ sequenceDiagram
     participant F as placeOrder (onCall, northeast2)
     participant DB as Firestore (transaction)
 
-    C->>F: items[], deliveryType, notes (ID token w/ role=customer, linkedCustomerId)
+    C->>F: items[], deliveryType, notes, couponCodes[] (ID token w/ role=customer, linkedCustomerId)
     F->>F: verify role=customer AND linkedCustomerId present
-    F->>DB: tx.get(customer, settings/ordering, settings/orderSequence, each product)
+    F->>DB: tx.get(customer, settings/ordering, settings/orderSequence, each product,\neach coupons/{code} + redemptions/{customerId})
     Note over F: all reads before any write — Firestore transaction rule
     F->>F: compute totals; re-check stock (oversell guard);\napply per-product/global outOfStockBehavior
-    F->>DB: tx.set(orders/{new}) status=confirmed, source=customer_portal
+    F->>F: validateAndComputeCoupons — active/dates/min-order/usage-limit/stacking,\nwhole code set accepted or rejected together
+    F->>DB: tx.set(orders/{new}) status=confirmed, source=customer_portal,\nappliedCoupons[], manualDiscountCents+couponDiscountCents
     F->>DB: tx.update(customers/{id}) totals +=, lastOrderAt
     F->>DB: tx.set(settings/orderSequence) increment TRX-YYYY-NNNN
     F->>DB: tx.update(products/{id}) stock = max(0, stock - qty) per line
     F->>DB: tx.set(stockAdjustments/{new}) type=sold per line
+    F->>DB: redeemCoupons — tx.update(coupons/{code}.usedCount), tx.set(redemptions/{customerId}) per applied coupon
     DB-->>F: commit — all or nothing
     F-->>C: {orderId, orderNumber, hasBackorder, totalBackorderedUnits}
     DB-->>DB: onOrderWriteReconcile fires (real-time reconciliation)
@@ -602,7 +631,20 @@ Admin-created orders follow an equivalent shape (order + stock + counters
 in one write) but through a client-side `FirestoreService.runBatch()`
 rather than a callable — staff writes are already trusted by
 `firestore.rules`, so the extra transactional indirection is unnecessary
-for that path.
+for that path. `createAdminOrder`/`updateAdminOrder`/`saveOrderQuantityEdits`
+carry the same coupon validate/redeem/release logic as `placeOrder` (all
+four call the shared `functions/src/coupon-shared.ts`), and
+`cancelOrder`/`cancelAdminOrder`/`approveReturn` (on a full return only)
+release a redeemed coupon's slot back.
+
+**Tax is always computed on the coupon-discounted subtotal.**
+`tax = (subtotal − discount) × rate`, where `discount = manualDiscountCents
++ couponDiscountCents` — never the gross subtotal with a coupon subtracted
+after tax, since this is CRA-facing math. The formula lives once in
+`computeOrderTotals` (`staff-transactions-shared.ts`) server-side, and is
+mirrored client-side in the portal cart and admin order-form previews so
+the pre-commit preview matches what `placeOrder`/`createAdminOrder`
+actually charge.
 
 ### 8.3 Shop Lifecycle (prospect → customer)
 
@@ -829,6 +871,14 @@ flowchart LR
     InvReqW --> InvFn --> CustomerEmail
 ```
 
+Coupons don't appear in this map: `validateCoupon` and `recomputeCouponUsage`
+are `onCall` functions, not Firestore triggers, so nothing above writes to
+`coupons`/`redemptions` from a document event. `orders`/`returns` writes do
+carry coupon side effects (`appliedCoupons[]`, `usedCount`, `redemptions`),
+but those happen inside the same transaction as the order/return write
+itself (`functions/src/coupon-shared.ts`, called from `domains/orders.ts`),
+not as a separate downstream trigger — see §8.2.
+
 ### 8.9 Scheduled Jobs
 
 ```mermaid
@@ -849,14 +899,18 @@ sequenceDiagram
     Weekly->>DB: weeklyLinkReconcile — full pass, flags ambiguous conflicts
 
     OnDemand->>DB: refreshShopHealthNow / refreshPipelineStuckNow /\nreconcileShopLinksNow / computePopularProductsNow\n(ignore the enable-toggle scheduled sweeps honor)
+    OnDemand->>DB: recomputeCouponUsage — staff-only, single coupon,\nNO scheduled twin (deliberate exception to every row above)
 ```
 
 Every sweep and its on-demand twin call the **same underlying recompute
-function** — this is what makes re-running a sweep safe (idempotent) and
-is verified, per project testing philosophy, by running a sweep twice and
-asserting no second-pass change (**testing philosophy documented in
-CLAUDE.md — actual automated test coverage for this is `NOT VERIFIED FROM
-CODE`; see §10.7**).
+function** — this is what makes re-running a sweep safe (idempotent),
+verified by running each recompute function twice and asserting no
+second-pass change (`functions/src/*.spec.ts`, per the testing philosophy
+documented in CLAUDE.md; see §14's "Automated test coverage" row —
+**Built**, not aspirational). `recomputeCouponUsage` is the one function
+in this section with no sweep/on-demand pair to begin with (it's
+on-demand-only by design), so its idempotency is tested standalone: run
+twice, assert `usedCount` unchanged on the second pass.
 
 ### 8.10 Customer Portal Request Flow
 
@@ -956,7 +1010,7 @@ flowchart TD
   | Role | Firestore access | Notes |
   |---|---|---|
   | `admin` | Full access, plus `reconciliationLog` and `employeeInvitations` (admin-only, narrower than general staff) | |
-  | `manager` / `sales_rep` / `warehouse` | Full read/write on orders, payments, returns, customers, stockAdjustments, shops, visits, purchasing, expenses/bills | Collectively "staff" |
+  | `manager` / `sales_rep` / `warehouse` | Full read/write on orders, payments, returns, customers, stockAdjustments, shops, visits, purchasing, expenses/bills, coupons/redemptions | Collectively "staff"; the `manageCoupons` UI permission (admin route guard) is narrower — `admin` and `manager` only, not `sales_rep`/`warehouse` |
   | `customer` | Read/create own `orders`/`returns`, read own `payments`, own `portalCarts` doc; `update` own `customers` record through a narrow field allowlist (business name, owner name, phone, address, logo) | Scoped by `linkedCustomerId` claim, not UID; money/status/link fields on the customer doc stay staff-only even for the owning customer |
   | unauthenticated | `create`-only: `accessRequests`, `contactInquiries`, `bannerClicks`; public read: `products`, `categories`, `brands`, `serviceAreas`, storefront-facing `settings` docs | `passwordResetRequests` denies public `create` — reached only via the IP-rate-limited `requestPasswordReset` onCall (§8.7, §9.2 diagram) |
 
@@ -1332,6 +1386,35 @@ all 9 phases, confirmed via live `firebase deploy` output each time. The
 snapshot test is now permanent regression coverage for any future
 reorganization of this codebase.
 
+#### ADR-017: `coupons/{code}` doc ID is the normalized code itself
+**Context:** Coupon codes must be unique and looked up by the code the
+customer types, not by an opaque ID. **Decision:** Normalize (trim +
+uppercase) and use the result directly as the Firestore document ID —
+free uniqueness, O(1) lookup, no secondary index or query.
+**Consequences:** A code can never be renamed without losing its
+redemption history (`coupons/{code}/redemptions` is keyed under the same
+code); the accepted workaround is deactivating a code and creating a new
+one. **Rejected alternative:** A generated document ID with a separate
+unique-code lookup collection or query.
+
+#### ADR-018: Coupon release split into two functions, not one
+**Context:** A coupon's redemption slot must be given back both when a
+coupon is removed mid-edit on a still-live order (`updateAdminOrder`) and
+when an order is permanently done (cancelled, or fully returned).
+**Decision:** `releaseCoupons` (incremental — does not touch
+`order.couponsReleasedAt`, since the order can still have coupons re-added
+later) and `releaseAllCoupons` (terminal — guarded by and sets
+`couponsReleasedAt`, called at most once per order) are two distinct
+functions in `functions/src/coupon-shared.ts`, sharing only their
+read-then-decrement planning logic. **Consequences:** Every terminal
+caller (`cancelOrder`, `cancelAdminOrder`, a full-return `approveReturn`)
+must check `!order.couponsReleasedAt` before calling the terminal
+function. **Rejected alternative:** One release function reused for both
+cases — rejected because it either lets the terminal flag block a coupon
+re-added after a routine edit, or lets an incremental release accidentally
+mark the order as fully released, silently skipping a later terminal
+release.
+
 ---
 
 ## 14. Roadmap & Deliberate Trade-offs
@@ -1401,7 +1484,7 @@ The full per-function contract (trigger type, document/schedule, region, secrets
 | Role | Representative permissions |
 |---|---|
 | `admin` | `*` (all) |
-| `manager` | products, orders, payments, customers, stock adjust, dashboard, reports, approve access, view contact inquiries, manage shops |
+| `manager` | products, orders, payments, customers, stock adjust, dashboard, reports, approve access, view contact inquiries, manage shops, manage coupons |
 | `sales_rep` | view products, manage orders, record payments, view/add customers, manage shops |
 | `warehouse` | view products, manage orders, adjust stock, view customers |
 | `customer` | own profile/orders/cart/payments/totals, browse products |
@@ -1410,7 +1493,7 @@ The full per-function contract (trigger type, document/schedule, region, secrets
 
 | Subsystem | Collections |
 |---|---|
-| Commerce | `customers`, `orders`, `payments`, `returns`, `products`, `stockAdjustments` |
+| Commerce | `customers`, `orders`, `payments`, `returns`, `products`, `stockAdjustments`, `coupons` (+ `redemptions` subcollection) |
 | Field operations | `shops`, `visits`, `routeTemplates` |
 | Purchasing / money-out | `suppliers`, `purchaseOrders`, `purchaseReceives`, `bills`, `billPayments`, `expenses`, `warehouses` |
 | Identity / access | `users`, `accessRequests`, `accessRequestApprovals`, `employeeInvitations`, `authActions`, `adminPasswordResets`, `passwordResetRequests` |

@@ -187,6 +187,41 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("coupons/{code} and its redemptions subcollection: staff-only (no public read, unlike products)", () => {
+    it.each(STAFF_ROLES)("%s can read and write a coupon", async (role) => {
+      await seed("coupons", "SAVE10", {code: "SAVE10", active: true});
+      const db = staffCtx(role).firestore();
+      await assertSucceeds(getDoc(doc(db, "coupons", "SAVE10")));
+      await assertSucceeds(updateDoc(doc(db, "coupons", "SAVE10"), {active: false}));
+    });
+
+    it("customer cannot read or write a coupon directly", async () => {
+      await seed("coupons", "SAVE10", {code: "SAVE10", active: true});
+      const db = customerCtx("cust-1").firestore();
+      await assertFails(getDoc(doc(db, "coupons", "SAVE10")));
+      await assertFails(setDoc(doc(db, "coupons", "SAVE10"), {active: false}));
+    });
+
+    it("unauthenticated cannot read or write a coupon", async () => {
+      await seed("coupons", "SAVE10", {code: "SAVE10", active: true});
+      const db = anon().firestore();
+      await assertFails(getDoc(doc(db, "coupons", "SAVE10")));
+      await assertFails(setDoc(doc(db, "coupons", "SAVE10"), {active: false}));
+    });
+
+    it("staff can read/write a redemption doc; customer cannot", async () => {
+      await seed("coupons", "SAVE10", {code: "SAVE10", active: true});
+      await seed("coupons/SAVE10/redemptions", "cust-1", {count: 1});
+
+      await assertSucceeds(getDoc(doc(staffCtx("admin").firestore(), "coupons/SAVE10/redemptions", "cust-1")));
+      await assertFails(getDoc(doc(customerCtx("cust-1").firestore(), "coupons/SAVE10/redemptions", "cust-1")));
+      await assertFails(setDoc(
+        doc(customerCtx("cust-1").firestore(), "coupons/SAVE10/redemptions", "cust-1"),
+        {count: 99}
+      ));
+    });
+  });
+
   describe("rateLimitCounters: staff read-only, no client write ever", () => {
     it("staff can read but not write", async () => {
       await seed("rateLimitCounters", "c1", {scope: "x", count: 1});

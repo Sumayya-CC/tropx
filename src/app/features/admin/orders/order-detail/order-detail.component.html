@@ -253,6 +253,12 @@
                       <span>-{{ formatCurrency(editTotals()!.discountCents) }}</span>
                     </div>
                   }
+                  @if (editTotals()!.couponDiscountCents > 0) {
+                    <div class="totals-row discount">
+                      <span>Coupon{{ (order()?.appliedCoupons?.length || 0) > 1 ? 's' : '' }}</span>
+                      <span>-{{ formatCurrency(editTotals()!.couponDiscountCents) }}</span>
+                    </div>
+                  }
                   <div class="totals-row">
                     <span>HST ({{ order()?.taxRatePercent }}%)</span>
                     <span>{{ formatCurrency(editTotals()!.taxCents) }}</span>

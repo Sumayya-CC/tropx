@@ -181,6 +181,26 @@
               >
             </div>
           </div>
+          <div class="summary-row coupon-row">
+            <span>Coupon codes</span>
+            <div class="coupon-input-wrapper">
+              <input
+                type="text"
+                [value]="couponCodesInput()"
+                (input)="onCouponCodesInput($event)"
+                placeholder="e.g. SAVE10, FALLPROMO"
+              >
+              <button type="button" class="btn-outline-sm" (click)="applyCoupons()" [disabled]="isValidatingCoupons()">
+                {{ isValidatingCoupons() ? 'Checking...' : 'Apply' }}
+              </button>
+            </div>
+          </div>
+          @if (couponPreview(); as preview) {
+            <div class="summary-row coupon-status" [class.invalid]="!preview.valid">
+              <span></span>
+              <span>{{ preview.valid ? ('−' + formatCurrency(couponDiscountCents())) : preview.message }}</span>
+            </div>
+          }
           <div class="summary-row">
             <span>Tax Rate</span>
             <div class="input-wrapper">

@@ -109,16 +109,18 @@ sequenceDiagram
     participant F as placeOrder (onCall, northeast2)
     participant DB as Firestore (transaction)
 
-    C->>F: items[], deliveryType, notes (customer's ID token, custom claims)
+    C->>F: items[], deliveryType, notes, couponCodes[] (customer's ID token, custom claims)
     F->>F: verify role=customer + linkedCustomerId claim present
-    F->>DB: tx.get(customer, settings/ordering, settings/orderSequence, each product)
+    F->>DB: tx.get(customer, settings/ordering, settings/orderSequence, each product, each coupons/{code} + its redemptions/{customerId})
     Note over F: all reads happen before any write (Firestore transaction rule)
     F->>F: compute line totals, re-check stock (oversell guard), apply outOfStockBehavior
-    F->>DB: tx.set(orders/{new}) — status=confirmed, source=customer_portal
+    F->>F: validateAndComputeCoupons — active/dates/min-order/usage-limit/stacking checks, whole code set accepted or rejected together
+    F->>DB: tx.set(orders/{new}) — status=confirmed, source=customer_portal, appliedCoupons[], manualDiscountCents+couponDiscountCents
     F->>DB: tx.update(customers/{id}) — totalOrderedCents +=, totalOwingCents +=, lastOrderAt
     F->>DB: tx.set(settings/orderSequence) — increment TRX-YYYY-NNNN
     F->>DB: tx.update(products/{id}) — stock = max(0, stock - qty), per line item
     F->>DB: tx.set(stockAdjustments/{new}) — type=sold, per line item
+    F->>DB: redeemCoupons — tx.update(coupons/{code}.usedCount), tx.set(redemptions/{customerId}), per applied coupon
     DB-->>F: commit (all-or-nothing)
     F-->>C: {orderId, orderNumber, hasBackorder, totalBackorderedUnits}
     DB-->>F: onOrderWriteReconcile trigger fires (real-time reconciliation)
@@ -130,6 +132,17 @@ for backorder-eligible items — the shortfall is recorded explicitly as
 follow the same shape (order + stock + counters in one atomic write) but
 through client-side `runBatch()` rather than a callable, since staff writes
 are already trusted by the rules.
+
+**Coupons ride inside the same transaction, not alongside it.** Tax is
+computed on the coupon-discounted subtotal
+(`tax = (subtotal − discount) × rate`, where `discount = manualDiscountCents
++ couponDiscountCents`) — never on the gross subtotal with a coupon
+subtracted after tax, since that's CRA-facing math. `placeOrder`,
+`createAdminOrder`, `updateAdminOrder`, and `saveOrderQuantityEdits` all
+call the same `validateAndComputeCoupons`/`redeemCoupons` pair from
+`functions/src/coupon-shared.ts`, and `cancelOrder`/`cancelAdminOrder`/
+`approveReturn` (on a full return) call `releaseAllCoupons` to give the
+redemption slot back — see [§6.2](#62-transactional-writes).
 
 ### 2.4 Data flow — shop ↔ customer link
 
@@ -183,11 +196,12 @@ ever looks wrong.
 | Collection | Key fields | Source of truth vs cache |
 |---|---|---|
 | `customers` | `businessName`, `status`, `linkedShopId`, `hasShop`, `searchName`, `totalOrderedCents`/`totalPaidCents`/`totalOwingCents`, `creditBalanceCents`, `countersDirtyAt`/`countersReconciledAt`, `reconciliationDismissedValue` | The three `total*Cents` fields are a **cache** recomputed from `orders`/`payments` by `recomputeCustomerCounters()` — never treat them as authoritative |
-| `orders` | `orderNumber` (`TRX-YYYY-NNNN`), `status`, `source` (`admin_created`\|`customer_portal`), `items[]` (price/cost snapshot per line), `totalCents`/`amountPaidCents`/`balanceCents`, `paymentStatus`, full status-timeline fields (`confirmedAt/By`, `preparingAt/By`, `outForDeliveryAt/By`, `deliveredAt/By`, `cancelledAt/By`) | **Source of truth** for customer totals |
+| `orders` | `orderNumber` (`TRX-YYYY-NNNN`), `status`, `source` (`admin_created`\|`customer_portal`), `items[]` (price/cost snapshot per line), `totalCents`/`amountPaidCents`/`balanceCents`, `paymentStatus`, `manualDiscountCents`/`couponDiscountCents` (`discountCents` is their sum, `??`-backward-compatible), `appliedCoupons[]` (audit snapshot), `couponsReleasedAt` (terminal-release idempotency marker), full status-timeline fields (`confirmedAt/By`, `preparingAt/By`, `outForDeliveryAt/By`, `deliveredAt/By`, `cancelledAt/By`) | **Source of truth** for customer totals |
 | `payments` | `paymentNumber` (`PAY-YYYY-NNNN`), `orderId`/`orderNumber` snapshot, `amountCents`, `method`, `externalPaymentId`/`externalPaymentProvider`/`externalEventId` (vendor-neutral, unpopulated until a processor is integrated) | **Source of truth** for amounts paid |
-| `returns` | `returnNumber` (`RET-YYYY-NNNN`), `type` (`credit_note`\|`refund`), `status` (`pending`\|`approved`\|`rejected`), `stockRestored` | No financial impact until `approved` |
+| `returns` | `returnNumber` (`RET-YYYY-NNNN`), `type` (`credit_note`\|`refund`), `status` (`pending`\|`approved`\|`rejected`), `stockRestored`, `isFullReturn` (sums prior + this return's quantities against order items — new, minimal tracking; a pending return later rejected via a direct client write can leave it stale) | No financial impact until `approved`; `isFullReturn` gates the terminal coupon release on `approveReturn` |
 | `products` | `sku` (transaction-checked unique), `stock`, `lowStockThreshold`, `outOfStockBehaviorOverride`, `isFeaturedNew` | `stock` is authoritative and already net of committed open orders — see [§5.6](#56-atp-is-not-a-subtraction-its-already-net) |
 | `stockAdjustments` | `type` (`received`\|`sold`\|`damaged`\|`returned`\|`correction`\|`transfer`\|`sample`\|`sample_reversal`), `previousStock`/`newStock`, `linkedOrderId` | Audit trail — always records the **full** requested amount even when the product's `stock` clamps at zero |
+| `coupons` | `code` (normalized trim+uppercase — **is** the doc ID), `type` (`percentage`\|`fixed`), `value`, `active`, `startsAt`/`expiresAt`, `minOrderSubtotalCents`, `maxUsesTotal`, `maxUsesPerCustomer`, `usedCount`, `stackable`; subcollection `coupons/{code}/redemptions/{customerId}` (`count`, `lastOrderId`, `lastRedeemedAt`) | `usedCount` is a **cache**, recomputed from the sum of `redemptions` by `recomputeCouponUsage` (on-demand only, no scheduled twin) |
 
 `order.status` progresses `confirmed → preparing → out_for_delivery →
 delivered`, with `cancelled` reachable from any non-terminal state.
@@ -253,6 +267,11 @@ single-field query rather than using a composite index — accumulated debt,
 not the intended pattern. Treat the indexed/paginated approach as required
 for any *new* large list; closing the gap on existing ones is separate,
 tracked work (see [§9](#9-known-gaps-and-deferred-work)).
+
+A composite index on `returns` (`orderId ASC, isDeleted ASC`) was added for
+the `isFullReturn` detection query in `submitReturn`/`approveReturn` — a
+targeted query index, not an instance of the `searchName`/pagination
+convention above (returns aren't a browsable list here).
 
 ---
 
@@ -399,6 +418,25 @@ only one tenant today (`CURRENT_TENANT` in
 an existing single-tenant dataset later is a migration; scoping from day
 one is free.
 
+### 5.10 Coupon release is two functions on purpose, never one
+
+`functions/src/coupon-shared.ts` exports `releaseCoupons` (incremental,
+called when `updateAdminOrder` removes a coupon mid-edit — does **not**
+touch `order.couponsReleasedAt`, because the order is still alive and a
+removed code can be re-added in a later edit) and `releaseAllCoupons`
+(terminal, called once by `cancelOrder`/`cancelAdminOrder` or a full-return
+`approveReturn`, guarded by and setting `couponsReleasedAt`). **Why:**
+collapsing them into one function means either the terminal flag gets
+reused for a routine edit (permanently blocking that coupon's redemption
+slot from ever coming back) or an incremental release starts setting the
+terminal flag (silently blocking a later cancel/full-return from ever
+releasing the coupon at all, since the guard would already read as
+"released"). Both functions share a common read-then-decrement plan
+(`planCouponDecrements`) so a multi-coupon release still reads every
+coupon/redemption doc before writing any of them, honoring Firestore's
+transaction ordering rule the same way `validateAndComputeCoupons` does on
+the redemption side.
+
 ---
 
 ## 6. Cloud Functions
@@ -416,24 +454,29 @@ in `functions/src/domains/*.ts`:
 | `domains/notifications.ts` | Business-event email triggers (orders/returns/access-requests/stock/abandoned-cart/portal-confirmation/payment-receipt) |
 | `domains/purchasing.ts` | `onPoRequest`, `receivePurchaseOrder` |
 | `domains/popular-products.ts` | `computePopularProducts` + its scheduled/on-demand pair |
-| `domains/orders.ts` | The transactional `onCall` order/return group: `placeOrder`, `cancelOrder`, `submitReturn`, `approveReturn`, `createAdminOrder`, `updateAdminOrder`, `cancelAdminOrder`, `saveOrderQuantityEdits` |
+| `domains/orders.ts` | The transactional `onCall` order/return group: `placeOrder`, `cancelOrder`, `submitReturn`, `approveReturn`, `createAdminOrder`, `updateAdminOrder`, `cancelAdminOrder`, `saveOrderQuantityEdits` — every one of these now also validates/redeems/releases coupons via `coupon-shared.ts` |
 | `domains/field-ops-transactions.ts` | `saveVisit`, `deleteVisit`, `saveStockAdjustment`, `saveStockAdjustments` |
+| `domains/coupons.ts` | `validateCoupon` (advisory, read-only preview for cart UIs), `recomputeCouponUsage` (staff-only, on-demand drift-safety sweep for `usedCount`) — coupon CRUD itself is a plain staff Firestore write, no Cloud Function needed |
 
 Shared infra lives at the top level, not under `domains/`: `core.ts`
 (bootstrap — `admin.initializeApp()`, `db`, `DATABASE_ID`/`PROJECT_ID`, the
 three `defineSecret()` bindings, `STAFF_ROLES`, `getAdminEmail`,
 `isNotificationEnabled`), `rate-limit.ts` (`isRateLimited`), `email-templates.ts`
-(the 12 pure `*EmailHtml()` generators), and `staff-transactions-shared.ts`
+(the 12 pure `*EmailHtml()` generators), `staff-transactions-shared.ts`
 (`buildStaffActionBy`, `allocateOrderNumber`/`allocateReturnNumber`,
 `computeOrderTotals` — extracted from real duplication found across 10
 call sites in the transactional `onCall` group; see that file's doc
-comments for the two formula divergences resolved during extraction).
+comments for the two formula divergences resolved during extraction), and
+`coupon-shared.ts` (`validateAndComputeCoupons`, `redeemCoupons`,
+`releaseCoupons`, `releaseAllCoupons` — see [§5.10](#510-coupon-release-is-two-functions-on-purpose-never-one)
+for why release is split in two).
 
 **Import direction is one-way and enforced by convention, not tooling:**
 `core.ts` imports nothing local; `rate-limit.ts`/`email-templates.ts`/
-`staff-transactions-shared.ts` import only `core.ts`; `domains/*.ts` import
-from the shared files but never from each other. A cycle here would fail
-silently at cold start, not at `tsc` — check new files by eye.
+`staff-transactions-shared.ts`/`coupon-shared.ts` import only `core.ts`;
+`domains/*.ts` import from the shared files but never from each other. A
+cycle here would fail silently at cold start, not at `tsc` — check new
+files by eye.
 
 **Why the split preserves every function's deployed identity:** Firebase
 identifies a function by its export name, trigger type, region, and
@@ -475,12 +518,14 @@ northeast2**. Mixing these up is a recurring mistake (see [§8](#8-operational-c
 | `nightlyPipelineStuckStamp` | schedule | northeast1 | Stamps `pipelineStuck`/`daysInStage` |
 | `refreshPipelineStuckNow` | `onCall` | northeast2 | Immediate recompute |
 | `computePopularProductsScheduled` / `computePopularProductsNow` | schedule / onCall | northeast1 | Ranks products by % of active buyers in a configurable window |
+| `recomputeCouponUsage` | `onCall`, staff-only | northeast2 | On-demand drift-safety recompute of `coupon.usedCount` from the sum of its `redemptions` — **no scheduled twin**, unlike every other row in this table |
 
 ### 6.2 Transactional writes
 
 | Function | Trigger | Region | Job |
 |---|---|---|---|
 | `placeOrder` | `onCall` | northeast2 | Server-side transactional order placement for the portal (see [§2.3](#23-data-flow--placing-a-portal-order)) |
+| `validateCoupon` | `onCall`, per-uid rate-limited | northeast2 | Read-only coupon validate/price preview for cart UIs (portal cart, admin order form/detail) — never redeems; enforcement + redemption happen at order commit |
 | `onCustomerDeleted` | `customers/{customerId}` update | northeast2 | Disables the Firebase Auth user + marks `users` doc deleted on soft-delete |
 | `onAuthAction` | `authActions/{id}` create | northeast2 | Enables/disables a Firebase Auth account; resolves uid by email (not `linkedUserId`, which isn't reliably populated); re-stamps role claim on re-enable |
 | `onAccessRequestApproved` | `accessRequestApprovals/{id}` create | northeast2 | Creates the customer's Auth user + `users` doc + sets custom claims |
@@ -585,7 +630,7 @@ client-side (`getIdToken(user, true)`) after they change.
 | Role | Access pattern |
 |---|---|
 | `admin` | Full access, including `reconciliationLog` and `employeeInvitations` (admin-only, not general staff) |
-| `manager`, `sales_rep`, `warehouse` (collectively "staff") | Full read/write on operational collections (`orders`, `payments`, `returns`, `customers`, `stockAdjustments`, `shops`, `visits`, purchasing, expenses/bills) |
+| `manager`, `sales_rep`, `warehouse` (collectively "staff") | Full read/write on operational collections (`orders`, `payments`, `returns`, `customers`, `stockAdjustments`, `shops`, `visits`, purchasing, expenses/bills). `coupons`/`redemptions` are staff-only too, but the `manageCoupons` UI permission (admin route guard) is granted only to `admin` and `manager`, not `sales_rep`/`warehouse` |
 | `customer` | Read/create **own** `orders`/`returns` and read own `payments`, scoped by `token.linkedCustomerId == resource.data.customerId` — not by matching Firestore doc IDs to the Auth UID |
 | unauthenticated | `create`-only on `accessRequests`, `contactInquiries`, `bannerClicks`; can invoke `requestPasswordReset` (onCall, IP-rate-limited — see §6.5) but cannot write `passwordResetRequests` directly; public `read` on `products`, `categories`, `brands`, `serviceAreas`, and the storefront-facing `settings` docs (`storefront`, `ordering`, `business`, `content`) |
 
@@ -609,6 +654,15 @@ Notable rule details worth knowing before touching `firestore.rules`:
   the single strictest rule anywhere else in the file.**
 - **`shops`/`visits` are staff-only** — no customer role has any access;
   field-ops data never reaches the portal.
+- **`coupons`/`redemptions` are staff-only read/write**, unlike `products`/
+  `categories`, which are public-read. A customer never reads a coupon doc
+  directly — the only paths to coupon data are `validateCoupon` and
+  `placeOrder` (both Admin SDK, bypass rules), the same "customer client
+  never trusted with money-affecting data" precedent as `placeOrder`/
+  `cancelOrder`/`submitReturn`. Coupon CRUD itself (create/edit/soft-delete)
+  is a plain staff Firestore write from the admin UI, same as `products` —
+  no Cloud Function needed for CRUD, only for the two things that need
+  server trust (a live preview, and the drift-safety recompute).
 - `reconciliationLog` is **admin-only**, not staff — financial-integrity
   data is deliberately narrower than the general staff surface.
 - Customer scoping went through a real bug: an earlier rules revision
@@ -755,12 +809,22 @@ which would erase the staff/customer boundary for every path at once.
   after a single-field query — see [§3.6](#36-indexing-reality-vs-stated-convention).
   Treat this as accumulated debt to close, not a pattern to copy into new
   lists.
-- **No automated test suite or CI pipeline currently exists** for either
-  the Angular app or Cloud Functions, despite the detailed testing
-  philosophy this project documents (money-math assertions, stock-clamp
-  invariants, dual-run idempotency checks against the emulators). Treat
-  that philosophy as the intended standard to build toward, not a
-  description of current coverage.
+- **`isFullReturn` on `returns` is new, minimal tracking on a previously
+  untracked area** — the return model had no cumulative-quantity tracking
+  before this feature. It sums prior-approved + this return's quantities
+  against the order's items to decide whether `approveReturn` should
+  trigger the terminal coupon release. Accepted looseness, not a fully
+  solved invariant: a pending return later rejected via a direct client
+  write (bypassing the normal approve/reject flow) can leave a stale
+  cumulative picture. Treat as good enough for its one purpose (gating
+  coupon release), not as a general return-completeness ledger.
+- This section previously stated no automated test suite or CI pipeline
+  existed — stale as of this writing. Both exist: `.github/workflows/
+  ci.yml` runs lint/typecheck/build/test on every PR (see README.md §CI),
+  and `functions/src/*.spec.ts` covers money math, stock invariants,
+  idempotency, rules, and coupons against the Firebase emulators. See
+  `docs/SOFTWARE_ARCHITECTURE_DOCUMENT.md` §14 Roadmap & Deliberate
+  Trade-offs for the fuller history of that gap closing.
 
 ---
 
@@ -789,3 +853,5 @@ re-litigating any of these.
 | `outOfStockBehavior` global setting + per-product override, resolved via one helper | Needed a single place to reconcile "hide / show disabled / allow backorder" so stock-display logic never reads the global directly | An earlier plain boolean `allowBackorder` — replaced with the three-way enum plus override |
 | Social Media links merged into the Business Info settings card | Was briefly split into its own card, then consolidated for simpler UX | A standalone Social Media settings card |
 | Low-stock visibility conditional formatting removed | Simplified to "in stock" with no exact/vague count distinction shown to customers | Earlier three-tier `none`/`vague`/`exact` customer-facing display |
+| `coupons/{code}` uses the normalized code as the doc ID | Free uniqueness, O(1) lookup, no query needed | A generated ID + separate unique-code lookup/index |
+| Coupon release split into `releaseCoupons` (incremental) and `releaseAllCoupons` (terminal) | Conflating them either permanently leaks a redemption slot or permanently locks an order out of further redemption — see [§5.10](#510-coupon-release-is-two-functions-on-purpose-never-one) | A single release function reused for both cases |

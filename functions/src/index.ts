@@ -65,3 +65,11 @@ export * from "./domains/orders";
 // explicit pre-adoption check — confirmed byte-identical).
 export * from "./domains/field-ops-transactions";
 
+// Coupons: validateCoupon (advisory preview) and recomputeCouponUsage
+// (staff drift-safety sweep) — moved to domains/coupons.ts. Coupon
+// redemption/release itself lives in coupon-shared.ts and is called
+// directly from domains/orders.ts (placeOrder/createAdminOrder/
+// updateAdminOrder/saveOrderQuantityEdits/cancelOrder/cancelAdminOrder/
+// approveReturn), not exported as its own Cloud Function.
+export * from "./domains/coupons";
+
